@@ -1,23 +1,22 @@
 import React from 'react';
 import { Card, CardContent, Typography, Box } from '@mui/material';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { colorScheme, getRiskColor } from '../../utils/colorScheme';
 
 export default function DuplicateRiskChart({ data }) {
   if (!data || !data.duplicates || data.duplicates.length === 0) {
     return (
       <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2 }}>
         <CardContent>
-          <Typography variant="subtitle2" sx={{ mb: 2 }}>Duplicate Risk Distribution</Typography>
+          <Typography variant="subtitle2" sx={{ mb: 2 }}>Quantity of reviews over past year</Typography>
           <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Typography variant="body2" color="text.secondary">No duplicate risk data available</Typography>
+            <Typography variant="body2" color="text.secondary">No review data available</Typography>
           </Box>
         </CardContent>
       </Card>
     );
   }
 
-  // Group duplicates by risk level
+  // Group duplicates by risk level for the chart data
   const riskGroups = data.duplicates.reduce((acc, duplicate) => {
     const riskScore = duplicate.risk_score || 0;
     let riskLevel = 'LOW';
@@ -46,8 +45,7 @@ export default function DuplicateRiskChart({ data }) {
     riskLevel,
     count: details.count,
     amount: details.totalAmount,
-    transactions: details.totalTransactions,
-    color: getRiskColor(riskLevel)
+    transactions: details.totalTransactions
   }));
 
   const CustomTooltip = ({ active, payload, label }) => {
@@ -61,17 +59,17 @@ export default function DuplicateRiskChart({ data }) {
           p: 2,
           boxShadow: 2
         }}>
-          <Typography variant="body2" sx={{ fontWeight: 'bold', color: data.color }}>
-            {data.riskLevel} Risk
+          <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+            {label}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Duplicate Groups: {data.count}
+            Count: {data.count}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Total Amount: ${data.amount?.toLocaleString()}
+            Amount: ${data.amount?.toLocaleString()}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Total Transactions: {data.transactions}
+            Transactions: {data.transactions}
           </Typography>
         </Box>
       );
@@ -80,54 +78,24 @@ export default function DuplicateRiskChart({ data }) {
   };
 
   return (
-    <Card sx={{ 
-      height: '100%', 
-      borderRadius: 3, 
-      boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-      background: 'linear-gradient(135deg, #ffffff 0%, #fff8f0 100%)',
-      border: '1px solid rgba(255,255,255,0.2)',
-      overflow: 'hidden',
-      position: 'relative',
-      '&::before': {
-        content: '""',
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: '4px',
-        background: 'linear-gradient(90deg, #4BC0C0, #FFCE56, #FF9F40, #FF6384)',
-      }
-    }}>
-      <CardContent sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-          <Box sx={{ 
-            width: 40, 
-            height: 40, 
-            borderRadius: '50%', 
-            background: 'linear-gradient(135deg, #FF6384, #FF9F40)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            mr: 2
-          }}>
-            <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>⚠️</Typography>
-          </Box>
-          <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1a1a1a' }}>
-            Duplicate Risk Distribution
-          </Typography>
-        </Box>
-        <Box sx={{ height: 320 }}>
+    <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2 }}>
+      <CardContent>
+        <Typography variant="subtitle2" sx={{ mb: 2 }}>Quantity of reviews over past year</Typography>
+        <Box sx={{ height: 300 }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} barGap={8} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis 
                 dataKey="riskLevel" 
-                tick={{ fontSize: 14, fontWeight: 'bold', fill: '#666' }} 
+                tick={{ fontSize: 12 }} 
                 axisLine={false} 
                 tickLine={false}
+                angle={-45}
+                textAnchor="end"
+                height={80}
               />
               <YAxis 
-                tick={{ fontSize: 12, fill: '#666' }} 
+                tick={{ fontSize: 12 }} 
                 axisLine={false} 
                 tickLine={false}
               />
@@ -135,10 +103,16 @@ export default function DuplicateRiskChart({ data }) {
               <Bar 
                 dataKey="count" 
                 radius={[8, 8, 0, 0]}
-                fill={(entry) => entry.color}
+                fill="url(#barGradient)"
                 stroke="#ffffff"
                 strokeWidth={2}
               />
+              <defs>
+                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#925a9b" />
+                  <stop offset="100%" stopColor="#e0bdc8" />
+                </linearGradient>
+              </defs>
             </BarChart>
           </ResponsiveContainer>
         </Box>

@@ -84,6 +84,7 @@ const anomalyTypes = [
 ];
 
 export default function AnomalyAnalysisAccordion({ sheetId, anomalySummary }) {
+  console.log(sheetId, anomalySummary)
   const [expandedAccordion, setExpandedAccordion] = useState(null);
   const [loadingStates, setLoadingStates] = useState({});
   const [anomalyData, setAnomalyData] = useState({});

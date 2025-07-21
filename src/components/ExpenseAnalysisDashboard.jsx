@@ -78,7 +78,8 @@ export default function ExpenseAnalysisDashboard({ sheetData }) {
   const flaggedExpenses = sheetData.flagged_expenses;
   const anomaliesData = sheetData.anomalies_data;
   const advancedMetrics = sheetData.advanced_metrics;
-
+console.log("sheetData", sheetData)
+console.log("anomaliesData", anomaliesData)
   // Helper function to format currency
   const formatCurrency = (amount) => {
     const num = parseFloat(amount || 0);
@@ -901,7 +902,7 @@ export default function ExpenseAnalysisDashboard({ sheetData }) {
 
           {/* Anomaly Analysis Accordion */}
         <Grid item size={{xs: 12, md: 12}}>
-            <AnomalyAnalysisAccordion sheetData={sheetData} />
+            <AnomalyAnalysisAccordion sheetId={sheetData?.sheet_id} anomalySummary={anomaliesData?.anomaly_summary} />
           </Grid>
         </Grid>
     </Box>
