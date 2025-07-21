@@ -1,13 +1,13 @@
 // Consistent color scheme for all charts
 export const colorScheme = {
   // Primary colors
-  primary: '#0e766e',
+  primary: '#925A9B',
   secondary: '#36A2EB',
   accent: '#FFCE56',
   
   // Chart colors
   chartColors: [
-    '#0e766e', // Teal
+    '#925A9B', // Purple (Primary)
     '#36A2EB', // Blue
     '#FFCE56', // Yellow
     '#FF9F40', // Orange

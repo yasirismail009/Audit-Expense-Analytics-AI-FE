@@ -12,24 +12,38 @@ function TableListing() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [summary, setSummary] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    axios.get('http://localhost:8000/api/expenses/')
+    axios.get('http://localhost:8000/api/file-list/')
       .then(res => {
-        setRows(res.data);
+        // Handle new payload structure with files array
+        const files = res.data.files || res.data;
+        setRows(Array.isArray(files) ? files : []);
+        // Store summary if available
+        setSummary(res.data.summary || null);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((error) => {
+        console.error('Error fetching file list:', error);
+        setRows([]);
+        setSummary(null);
+        setLoading(false);
+      });
   }, []);
 
   const handleUploadSuccess = (data) => {
     // Refresh the data
-    axios.get('http://localhost:8000/api/expenses/')
+    axios.get('http://localhost:8000/api/file-list/')
       .then(res => {
-        setRows(res.data);
+        const files = res.data.files || res.data;
+        setRows(Array.isArray(files) ? files : []);
+        setSummary(res.data.summary || null);
       })
-      .catch(console.error);
+      .catch((error) => {
+        console.error('Error refreshing file list:', error);
+      });
   };
 
   return (
@@ -39,20 +53,47 @@ function TableListing() {
       <Box sx={{ flexGrow: 1, width: 'calc(100% - 240px)', display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <TopBar />
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 4 }}>
-          <Typography variant="h5" fontWeight={700} sx={{ mb: 3 }}>Expense Sheet Listing</Typography>
+          <Typography variant="h5" fontWeight={700} sx={{ mb: 3 }}>File Listing</Typography>
+          
+          {/* Summary Statistics */}
+          {summary && (
+            <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <Paper sx={{ p: 2, minWidth: 150, textAlign: 'center', bgcolor: '#e6faf5' }}>
+                <Typography variant="h6" color="#014D4E" fontWeight={700}>{summary.total_files}</Typography>
+                <Typography variant="body2" color="#64748B">Total Files</Typography>
+              </Paper>
+              <Paper sx={{ p: 2, minWidth: 150, textAlign: 'center', bgcolor: '#e6faf5' }}>
+                <Typography variant="h6" color="#014D4E" fontWeight={700}>{summary.total_records}</Typography>
+                <Typography variant="body2" color="#64748B">Total Records</Typography>
+              </Paper>
+              <Paper sx={{ p: 2, minWidth: 150, textAlign: 'center', bgcolor: '#e6faf5' }}>
+                <Typography variant="h6" color="#014D4E" fontWeight={700}>{summary.success_rate}%</Typography>
+                <Typography variant="body2" color="#64748B">Success Rate</Typography>
+              </Paper>
+            </Box>
+          )}
+
           {loading ? (
             <CircularProgress />
+          ) : rows.length === 0 ? (
+            <Paper sx={{ p: 4, textAlign: 'center', bgcolor: 'white' }}>
+              <Typography variant="h6" color="#64748B">No files found</Typography>
+              <Typography variant="body2" color="#64748B" sx={{ mt: 1 }}>
+                Upload your first file to get started
+              </Typography>
+            </Paper>
           ) : (
             <TableContainer component={Paper} sx={{ width: '100%', borderRadius: 3, boxShadow: '0 4px 24px 0 rgba(1,77,78,0.10)', mx: 'auto', bgcolor: 'white' }}>
               <Table>
                 <TableHead>
                   <TableRow sx={{ bgcolor: '#e6faf5' }}>
                     <TableCell sx={{ fontWeight: 700, color: '#014D4E' }}>ID</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: '#014D4E' }}>Name</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: '#014D4E' }}>Date</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: '#014D4E' }}>Total Expenses</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: '#014D4E' }}>Total Amount</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: '#014D4E' }}>File Name</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: '#014D4E' }}>Client Name</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: '#014D4E' }}>Fiscal Year</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: '#014D4E' }}>Total Records</TableCell>
                     <TableCell sx={{ fontWeight: 700, color: '#014D4E' }}>Status</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: '#014D4E' }}>Uploaded At</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -67,24 +108,22 @@ function TableListing() {
                       onClick={() => navigate(`/expense-sheet-details/${row.id}`)}
                     >
                       <TableCell>{row.id}</TableCell>
-                      <TableCell>{row.display_name}</TableCell>
-                      <TableCell>{row.sheet_date}</TableCell>
-                      <TableCell>{row.total_expenses}</TableCell>
-                      <TableCell>€ {row.total_amount}</TableCell>
+                      <TableCell>{row.file_name}</TableCell>
+                      <TableCell>{row.client_name}</TableCell>
+                      <TableCell>{row.fiscal_year}</TableCell>
+                      <TableCell>{row.total_records}</TableCell>
                       <TableCell>
-                        {row.analysis ? (
-                          <span
-                            style={{
-                              color: row.analysis.risk_level === 'LOW' ? '#00B686' : '#F43F5E',
-                              fontWeight: 700
-                            }}
-                          >
-                            {row.analysis.risk_level}
-                          </span>
-                        ) : (
-                          <span style={{ color: '#64748B', fontWeight: 500 }}>N/A</span>
-                        )}
+                        <span
+                          style={{
+                            color: row.status === 'COMPLETED' ? '#00B686' : 
+                                   row.status === 'PROCESSING' ? '#F59E0B' : '#F43F5E',
+                            fontWeight: 700
+                          }}
+                        >
+                          {row.status}
+                        </span>
                       </TableCell>
+                      <TableCell>{new Date(row.uploaded_at).toLocaleDateString()}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

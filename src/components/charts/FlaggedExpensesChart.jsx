@@ -44,13 +44,10 @@ export default function FlaggedExpensesChart({ flaggedExpenses, analysisSummary 
   };
 
   const getAnomalyType = (expense) => {
-    const anomalies = [];
-    if (expense.anomaly_flags?.amount_anomaly) anomalies.push('Amount');
-    if (expense.anomaly_flags?.timing_anomaly) anomalies.push('Timing');
-    if (expense.anomaly_flags?.vendor_anomaly) anomalies.push('Vendor');
-    if (expense.anomaly_flags?.employee_anomaly) anomalies.push('Employee');
-    if (expense.anomaly_flags?.duplicate_suspicion) anomalies.push('Duplicate');
-    return anomalies.join(', ') || 'Vendor';
+    if (expense.anomaly_type) {
+      return expense.anomaly_subtype || expense.anomaly_type;
+    }
+    return expense.is_high_value ? 'High Value' : 'Standard';
   };
 
   return (
@@ -109,10 +106,10 @@ export default function FlaggedExpensesChart({ flaggedExpenses, analysisSummary 
                   </TableCell>
                   <TableCell>
                     <Chip 
-                      label={`${expense.fraud_score?.toFixed(1)}%`}
+                      label={`${expense.risk_score || 0}`}
                       size="small"
                       sx={{ 
-                        backgroundColor: getRiskColor(expense.risk_level || getRiskLevel(expense.fraud_score)),
+                        backgroundColor: getRiskColor(expense.risk_level),
                         color: 'white',
                         fontWeight: 'bold',
                         fontSize: '0.75rem'
@@ -157,7 +154,7 @@ export default function FlaggedExpensesChart({ flaggedExpenses, analysisSummary 
               Total Flagged: {flaggedExpenses.length}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Avg Risk Score: {(flaggedExpenses.reduce((sum, exp) => sum + (exp.fraud_score || 0), 0) / flaggedExpenses.length).toFixed(1)}%
+              Avg Risk Score: {(flaggedExpenses.reduce((sum, exp) => sum + (exp.risk_score || 0), 0) / flaggedExpenses.length).toFixed(1)}
             </Typography>
             <Typography variant="caption" color="text.secondary">
               Total Amount: ${flaggedExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0).toLocaleString()}

@@ -46,7 +46,7 @@ export default function CategoryExpensesChart({ data }) {
   };
 
   return (
-    <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2 }}>
+    <Card sx={{ width: '100%', borderRadius: 3, boxShadow: 2 }}>
       <CardContent>
         <Typography variant="subtitle2" sx={{ mb: 2 }}>Category Expenses</Typography>
         <Box sx={{ height: 300 }}>

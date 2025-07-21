@@ -5,7 +5,6 @@ import { colorScheme, getColorByIndex } from '../../utils/colorScheme';
 
 export default function EmployeeExpensesChart({ data }) {
   // Debug logging to check data structure
-  console.log('EmployeeExpensesChart received data:', data);
 
   // Create fallback data if no data is provided
   const fallbackData = {
@@ -17,7 +16,6 @@ export default function EmployeeExpensesChart({ data }) {
   const chartData = data || fallbackData;
 
   if (!chartData.labels || !chartData.data || !Array.isArray(chartData.labels) || !Array.isArray(chartData.data)) {
-    console.log('EmployeeExpensesChart: Using fallback data due to invalid structure');
     return (
       <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2 }}>
         <CardContent>
@@ -34,7 +32,6 @@ export default function EmployeeExpensesChart({ data }) {
 
   // Ensure we have at least one data point
   if (chartData.labels.length === 0 || chartData.data.length === 0) {
-    console.log('EmployeeExpensesChart: Empty data arrays, using fallback');
     return (
       <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2 }}>
         <CardContent>
@@ -56,12 +53,10 @@ export default function EmployeeExpensesChart({ data }) {
     color: chartData.colors && chartData.colors[index] ? chartData.colors[index] : getColorByIndex(index)
   }));
 
-  console.log('EmployeeExpensesChart: Processed data:', processedData);
 
   // Sort by amount (highest first) for better visualization
   const sortedData = processedData.sort((a, b) => b.amount - a.amount);
 
-  console.log('EmployeeExpensesChart: Sorted data:', sortedData);
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
@@ -86,7 +81,7 @@ export default function EmployeeExpensesChart({ data }) {
   };
 
   return (
-    <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2 }}>
+    <Card sx={{ width: '100%', borderRadius: 3, boxShadow: 2 }}>
       <CardContent>
         <Typography variant="subtitle2" sx={{ mb: 2 }}>Employee Expenses</Typography>
         

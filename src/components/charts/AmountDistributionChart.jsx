@@ -66,7 +66,7 @@ export default function AmountDistributionChart({ data }) {
               <Tooltip content={<CustomTooltip />} />
               <Bar 
                 dataKey="count" 
-                fill={colorScheme.chartColors[5]} // Purple
+                fill="#925A9B"
                 radius={[6, 6, 0, 0]}
               />
             </BarChart>

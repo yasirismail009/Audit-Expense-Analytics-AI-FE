@@ -33,7 +33,7 @@ export default function SummaryInsightsChart({ sheetData, analysisSummary }) {
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'SAR',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);

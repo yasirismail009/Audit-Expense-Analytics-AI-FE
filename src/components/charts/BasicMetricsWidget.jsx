@@ -29,7 +29,7 @@ export default function BasicMetricsWidget({ basicMetrics }) {
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'SAR',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
@@ -163,7 +163,7 @@ export default function BasicMetricsWidget({ basicMetrics }) {
             </Grid>
             <Grid item xs={12} sm={6}>
               <Typography variant="body2" color="text.secondary">
-                • Daily average: {date_range_days ? formatCurrency(total_amount / date_range_days) : '$0'}
+                • Daily average: {date_range_days ? formatCurrency(total_amount / date_range_days) : '0 SAR'}
               </Typography>
             </Grid>
           </Grid>

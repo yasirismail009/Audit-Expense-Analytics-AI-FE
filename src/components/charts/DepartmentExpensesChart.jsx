@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, Typography, Box } from '@mui/material';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { colorScheme, getColorByIndex } from '../../utils/colorScheme';
 
 export default function DepartmentExpensesChart({ data }) {
@@ -18,12 +18,12 @@ export default function DepartmentExpensesChart({ data }) {
   }
 
   const chartData = data.labels.map((label, index) => ({
-    name: label,
-    value: data.data[index],
+    department: label,
+    amount: data.data[index],
     color: getColorByIndex(index)
   }));
 
-  const CustomTooltip = ({ active, payload }) => {
+  const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
         <Box sx={{ 
@@ -34,7 +34,7 @@ export default function DepartmentExpensesChart({ data }) {
           boxShadow: 2
         }}>
           <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-            {payload[0].name}
+            {label}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             ${payload[0].value.toLocaleString()}
@@ -51,28 +51,38 @@ export default function DepartmentExpensesChart({ data }) {
         <Typography variant="subtitle2" sx={{ mb: 2 }}>Department Expenses</Typography>
         <Box sx={{ height: 300 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={chartData}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={100}
-                paddingAngle={5}
-                dataKey="value"
-              >
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-              <Legend 
-                layout="vertical" 
-                verticalAlign="middle" 
-                align="right"
-                wrapperStyle={{ fontSize: '12px' }}
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id="purpleGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#925A9B" stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor="#925A9B" stopOpacity={0.1}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis 
+                dataKey="department" 
+                tick={{ fontSize: 12 }} 
+                axisLine={false} 
+                tickLine={false}
+                angle={-45}
+                textAnchor="end"
+                height={80}
               />
-            </PieChart>
+              <YAxis 
+                tick={{ fontSize: 12 }} 
+                axisLine={false} 
+                tickLine={false}
+                tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Area 
+                type="monotone" 
+                dataKey="amount" 
+                stroke="#925A9B"
+                strokeWidth={3}
+                fill="url(#purpleGradient)"
+              />
+            </AreaChart>
           </ResponsiveContainer>
         </Box>
       </CardContent>

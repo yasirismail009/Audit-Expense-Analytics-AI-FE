@@ -7,6 +7,7 @@ import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import EuroIcon from '@mui/icons-material/Euro';
+import logo from '../assets/full_logo.svg';
 
 const navItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, active: true , link: '/'},
@@ -39,8 +40,7 @@ export default function Sidebar() {
       }}
     >
       <Box sx={{ px: 3, pb: 2, display: 'flex', alignItems: 'center' }}>
-        <Avatar sx={{ mr: 1, bgcolor: '#1976d2', width: 36, height: 36, fontWeight: 700 }}>A</Avatar>
-        <Typography variant="h6" fontWeight={700} sx={{ color: '#014D4E', letterSpacing: 0.5 }}>Analytics</Typography>
+        <img src={logo} alt="logo" style={{ width: 100, height: 100 }} />
       </Box>
       <Divider sx={{ mb: 1 }} />
       <List sx={{ px: 1 }}>
@@ -50,16 +50,16 @@ export default function Sidebar() {
             sx={{
               mb: 0.5,
               borderRadius: 2,
-              bgcolor: item.active ? '#e6faf5' : 'transparent',
-              color: item.active ? '#00B686' : '#334155',
+              bgcolor: item.active ? '#fae2ff' : 'transparent',
+              color: item.active ? '#925A9B' : '#334155',
               fontWeight: item.active ? 700 : 500,
-              '&:hover': { bgcolor: '#e6faf5', color: '#00B686' },
+              '&:hover': { bgcolor: '#fae2ff', color: '#00B686' },
               px: 2,
               py: 1.2,
               cursor: 'pointer',
             }}
           >
-            <ListItemIcon sx={{ color: item.active ? '#00B686' : '#94a3b8', minWidth: 36 }}>{item.icon}</ListItemIcon>
+            <ListItemIcon sx={{ color: item.active ? '#925A9B' : '#94a3b8', minWidth: 36 }}>{item.icon}</ListItemIcon>
             <ListItemText primary={item.text} primaryTypographyProps={{ fontWeight: item.active ? 700 : 500, fontSize: 15 }} />
           </ListItem>
         ))}
@@ -94,9 +94,9 @@ export default function Sidebar() {
           <Switch size="small" />
         </Box> */}
         <Box display="flex" alignItems="center" mt={2}>
-          <Avatar sx={{ width: 32, height: 32, mr: 1, bgcolor: '#e6faf5', color: '#00B686', fontWeight: 700 }}>M</Avatar>
+          <Avatar sx={{ width: 32, height: 32, mr: 1, bgcolor: '#f6c9ff', color: '#925A9B', fontWeight: 700 }}>M</Avatar>
           <Box>
-            <Typography variant="body2" fontWeight={700} color="#014D4E">M Yasir Ismail</Typography>
+            <Typography variant="body2" fontWeight={700} color="#925A9B">M Yasir Ismail</Typography>
             <Typography variant="caption" color="#64748B">yasirismail321@gmail.com</Typography>
           </Box>
         </Box>

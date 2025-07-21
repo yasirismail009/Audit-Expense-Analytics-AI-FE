@@ -44,7 +44,7 @@ export default function FlaggedExpenseDrawer({ open, onClose, flaggedExpense }) 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'SAR',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
@@ -79,18 +79,16 @@ export default function FlaggedExpenseDrawer({ open, onClose, flaggedExpense }) 
 
   const getAnomalyIcon = (type) => {
     switch (type) {
-      case 'amount_anomaly': return <MoneyIcon />;
-      case 'timing_anomaly': return <CalendarIcon />;
-      case 'vendor_anomaly': return <BusinessIcon />;
-      case 'employee_anomaly': return <PersonIcon />;
-      case 'duplicate_suspicion': return <TrendingUpIcon />;
+      case 'Duplicate': return <TrendingUpIcon />;
+      case 'Backdated': return <CalendarIcon />;
+      case 'Timing': return <CalendarIcon />;
+      case 'High Value': return <MoneyIcon />;
       default: return <WarningIcon />;
     }
   };
 
-  const fraudScoreBreakdown = flaggedExpense.fraud_score_breakdown || {};
-  const anomalyReasons = flaggedExpense.anomaly_reasons || [];
-  const anomalyFlags = flaggedExpense.anomaly_flags || {};
+  const anomalyType = flaggedExpense.anomaly_type || (flaggedExpense.is_high_value ? 'High Value' : 'Standard');
+  const anomalyDescription = flaggedExpense.description || 'No specific anomaly detected';
 
   return (
     <Drawer
@@ -128,7 +126,7 @@ export default function FlaggedExpenseDrawer({ open, onClose, flaggedExpense }) 
             <Grid container spacing={2} alignItems="center">
               <Grid item>
                 <Typography variant="h5" sx={{ fontWeight: 'bold', color: colorScheme.textPrimary }}>
-                  Expense #{flaggedExpense.expense_id}
+                  Transaction #{flaggedExpense.document_number}
                 </Typography>
               </Grid>
               <Grid item>
@@ -145,17 +143,17 @@ export default function FlaggedExpenseDrawer({ open, onClose, flaggedExpense }) 
             </Grid>
           </Box>
 
-          {/* Fraud Score Alert */}
+          {/* Risk Score Alert */}
           <Alert 
-            severity={flaggedExpense.fraud_score > 60 ? 'error' : 
-                     flaggedExpense.fraud_score > 40 ? 'warning' : 'info'}
+            severity={flaggedExpense.risk_score > 40 ? 'error' : 
+                     flaggedExpense.risk_score > 25 ? 'warning' : 'info'}
             sx={{ mb: 3 }}
           >
             <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-              Fraud Score: {flaggedExpense.fraud_score?.toFixed(1)}%
+              Risk Score: {flaggedExpense.risk_score || 0}
             </Typography>
             <Typography variant="body2">
-              This expense has been flagged due to {anomalyReasons.length} detected anomaly{anomalyReasons.length !== 1 ? 'ies' : ''}.
+              {anomalyDescription}
             </Typography>
           </Alert>
 
@@ -190,16 +188,16 @@ export default function FlaggedExpenseDrawer({ open, onClose, flaggedExpense }) 
                   </Typography>
                 </Box>
               </Grid>
-              <Grid item xs={6} sm={3}>
-                <Box sx={{ textAlign: 'center', p: 2, backgroundColor: colorScheme.background, borderRadius: 2 }}>
-                  <Typography variant="caption" color="text.secondary" display="block">
-                    Department
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                    {flaggedExpense.department}
-                  </Typography>
-                </Box>
-              </Grid>
+                                <Grid item xs={6} sm={3}>
+                    <Box sx={{ textAlign: 'center', p: 2, backgroundColor: colorScheme.background, borderRadius: 2 }}>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Profit Center
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                        {flaggedExpense.profit_center || 'N/A'}
+                      </Typography>
+                    </Box>
+                  </Grid>
               <Grid item xs={6} sm={3}>
                 <Box sx={{ textAlign: 'center', p: 2, backgroundColor: colorScheme.background, borderRadius: 2 }}>
                   <Typography variant="caption" color="text.secondary" display="block">
@@ -213,44 +211,77 @@ export default function FlaggedExpenseDrawer({ open, onClose, flaggedExpense }) 
             </Grid>
           </Paper>
 
-          {/* Fraud Score Breakdown */}
+          {/* Risk Score Breakdown */}
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: colorScheme.primary }}>
-              Fraud Score Breakdown
+              Risk Assessment
             </Typography>
             <Grid container spacing={2}>
-              {Object.entries(fraudScoreBreakdown).map(([key, value]) => {
-                if (key === 'total_score') return null;
-                return (
-                  <Grid item xs={6} sm={4} key={key}>
-                    <Box sx={{ 
-                      textAlign: 'center', 
-                      p: 2, 
-                      backgroundColor: value > 0 ? colorScheme.background : 'transparent',
-                      borderRadius: 2,
-                      border: value > 0 ? `2px solid ${getSeverityColor(value > 20 ? 'HIGH' : value > 10 ? 'MEDIUM' : 'LOW')}` : 'none'
-                    }}>
-                      <Typography variant="caption" color="text.secondary" display="block">
-                        {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </Typography>
-                      <Typography variant="h6" sx={{ 
-                        fontWeight: 'bold', 
-                        color: value > 0 ? getSeverityColor(value > 20 ? 'HIGH' : value > 10 ? 'MEDIUM' : 'LOW') : colorScheme.textSecondary
-                      }}>
-                        {value}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                );
-              })}
+              <Grid item xs={6} sm={4}>
+                <Box sx={{ 
+                  textAlign: 'center', 
+                  p: 2, 
+                  backgroundColor: colorScheme.background,
+                  borderRadius: 2,
+                  border: `2px solid ${getSeverityColor(flaggedExpense.risk_level)}`
+                }}>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Risk Level
+                  </Typography>
+                  <Typography variant="h6" sx={{ 
+                    fontWeight: 'bold', 
+                    color: getSeverityColor(flaggedExpense.risk_level)
+                  }}>
+                    {flaggedExpense.risk_level}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <Box sx={{ 
+                  textAlign: 'center', 
+                  p: 2, 
+                  backgroundColor: colorScheme.background,
+                  borderRadius: 2,
+                  border: `2px solid ${getSeverityColor(flaggedExpense.risk_level)}`
+                }}>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Risk Score
+                  </Typography>
+                  <Typography variant="h6" sx={{ 
+                    fontWeight: 'bold', 
+                    color: getSeverityColor(flaggedExpense.risk_level)
+                  }}>
+                    {flaggedExpense.risk_score || 0}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <Box sx={{ 
+                  textAlign: 'center', 
+                  p: 2, 
+                  backgroundColor: colorScheme.background,
+                  borderRadius: 2,
+                  border: `2px solid ${getSeverityColor(flaggedExpense.risk_level)}`
+                }}>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    High Value
+                  </Typography>
+                  <Typography variant="h6" sx={{ 
+                    fontWeight: 'bold', 
+                    color: flaggedExpense.is_high_value ? colorScheme.error : colorScheme.success
+                  }}>
+                    {flaggedExpense.is_high_value ? 'Yes' : 'No'}
+                  </Typography>
+                </Box>
+              </Grid>
               <Grid item xs={12}>
                 <Divider sx={{ my: 2 }} />
                 <Box sx={{ textAlign: 'center', p: 2, backgroundColor: colorScheme.primary, borderRadius: 2, color: 'white' }}>
                   <Typography variant="caption" display="block">
-                    Total Fraud Score
+                    Anomaly Type
                   </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-                    {fraudScoreBreakdown.total_score || flaggedExpense.fraud_score?.toFixed(1)}%
+                  <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
+                    {anomalyType}
                   </Typography>
                 </Box>
               </Grid>
@@ -260,88 +291,72 @@ export default function FlaggedExpenseDrawer({ open, onClose, flaggedExpense }) 
           {/* Anomaly Details */}
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: colorScheme.primary }}>
-              Detected Anomalies
+              Anomaly Details
             </Typography>
-            {anomalyReasons.length > 0 ? (
+            {flaggedExpense.anomaly_type ? (
               <List>
-                {anomalyReasons.map((anomaly, index) => (
-                  <ListItem key={index} sx={{ 
-                    mb: 2, 
-                    backgroundColor: colorScheme.background, 
-                    borderRadius: 2,
-                    border: `2px solid ${getSeverityColor(anomaly.severity)}`
-                  }}>
-                    <ListItemIcon sx={{ color: getSeverityColor(anomaly.severity) }}>
-                      {getAnomalyIcon(anomaly.type)}
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                          <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                            {anomaly.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                <ListItem sx={{ 
+                  mb: 2, 
+                  backgroundColor: colorScheme.background, 
+                  borderRadius: 2,
+                  border: `2px solid ${getSeverityColor(flaggedExpense.risk_level)}`
+                }}>
+                  <ListItemIcon sx={{ color: getSeverityColor(flaggedExpense.risk_level) }}>
+                    {getAnomalyIcon(flaggedExpense.anomaly_type)}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                          {flaggedExpense.anomaly_subtype || flaggedExpense.anomaly_type}
+                        </Typography>
+                        <Chip 
+                          label={flaggedExpense.risk_level} 
+                          size="small"
+                          sx={{ 
+                            backgroundColor: getSeverityColor(flaggedExpense.risk_level),
+                            color: 'white',
+                            fontWeight: 'bold'
+                          }}
+                        />
+                      </Box>
+                    }
+                    secondary={
+                      <Box>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                          {anomalyDescription}
+                        </Typography>
+                        <Box sx={{ mt: 2 }}>
+                          <Typography variant="caption" sx={{ fontWeight: 'bold', display: 'block', mb: 1 }}>
+                            Transaction Details:
                           </Typography>
-                          <Chip 
-                            label={anomaly.severity} 
-                            size="small"
-                            sx={{ 
-                              backgroundColor: getSeverityColor(anomaly.severity),
-                              color: 'white',
-                              fontWeight: 'bold'
-                            }}
-                          />
+                          <Grid container spacing={1}>
+                            <Grid item xs={6}>
+                              <Typography variant="caption" color="text.secondary">
+                                Document Number: {flaggedExpense.document_number}
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={6}>
+                              <Typography variant="caption" color="text.secondary">
+                                Transaction Type: {flaggedExpense.transaction_type}
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={6}>
+                              <Typography variant="caption" color="text.secondary">
+                                Currency: {flaggedExpense.currency}
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={6}>
+                              <Typography variant="caption" color="text.secondary">
+                                Status: {flaggedExpense.status}
+                              </Typography>
+                            </Grid>
+                          </Grid>
                         </Box>
-                      }
-                      secondary={
-                        <Box>
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                            {anomaly.reason}
-                          </Typography>
-                          {anomaly.details && (
-                            <Accordion sx={{ backgroundColor: 'transparent', boxShadow: 'none' }}>
-                              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
-                                  View Details
-                                </Typography>
-                              </AccordionSummary>
-                              <AccordionDetails>
-                                <TableContainer>
-                                  <Table size="small">
-                                    <TableHead>
-                                      <TableRow>
-                                        <TableCell sx={{ fontWeight: 'bold' }}>Metric</TableCell>
-                                        <TableCell sx={{ fontWeight: 'bold' }}>Value</TableCell>
-                                      </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                      {Object.entries(anomaly.details).map(([key, value]) => (
-                                        <TableRow key={key}>
-                                          <TableCell>
-                                            <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
-                                              {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                            </Typography>
-                                          </TableCell>
-                                          <TableCell>
-                                            <Typography variant="caption">
-                                              {typeof value === 'number' && value > 1000 
-                                                ? formatCurrency(value) 
-                                                : typeof value === 'number' 
-                                                  ? value.toFixed(2) 
-                                                  : value}
-                                            </Typography>
-                                          </TableCell>
-                                        </TableRow>
-                                      ))}
-                                    </TableBody>
-                                  </Table>
-                                </TableContainer>
-                              </AccordionDetails>
-                            </Accordion>
-                          )}
-                        </Box>
-                      }
-                    />
-                  </ListItem>
-                ))}
+                      </Box>
+                    }
+                  />
+                </ListItem>
               </List>
             ) : (
               <Typography variant="body2" color="text.secondary">
@@ -350,54 +365,36 @@ export default function FlaggedExpenseDrawer({ open, onClose, flaggedExpense }) 
             )}
           </Paper>
 
-          {/* Vendor and Category Information */}
+          {/* Account and Category Information */}
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: colorScheme.primary }}>
-              Vendor & Category Details
+              Account & Category Details
             </Typography>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <Box sx={{ p: 2, backgroundColor: colorScheme.background, borderRadius: 2 }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
-                    Vendor Information
+                    GL Account
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 'bold', color: colorScheme.primary }}>
-                    {flaggedExpense.vendor}
+                    {flaggedExpense.category}
                   </Typography>
-                  {anomalyFlags.vendor_anomaly && (
-                    <Chip 
-                      label="Vendor Anomaly Detected" 
-                      size="small"
-                      sx={{ 
-                        mt: 1,
-                        backgroundColor: colorScheme.warning,
-                        color: 'white',
-                        fontWeight: 'bold'
-                      }}
-                    />
-                  )}
+                  <Typography variant="caption" color="text.secondary">
+                    General Ledger Account Number
+                  </Typography>
                 </Box>
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Box sx={{ p: 2, backgroundColor: colorScheme.background, borderRadius: 2 }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
-                    Category Information
+                    Profit Center
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 'bold', color: colorScheme.primary }}>
-                    {flaggedExpense.category}
+                    {flaggedExpense.profit_center || 'N/A'}
                   </Typography>
-                  {anomalyFlags.employee_anomaly && (
-                    <Chip 
-                      label="Category Anomaly Detected" 
-                      size="small"
-                      sx={{ 
-                        mt: 1,
-                        backgroundColor: colorScheme.warning,
-                        color: 'white',
-                        fontWeight: 'bold'
-                      }}
-                    />
-                  )}
+                  <Typography variant="caption" color="text.secondary">
+                    Profit Center Code
+                  </Typography>
                 </Box>
               </Grid>
             </Grid>
@@ -409,58 +406,69 @@ export default function FlaggedExpenseDrawer({ open, onClose, flaggedExpense }) 
               Recommendations
             </Typography>
             <List>
-              {flaggedExpense.fraud_score > 60 && (
+              {flaggedExpense.risk_score > 40 && (
                 <ListItem>
                   <ListItemIcon sx={{ color: colorScheme.error }}>
                     <ErrorIcon />
                   </ListItemIcon>
                   <ListItemText 
                     primary="Immediate Review Required"
-                    secondary="This expense has a high fraud score and should be reviewed immediately by management."
+                    secondary="This transaction has a high risk score and should be reviewed immediately by management."
                   />
                 </ListItem>
               )}
-              {anomalyFlags.amount_anomaly && (
+              {flaggedExpense.anomaly_type === 'Duplicate' && (
                 <ListItem>
                   <ListItemIcon sx={{ color: colorScheme.warning }}>
                     <WarningIcon />
                   </ListItemIcon>
                   <ListItemText 
-                    primary="Amount Verification"
-                    secondary="Verify the expense amount and obtain additional documentation if necessary."
+                    primary="Duplicate Verification"
+                    secondary="Verify this is not a duplicate transaction and check for similar entries in the system."
                   />
                 </ListItem>
               )}
-              {anomalyFlags.vendor_anomaly && (
-                <ListItem>
-                  <ListItemIcon sx={{ color: colorScheme.info }}>
-                    <InfoIcon />
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary="Vendor Verification"
-                    secondary="Verify vendor legitimacy and check if this vendor is approved for company expenses."
-                  />
-                </ListItem>
-              )}
-              {anomalyFlags.timing_anomaly && (
+              {flaggedExpense.anomaly_type === 'Backdated' && (
                 <ListItem>
                   <ListItemIcon sx={{ color: colorScheme.info }}>
                     <CalendarIcon />
                   </ListItemIcon>
                   <ListItemText 
                     primary="Timing Review"
-                    secondary="Review the timing of this expense and verify it aligns with business activities."
+                    secondary="Review the posting date and verify it aligns with the actual transaction date."
                   />
                 </ListItem>
               )}
-              {anomalyFlags.duplicate_suspicion && (
+              {flaggedExpense.anomaly_type === 'Timing' && (
                 <ListItem>
-                  <ListItemIcon sx={{ color: colorScheme.warning }}>
-                    <TrendingUpIcon />
+                  <ListItemIcon sx={{ color: colorScheme.info }}>
+                    <CalendarIcon />
                   </ListItemIcon>
                   <ListItemText 
-                    primary="Duplicate Check"
-                    secondary="Check for potential duplicate expenses and verify this is not a duplicate submission."
+                    primary="Month-End Review"
+                    secondary="Verify this closing entry is legitimate and properly authorized."
+                  />
+                </ListItem>
+              )}
+              {flaggedExpense.is_high_value && (
+                <ListItem>
+                  <ListItemIcon sx={{ color: colorScheme.warning }}>
+                    <MoneyIcon />
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary="High Value Verification"
+                    secondary="Obtain additional documentation and approval for this high-value transaction."
+                  />
+                </ListItem>
+              )}
+              {!flaggedExpense.anomaly_type && !flaggedExpense.is_high_value && (
+                <ListItem>
+                  <ListItemIcon sx={{ color: colorScheme.info }}>
+                    <InfoIcon />
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary="Standard Review"
+                    secondary="Perform standard review procedures for this transaction."
                   />
                 </ListItem>
               )}

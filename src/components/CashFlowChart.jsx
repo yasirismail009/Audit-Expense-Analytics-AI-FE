@@ -42,7 +42,7 @@ export default function CashFlowChart() {
               <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
               <Tooltip />
-              <Bar dataKey="income" fill="#0e766e" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="income" fill="#925A9B" radius={[6, 6, 0, 0]} />
               <Bar dataKey="expense" fill="#14b8a6" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
