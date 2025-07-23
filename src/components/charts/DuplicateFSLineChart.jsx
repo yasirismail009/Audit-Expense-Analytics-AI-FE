@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, Typography, Box } from '@mui/material';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
+export default function DuplicateFSLineChart({ data, currency = 'SAR' }) {
   // Helper function to format currency
   const formatCurrency = (amount) => {
     const num = parseFloat(amount || 0);
@@ -19,15 +19,15 @@ export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
   };
 
   // Check for new data structure first, then fallback to old structure
-  const chartData = data?.chart_data?.risk_level_chart || data?.duplicates;
+  const chartData = data?.chart_data?.fs_line_chart || data?.fs_line_breakdown;
 
   if (!data || !chartData || (Array.isArray(chartData) && chartData.length === 0)) {
     return (
       <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2 }}>
         <CardContent>
-          <Typography variant="subtitle2" sx={{ mb: 2 }}>Risk Level Distribution</Typography>
+          <Typography variant="subtitle2" sx={{ mb: 2 }}>Financial Statement Line Breakdown</Typography>
           <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Typography variant="body2" color="text.secondary">No risk level data available</Typography>
+            <Typography variant="body2" color="text.secondary">No FS line data available</Typography>
           </Box>
         </CardContent>
       </Card>
@@ -36,47 +36,25 @@ export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
 
   // Transform data based on structure
   let transformedData;
-  if (Array.isArray(chartData) && chartData.length > 0 && chartData[0].risk_level) {
-    // New structure: chart_data.risk_level_chart is an array with risk_level property
-    transformedData = chartData
-      .filter(item => item.duplicate_groups > 0) // Only show risk levels with data
-      .map((item, index) => ({
-        riskLevel: item.risk_level,
-        count: item.duplicate_groups,
-        amount: item.total_amount,
-        transactions: item.transactions
-      }));
+  if (Array.isArray(chartData) && chartData.length > 0 && chartData[0].gl_account) {
+    // New structure: chart_data.fs_line_chart is an array with gl_account property
+    transformedData = chartData.map((item, index) => ({
+      glAccount: item.gl_account,
+      duplicateGroups: item.duplicate_groups,
+      transactions: item.transactions,
+      totalAmount: item.total_amount,
+      debitAmount: item.debit_amount,
+      creditAmount: item.credit_amount
+    }));
   } else {
-    // Old structure: duplicates array - group by risk level
-    const riskGroups = chartData.reduce((acc, duplicate) => {
-      const riskScore = duplicate.risk_score || 0;
-      let riskLevel = 'LOW';
-      if (riskScore >= 80) riskLevel = 'CRITICAL';
-      else if (riskScore >= 60) riskLevel = 'HIGH';
-      else if (riskScore >= 40) riskLevel = 'MEDIUM';
-
-      if (!acc[riskLevel]) {
-        acc[riskLevel] = {
-          count: 0,
-          totalAmount: 0,
-          totalTransactions: 0,
-          duplicates: []
-        };
-      }
-      
-      acc[riskLevel].count += 1;
-      acc[riskLevel].totalAmount += duplicate.amount || 0;
-      acc[riskLevel].totalTransactions += duplicate.count || 0;
-      acc[riskLevel].duplicates.push(duplicate);
-      
-      return acc;
-    }, {});
-
-    transformedData = Object.entries(riskGroups).map(([riskLevel, details]) => ({
-      riskLevel,
-      count: details.count,
-      amount: details.totalAmount,
-      transactions: details.totalTransactions
+    // Old structure: fs_line_breakdown object
+    transformedData = Object.entries(chartData).map(([account, details]) => ({
+      glAccount: account,
+      duplicateGroups: details.duplicate_groups || 0,
+      transactions: details.transactions || 0,
+      totalAmount: details.amount || 0,
+      debitAmount: details.debit_amount || 0,
+      creditAmount: details.credit_amount || 0
     }));
   }
 
@@ -95,13 +73,19 @@ export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
             {label}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Count: {data.count}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Amount: {formatCurrency(data.amount)}
+            Duplicate Groups: {data.duplicateGroups}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Transactions: {data.transactions}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Total Amount: {formatCurrency(data.totalAmount)}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Debit: {formatCurrency(data.debitAmount)}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Credit: {formatCurrency(data.creditAmount)}
           </Typography>
         </Box>
       );
@@ -112,13 +96,13 @@ export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
   return (
     <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2 }}>
       <CardContent>
-        <Typography variant="subtitle2" sx={{ mb: 2 }}>Risk Level Distribution</Typography>
+        <Typography variant="subtitle2" sx={{ mb: 2 }}>Financial Statement Line Breakdown</Typography>
         <Box sx={{ height: 300 }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={transformedData} barGap={8} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis 
-                dataKey="riskLevel" 
+                dataKey="glAccount" 
                 tick={{ fontSize: 12 }} 
                 axisLine={false} 
                 tickLine={false}
@@ -133,7 +117,7 @@ export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
               />
               <Tooltip content={<CustomTooltip />} />
               <Bar 
-                dataKey="count" 
+                dataKey="duplicateGroups" 
                 radius={[8, 8, 0, 0]}
                 fill="url(#barGradient)"
                 stroke="#ffffff"

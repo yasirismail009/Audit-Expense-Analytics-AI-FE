@@ -24,15 +24,24 @@ import {
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart } from 'recharts';
 import { getRiskColor, getColorByIndex } from '../../../utils/colorScheme';
 
-export default function ColorCodedDuplicateList({ data }) {
+export default function ColorCodedDuplicateList({ data, currency = 'SAR' }) {
+  // Helper function to format currency
+  const formatCurrency = (amount) => {
+    const num = parseFloat(amount || 0);
+    
+    if (num >= 1000000000000) {
+      return `${(num / 1000000000000).toFixed(1)}T ${currency}`;
+    } else if (num >= 1000000) {
+      return `${(num / 1000000).toFixed(1)}M ${currency}`;
+    } else if (num >= 1000) {
+      return `${(num / 1000).toFixed(1)}K ${currency}`;
+    } else {
+      return `${num.toFixed(0)} ${currency}`;
+    }
+  };
+
   if (!data || !data.duplicates || data.duplicates.length === 0) {
-    return (
-      <Paper sx={{ p: 3, textAlign: 'center', borderRadius: 3, boxShadow: 2 }}>
-        <Typography variant="body1" color="text.secondary">
-          No duplicate data available
-        </Typography>
-      </Paper>
-    );
+    return null;
   }
 
   const getRiskLevel = (score) => {
@@ -166,13 +175,13 @@ export default function ColorCodedDuplicateList({ data }) {
       }
 
       if (amount >= 50000) {
-        groupKey = 'High Amount ($50K+)';
+        groupKey = `High Amount (${currency} 50K+)`;
       } else if (amount >= 10000) {
-        groupKey = 'Medium Amount ($10K-50K)';
+        groupKey = `Medium Amount (${currency} 10K-50K)`;
       } else if (amount >= 1000) {
-        groupKey = 'Low Amount ($1K-10K)';
+        groupKey = `Low Amount (${currency} 1K-10K)`;
       } else {
-        groupKey = 'Very Low Amount (<$1K)';
+        groupKey = `Very Low Amount (<${currency} 1K)`;
       }
 
       if (!groups[groupKey]) {
@@ -285,7 +294,7 @@ export default function ColorCodedDuplicateList({ data }) {
 
                   <Box sx={{ mb: 2 }}>
                     <Typography variant="body2" color="text.secondary">
-                      Total Amount: ${groupData.totalAmount.toLocaleString()}
+                      Total Amount: {formatCurrency(groupData.totalAmount)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Total Transactions: {groupData.totalCount}
@@ -319,7 +328,7 @@ export default function ColorCodedDuplicateList({ data }) {
                             formatter={(value, name, props) => {
                               const data = props.payload;
                               if (name === 'amountScaled') {
-                                return [`$${data.amount.toLocaleString()}`, 'Amount'];
+                                return [formatCurrency(data.amount), 'Amount'];
                               } else if (name === 'risk') {
                                 return [value, 'Risk Score'];
                               }
@@ -389,7 +398,7 @@ export default function ColorCodedDuplicateList({ data }) {
                           secondary={
                             <Box>
                               <Typography variant="caption" color="text.secondary">
-                                Amount: ${(duplicate.amount || 0).toLocaleString()}
+                                Amount: {formatCurrency(duplicate.amount || 0)}
                               </Typography>
                               {duplicate.risk_score && (
                                 <Chip 

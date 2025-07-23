@@ -51,9 +51,9 @@ export default function Sidebar() {
               mb: 0.5,
               borderRadius: 2,
               bgcolor: item.active ? '#fae2ff' : 'transparent',
-              color: item.active ? '#925A9B' : '#334155',
+              color: item.active ? '#9A5FA3' : '#334155',
               fontWeight: item.active ? 700 : 500,
-              '&:hover': { bgcolor: '#fae2ff', color: '#00B686' },
+              '&:hover': { bgcolor: '#fae2ff', color: '#9A5FA3' },
               px: 2,
               py: 1.2,
               cursor: 'pointer',
@@ -76,7 +76,7 @@ export default function Sidebar() {
               px: 2,
               py: 1.2,
               color: '#334155',
-              '&:hover': { bgcolor: '#e6faf5', color: '#00B686' },
+              '&:hover': { bgcolor: '#e6faf5', color: '#9A5FA3' },
               cursor: 'pointer',
             }}
           >

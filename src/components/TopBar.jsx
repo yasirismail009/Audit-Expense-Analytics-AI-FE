@@ -33,7 +33,7 @@ export default function TopBar() {
               }}
               elevation={0}
             >
-              <IconButton sx={{ p: '8px', color: '#64748B' }} aria-label="search">
+              <IconButton sx={{ p: '8px', color: '#9A5FA3' }} aria-label="search">
                 <SearchIcon />
               </IconButton>
               <InputBase sx={{ ml: 1, flex: 1 }} placeholder="Search" inputProps={{ 'aria-label': 'search' }} />
@@ -43,14 +43,14 @@ export default function TopBar() {
               startIcon={<CalendarTodayIcon />}
               sx={{
                 bgcolor: 'white',
-                color: '#014D4E',
+                color: '#9A5FA3',
                 borderRadius: 2,
                 boxShadow: '0 2px 8px 0 rgba(1,77,78,0.06)',
                 fontWeight: 600,
                 textTransform: 'none',
                 px: 2,
                 mr: 2,
-                border: '1px solid #E5E7EB',
+                border: '1px solid #9A5FA3',
               }}
             >
               18 OCT 2024 - 18 NOV 2024
@@ -60,8 +60,8 @@ export default function TopBar() {
               startIcon={<CloudUploadIcon />}
               onClick={() => setUploadModalOpen(true)}
               sx={{
-                color: '#00B686',
-                borderColor: '#00B686',
+                color: '#9A5FA3',
+                borderColor: '#9A5FA3',
                 bgcolor: 'white',
                 borderRadius: 2,
                 fontWeight: 600,
@@ -70,9 +70,9 @@ export default function TopBar() {
                 mr: 2,
                 boxShadow: '0 2px 8px 0 rgba(1,77,78,0.06)',
                 '&:hover': { 
-                  borderColor: '#019e76', 
-                  color: '#019e76',
-                  bgcolor: '#f0fdf4'
+                  borderColor: '#9A5FA3', 
+                  color: '#9A5FA3',
+                  bgcolor: '#f3e8f7'
                 },
               }}
             >

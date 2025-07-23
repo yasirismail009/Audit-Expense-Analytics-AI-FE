@@ -18,6 +18,8 @@ const AMOUNT_RANGES = [
   { min: 20000000, max: Infinity, label: '> 20M' }
 ];
 
+
+
 export default function ExpenseSheetDetails() {
   const { sheetId } = useParams();
   const [sheetData, setSheetData] = useState(null);
@@ -28,18 +30,56 @@ export default function ExpenseSheetDetails() {
     const fetchSheetData = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`http://localhost:8000/api/file-summary/${sheetId}/`);
+        console.log('Fetching data for sheetId:', sheetId);
+        
+        // Test if the backend is accessible
+        const testUrl = `http://localhost:8000/api/db-comprehensive-analytics/file/${sheetId}`;
+        console.log('API URL:', testUrl);
+        
+        const response = await axios.get(testUrl, {
+          timeout: 10000 // 10 second timeout
+        });
+        
+        console.log('Raw API response:', response.data);
+        console.log('Response status:', response.status);
         
         // Transform the API response to match the expected frontend structure
+        console.log('About to transform API response...');
         const transformedData = transformApiResponse(response.data);
+        console.log('Transformation completed successfully');
         
         // Add sheet ID to the transformed data
         transformedData.sheet_id = sheetId;
+        console.log('Setting sheet data...');
         setSheetData(transformedData);
         setError(null);
+        console.log('Data set successfully');
       } catch (err) {
         console.error('Error fetching sheet data:', err);
-        setError('Failed to load expense sheet data. Please try again.');
+        console.error('Error details:', {
+          message: err.message,
+          status: err.response?.status,
+          statusText: err.response?.statusText,
+          data: err.response?.data
+        });
+        
+        // Provide more specific error messages
+        let errorMessage = 'Failed to load expense sheet data';
+        if (err.code === 'ECONNREFUSED') {
+          errorMessage = 'Backend server is not running. Please start the backend server.';
+        } else if (err.code === 'ENOTFOUND') {
+          errorMessage = 'Cannot connect to backend server. Please check if the server is running on localhost:8000.';
+        } else if (err.response?.status === 404) {
+          errorMessage = 'File not found. Please check if the file ID is correct.';
+        } else if (err.response?.status === 500) {
+          errorMessage = 'Backend server error. Please try again later.';
+        } else if (err.message.includes('timeout')) {
+          errorMessage = 'Request timed out. Please check your connection and try again.';
+        } else {
+          errorMessage = `Failed to load expense sheet data: ${err.message}`;
+        }
+        
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -55,292 +95,288 @@ export default function ExpenseSheetDetails() {
 
   // Transform API response to match frontend expectations
   const transformApiResponse = (apiData) => {
-    const { 
-      file_info, 
-      summary_statistics, 
-      risk_distribution, 
-      anomaly_summary, 
-      charts_data, 
-      analysis_sessions_summary, 
-      gl_account_summary,
-      gl_charts_data 
-    } = apiData || {};
-
-    // Transform to match frontend expected structure
-    const result = {
-      // 1. File Info
-      fileInfo: {
-        id: file_info?.id || '',
-        fileName: file_info?.file_name || 'Unknown File',
-        status: file_info?.status || 'UNKNOWN',
-        uploadedAt: file_info?.uploaded_at || new Date().toISOString(),
-        processedAt: file_info?.processed_at || new Date().toISOString(),
-        totalRecords: file_info?.total_records || 0,
-        processedRecords: file_info?.processed_records || 0,
-        failedRecords: file_info?.failed_records || 0,
-        currency: file_info?.currency || 'SAR'
-      },
-
-      // 2. Statistics
-      statistics: {
-        totalTransactions: summary_statistics?.total_transactions || 0,
-        totalAmount: summary_statistics?.total_amount || 0,
-        currency: summary_statistics?.currency || 'SAR',
-        flaggedTransactions: summary_statistics?.flagged_transactions || 0,
-        highValueTransactions: summary_statistics?.high_value_transactions || 0,
-        flagRate: summary_statistics?.flag_rate || 0,
-        uniqueUsers: summary_statistics?.unique_users || 0,
-        uniqueAccounts: summary_statistics?.unique_accounts || 0,
-        uniqueProfitCenters: summary_statistics?.unique_profit_centers || 0,
-        avgAmount: summary_statistics?.avg_amount || 0,
-        minAmount: summary_statistics?.min_amount || 0,
-        maxAmount: summary_statistics?.max_amount || 0,
-        dateRange: summary_statistics?.date_range || {
-          startDate: new Date().toISOString().split('T')[0],
-          endDate: new Date().toISOString().split('T')[0]
-        }
-      },
-
-      // 3. GL Summary - Properly mapped from gl_account_summary
-      glSummary: {
-        summaryStatistics: {
-          totalAccounts: gl_account_summary?.summary_statistics?.total_accounts || 0,
-          totalTrialBalance: gl_account_summary?.summary_statistics?.total_trial_balance || 0,
-          totalTradingEquity: gl_account_summary?.summary_statistics?.total_trading_equity || 0,
-          totalDebits: gl_account_summary?.summary_statistics?.total_debits || 0,
-          totalCredits: gl_account_summary?.summary_statistics?.total_credits || 0,
-          currency: gl_account_summary?.summary_statistics?.currency || 'SAR',
-          debitBalanceAccounts: gl_account_summary?.summary_statistics?.debit_balance_accounts || 0,
-          creditBalanceAccounts: gl_account_summary?.summary_statistics?.credit_balance_accounts || 0,
-          zeroBalanceAccounts: gl_account_summary?.summary_statistics?.zero_balance_accounts || 0,
-          normalBalanceAccounts: gl_account_summary?.summary_statistics?.normal_balance_accounts || 0,
-          abnormalBalanceAccounts: gl_account_summary?.summary_statistics?.abnormal_balance_accounts || 0
-        },
-        accounts: (gl_account_summary?.accounts || []).map(account => ({
-          accountId: account.account_id,
-          accountName: account.account_name,
-          accountType: account.account_type,
-          accountCategory: account.account_category,
-          normalBalance: account.normal_balance,
-          currency: account.currency,
-          trialBalance: account.trial_balance,
-          tradingEquity: account.trading_equity,
-          totalDebits: account.total_debits,
-          totalCredits: account.total_credits,
-          balanceType: account.balance_type,
-          isNormalBalance: account.is_normal_balance,
-          transactionCount: account.transaction_count,
-          debitCount: account.debit_count,
-          creditCount: account.credit_count,
-          avgAmount: account.avg_amount,
-          debitCreditRatio: account.debit_credit_ratio,
-          avgDebitAmount: account.avg_debit_amount,
-          avgCreditAmount: account.avg_credit_amount,
-          creditDebitRatio: account.credit_debit_ratio
-        }))
-      },
-
-      // 4. Anomalies Stats
-      anomaliesStats: {
-        riskDistribution: risk_distribution || [],
-        anomalySummary: {
-          duplicateEntries: anomaly_summary?.duplicate_entries || 0,
-          userAnomalies: anomaly_summary?.user_anomalies || 0,
-          backdatedEntries: anomaly_summary?.backdated_entries || 0,
-          closingEntries: anomaly_summary?.closing_entries || 0,
-          unusualDays: anomaly_summary?.unusual_days || 0,
-          holidayEntries: anomaly_summary?.holiday_entries || 0,
-          totalAnomalies: anomaly_summary?.total_anomalies || 0
-        }
-      },
-
-      // 5. Anomalies Accordion Data
-      anomaliesAccordion: {
-        duplicateEntries: anomaly_summary?.duplicate_entries || 0,
-        userAnomalies: anomaly_summary?.user_anomalies || 0,
-        backdatedEntries: anomaly_summary?.backdated_entries || 0,
-        closingEntries: anomaly_summary?.closing_entries || 0,
-        unusualDays: anomaly_summary?.unusual_days || 0,
-        holidayEntries: anomaly_summary?.holiday_entries || 0,
-        totalAnomalies: anomaly_summary?.total_anomalies || 0
-      },
-
-      // 6. Charts Data
-      chartsData: {
-        // Risk distribution chart
-        riskDistribution: {
-          labels: (charts_data?.risk_distribution_chart?.labels || []),
-          data: (charts_data?.risk_distribution_chart?.data || []),
-          percentages: (charts_data?.risk_distribution_chart?.percentages || [])
-        },
-
-        // Anomaly breakdown chart
-        anomalyBreakdown: {
-          labels: (charts_data?.anomaly_breakdown?.labels || []),
-          data: (charts_data?.anomaly_breakdown?.data || [])
-        },
-
-        // Top users by amount
-        topUsersByAmount: (charts_data?.top_users_by_amount || []).map(user => ({
-          userName: user.user_name,
-          totalAmount: user.total_amount,
-          currency: user.currency,
-          transactionCount: user.transaction_count,
-          avgAmount: user.avg_amount
-        })),
-
-        // Top accounts by transactions
-        topAccountsByTransactions: (charts_data?.top_accounts_by_transactions || []).map(account => ({
-          glAccount: account.gl_account,
-          transactionCount: account.transaction_count,
-          totalAmount: account.total_amount,
-          currency: account.currency,
-          avgAmount: account.avg_amount
-        })),
-
-        // Monthly transaction volume
-        monthlyTransactionVolume: (charts_data?.monthly_transaction_volume || []).map(month => ({
-          month: month.month,
-          transactionCount: month.transaction_count,
-          totalAmount: month.total_amount,
-          debitAmount: month.debit_amount,
-          creditAmount: month.credit_amount,
-          currency: month.currency
-        }))
-      },
-
-      // GL Charts Data
-      glChartsData: {
-        topAccountsByAmount: (gl_charts_data?.top_accounts_by_amount || []).map(account => ({
-          accountId: account.account_id,
-          totalAmount: account.total_amount,
-          currency: account.currency,
-          transactionCount: account.transaction_count,
-          trialBalance: account.trial_balance
-        })),
-        accountTypeDistribution: gl_charts_data?.account_type_distribution || [],
-        balanceDistribution: gl_charts_data?.balance_distribution || [],
-        monthlyAccountActivity: gl_charts_data?.monthly_account_activity || [],
-        currency: gl_charts_data?.currency || 'SAR'
-      },
-
-      // Analysis sessions summary
-      analysisSessionsSummary: {
-        totalSessions: analysis_sessions_summary?.total_sessions || 0,
-        latestSession: analysis_sessions_summary?.latest_session || {
-          id: '',
-          sessionName: '',
-          status: 'UNKNOWN',
-          createdAt: new Date().toISOString()
-        }
-      },
-
-      // Legacy structure for backward compatibility
-      sheet_name: file_info?.file_name || 'Unknown File',
-      sheet_date: file_info?.uploaded_at || new Date().toISOString(),
-      display_name: file_info?.file_name || 'Unknown File',
-      total_expenses: summary_statistics?.total_transactions || 0,
-      total_amount: summary_statistics?.total_amount || 0,
+    try {
+      console.log("Raw API Data:", apiData);
       
-      // Analysis summary with enhanced anomaly data
-      analysis_summary: {
-        overall_fraud_score: summary_statistics?.flag_rate || 0,
-        risk_level: getRiskLevel(summary_statistics?.flag_rate || 0),
-        total_flagged_expenses: summary_statistics?.flagged_transactions || 0,
-        flag_rate: summary_statistics?.flag_rate || 0,
-        anomalies_detected: {
-          amount_anomalies: anomaly_summary?.duplicate_entries || 0,
-          timing_anomalies: (anomaly_summary?.backdated_entries || 0) + (anomaly_summary?.closing_entries || 0),
-          vendor_anomalies: 0, // Not available in current data
-          employee_anomalies: anomaly_summary?.user_anomalies || 0,
-          duplicate_suspicions: anomaly_summary?.duplicate_entries || 0
-        },
-        risk_distribution: risk_distribution || []
-      },
-
-      // Chart data - using the actual API structure
-      chart_data: {
-        // Department expenses (using GL accounts as departments)
-        department_expenses: {
-          labels: (charts_data?.top_accounts_by_transactions || []).slice(0, 5).map(item => `Dept ${item.gl_account}`),
-          data: (charts_data?.top_accounts_by_transactions || []).slice(0, 5).map(item => item.total_amount),
-          colors: CHART_COLORS.slice(0, 5)
-        },
-
-        // Category expenses (using GL accounts as categories)
-        category_expenses: {
-          labels: (charts_data?.top_accounts_by_transactions || []).slice(0, 6).map(item => `GL ${item.gl_account}`),
-          data: (charts_data?.top_accounts_by_transactions || []).slice(0, 6).map(item => item.total_amount),
-          colors: CHART_COLORS.slice(0, 6)
-        },
-
-        // Monthly trend
-        monthly_trend: {
-          labels: (charts_data?.monthly_transaction_volume || []).map(item => item.month),
-          data: (charts_data?.monthly_transaction_volume || []).map(item => item.total_amount)
-        },
-
-        // Employee expenses (using top users)
-        employee_expenses: {
-          labels: (charts_data?.top_users_by_amount || []).slice(0, MAX_CHART_ITEMS).map(item => item.user_name),
-          data: (charts_data?.top_users_by_amount || []).slice(0, MAX_CHART_ITEMS).map(item => item.total_amount),
-          colors: CHART_COLORS.slice(0, MAX_CHART_ITEMS)
-        },
-
-        // Amount distribution (calculated from GL account data or charts data)
-        amount_distribution: calculateAmountDistributionFromGLData(
-          gl_charts_data?.top_accounts_by_amount || charts_data?.top_accounts_by_transactions || []
-        ),
-
-        // Vendor expenses (using GL accounts as vendors)
-        vendor_expenses: {
-          labels: (charts_data?.top_accounts_by_transactions || []).slice(0, 5).map(item => `Vendor ${item.gl_account}`),
-          data: (charts_data?.top_accounts_by_transactions || []).slice(0, 5).map(item => item.total_amount)
-        },
-
-        // Risk distribution chart
-        risk_distribution: {
-          labels: (risk_distribution || []).map(item => item.risk_level),
-          data: (risk_distribution || []).map(item => item.count),
-          percentages: (risk_distribution || []).map(item => item.percentage)
-        },
-
-        // Anomaly breakdown chart
-        anomaly_breakdown: {
-          labels: charts_data?.anomaly_breakdown?.labels || [],
-          data: charts_data?.anomaly_breakdown?.data || []
-        }
-      },
-
-      // Enhanced flagged expenses with risk distribution data
-      flagged_expenses: transformFlaggedExpensesFromRiskData(risk_distribution || [], summary_statistics || {}),
-
-      // Anomalies data for distribution chart
-      anomalies_data: {
-        anomaly_summary: anomaly_summary || {},
-        risk_distribution: risk_distribution || []
-      },
-
-      // Advanced metrics (using summary statistics)
-      advanced_metrics: {
-        basic_metrics: {
-          total_expenses: summary_statistics?.total_transactions || 0,
-          total_amount: summary_statistics?.total_amount || 0,
-          average_expense: summary_statistics?.avg_amount || 0,
-          median_expense: (summary_statistics?.avg_amount || 0) * 0.8, // Approximate
-          largest_expense: summary_statistics?.max_amount || 0,
-          smallest_expense: summary_statistics?.min_amount || 0,
-          date_range_days: calculateDateRangeDays(summary_statistics?.date_range),
-          unique_users: summary_statistics?.unique_users || 0,
-          unique_accounts: summary_statistics?.unique_accounts || 0,
-          unique_profit_centers: summary_statistics?.unique_profit_centers || 0,
-          high_value_transactions: summary_statistics?.high_value_transactions || 0
-        }
+      if (!apiData) {
+        throw new Error('No API data received');
       }
-    };
+      
+      const { 
+        file_info, 
+        general_stats,
+        charts,
+        summary,
+        risk_data
+      } = apiData || {};
 
+      console.log("Extracted data:", {
+        file_info,
+        general_stats,
+        charts,
+        summary,
+        risk_data
+      });
 
-    return result;
+      console.log("Starting data transformation...");
+
+      // Create a simple result object for testing
+      const result = {
+        fileInfo: {
+          id: file_info?.id || '',
+          fileName: file_info?.file_name || 'Unknown File',
+          status: file_info?.status || 'UNKNOWN',
+          uploadedAt: file_info?.uploaded_at || new Date().toISOString(),
+          processedAt: file_info?.processed_at || new Date().toISOString(),
+          totalRecords: file_info?.total_records || 0,
+          processedRecords: file_info?.processed_records || 0,
+          failedRecords: file_info?.failed_records || 0,
+          currency: 'SAR',
+          clientName: file_info?.client_name || '',
+          companyName: file_info?.company_name || '',
+          fiscalYear: file_info?.fiscal_year || new Date().getFullYear()
+        },
+        statistics: {
+          totalTransactions: general_stats?.total_transactions || 0,
+          totalAmount: general_stats?.total_amount || 0,
+          currency: 'SAR',
+          flaggedTransactions: risk_data?.risk_stats?.duplicates?.total_patterns || 0,
+          highValueTransactions: summary?.high_value_transactions || 0,
+          flagRate: general_stats?.total_transactions ? 
+            (risk_data?.risk_stats?.duplicates?.total_patterns / general_stats.total_transactions) * 100 : 0,
+          uniqueUsers: general_stats?.unique_users || 0,
+          uniqueAccounts: general_stats?.unique_accounts || 0,
+          uniqueProfitCenters: 0,
+          avgAmount: general_stats?.average_amount || 0,
+          minAmount: general_stats?.min_amount || 0,
+          maxAmount: general_stats?.max_amount || 0,
+          dateRange: {
+            startDate: general_stats?.date_range?.min_date || new Date().toISOString().split('T')[0],
+            endDate: general_stats?.date_range?.max_date || new Date().toISOString().split('T')[0]
+          },
+          totalDebits: general_stats?.total_amount || 0,
+          totalCredits: 0,
+          trialBalance: general_stats?.total_amount || 0
+        },
+        glSummary: {
+          summaryStatistics: {
+            totalAccounts: general_stats?.unique_accounts || 0,
+            totalTrialBalance: general_stats?.total_amount || 0,
+            totalTradingEquity: general_stats?.total_amount || 0,
+            totalDebits: general_stats?.total_amount || 0,
+            totalCredits: 0,
+            currency: 'SAR',
+            debitBalanceAccounts: general_stats?.unique_accounts || 0,
+            creditBalanceAccounts: 0,
+            zeroBalanceAccounts: 0,
+            normalBalanceAccounts: general_stats?.unique_accounts || 0,
+            abnormalBalanceAccounts: 0
+          },
+          accounts: (charts?.top_accounts || []).map(account => ({
+            accountId: account.gl_account,
+            accountName: `GL Account ${account.gl_account}`,
+            accountType: 'Asset',
+            accountCategory: 'Current Assets',
+            normalBalance: 'Debit',
+            currency: 'SAR',
+            trialBalance: account.total_amount || 0,
+            tradingEquity: account.total_amount || 0,
+            totalDebits: account.total_amount || 0,
+            totalCredits: 0,
+            balanceType: 'Debit',
+            isNormalBalance: true,
+            transactionCount: account.transaction_count || 0,
+            debitCount: account.transaction_count || 0,
+            creditCount: 0,
+            avgAmount: account.average_amount || 0,
+            debitCreditRatio: 0,
+            avgDebitAmount: account.average_amount || 0,
+            avgCreditAmount: 0,
+            creditDebitRatio: 0
+          }))
+        },
+        anomaliesStats: {
+          riskDistribution: generateRiskDistributionFromRiskData(risk_data),
+          anomalySummary: {
+            duplicateEntries: risk_data?.risk_stats?.duplicates?.total_patterns || 0,
+            userAnomalies: 0,
+            backdatedEntries: 0,
+            closingEntries: 0,
+            unusualDays: 0,
+            holidayEntries: 0,
+            totalAnomalies: risk_data?.risk_stats?.duplicates?.total_patterns || 0
+          }
+        },
+        anomaliesAccordion: {
+          duplicateEntries: risk_data?.risk_stats?.duplicates?.total_patterns || 0,
+          userAnomalies: 0,
+          backdatedEntries: 0,
+          closingEntries: 0,
+          unusualDays: 0,
+          holidayEntries: 0,
+          totalAnomalies: risk_data?.risk_stats?.duplicates?.total_patterns || 0
+        },
+        chartsData: {
+          riskDistribution: {
+            labels: generateRiskDistributionFromRiskData(risk_data).map(item => item.risk_level),
+            data: generateRiskDistributionFromRiskData(risk_data).map(item => item.count),
+            percentages: generateRiskDistributionFromRiskData(risk_data).map(item => item.percentage)
+          },
+          anomalyBreakdown: {
+            labels: ['Duplicates'],
+            data: [risk_data?.risk_stats?.duplicates?.total_patterns || 0]
+          },
+          topUsersByAmount: (charts?.top_users || []).map(user => ({
+            userName: user.user_name,
+            totalAmount: user.total_amount,
+            currency: 'SAR',
+            transactionCount: user.transaction_count,
+            avgAmount: user.average_amount
+          })),
+          topAccountsByTransactions: (charts?.top_accounts || []).map(account => ({
+            glAccount: account.gl_account,
+            transactionCount: account.transaction_count,
+            totalAmount: account.total_amount,
+            currency: 'SAR',
+            avgAmount: account.average_amount
+          })),
+          monthlyTransactionVolume: (charts?.monthly_trends || []).map(month => ({
+            month: month.month,
+            transactionCount: month.transaction_count,
+            totalAmount: month.total_amount,
+            debitAmount: month.total_amount,
+            creditAmount: 0,
+            currency: 'SAR'
+          }))
+        },
+        glChartsData: {
+          topAccountsByAmount: (charts?.top_accounts || []).map(account => ({
+            accountId: account.gl_account,
+            totalAmount: account.total_amount,
+            currency: 'SAR',
+            transactionCount: account.transaction_count,
+            trialBalance: account.total_amount
+          })),
+          accountTypeDistribution: generateAccountTypeDistribution(charts?.top_accounts),
+          balanceDistribution: generateBalanceDistribution(charts?.top_accounts),
+          monthlyAccountActivity: (charts?.monthly_trends || []).map(month => ({
+            month: month.month,
+            transactionCount: month.transaction_count,
+            totalAmount: month.total_amount,
+            avgAmount: month.average_amount
+          })),
+          currency: 'SAR'
+        },
+        analysisSessionsSummary: {
+          totalSessions: 1,
+          latestSession: {
+            id: file_info?.id || '',
+            sessionName: 'Latest Analysis',
+            status: file_info?.status || 'UNKNOWN',
+            createdAt: file_info?.processed_at || new Date().toISOString()
+          }
+        },
+        sheet_name: file_info?.file_name || 'Unknown File',
+        sheet_date: file_info?.uploaded_at || new Date().toISOString(),
+        display_name: file_info?.file_name || 'Unknown File',
+        total_expenses: general_stats?.total_transactions || 0,
+        total_amount: general_stats?.total_amount || 0,
+        analysis_summary: {
+          overall_fraud_score: general_stats?.total_transactions ? 
+            (risk_data?.risk_stats?.duplicates?.total_patterns / general_stats.total_transactions) * 100 : 0,
+          risk_level: getRiskLevel(general_stats?.total_transactions ? 
+            (risk_data?.risk_stats?.duplicates?.total_patterns / general_stats.total_transactions) * 100 : 0),
+          total_flagged_expenses: risk_data?.risk_stats?.duplicates?.total_patterns || 0,
+          flag_rate: general_stats?.total_transactions ? 
+            (risk_data?.risk_stats?.duplicates?.total_patterns / general_stats.total_transactions) * 100 : 0,
+          anomalies_detected: {
+            amount_anomalies: risk_data?.risk_stats?.duplicates?.total_patterns || 0,
+            timing_anomalies: 0,
+            vendor_anomalies: 0,
+            employee_anomalies: 0,
+            duplicate_suspicions: risk_data?.risk_stats?.duplicates?.total_patterns || 0
+          },
+          risk_distribution: generateRiskDistributionFromRiskData(risk_data)
+        },
+        chart_data: {
+          department_expenses: {
+            labels: (charts?.top_accounts || []).slice(0, 5).map(item => `Dept ${item.gl_account}`),
+            data: (charts?.top_accounts || []).slice(0, 5).map(item => item.total_amount),
+            colors: CHART_COLORS.slice(0, 5)
+          },
+          category_expenses: {
+            labels: (charts?.top_accounts || []).slice(0, 6).map(item => `GL ${item.gl_account}`),
+            data: (charts?.top_accounts || []).slice(0, 6).map(item => item.total_amount),
+            colors: CHART_COLORS.slice(0, 6)
+          },
+          monthly_trend: {
+            labels: (charts?.monthly_trends || []).map(item => item.month),
+            data: (charts?.monthly_trends || []).map(item => item.total_amount)
+          },
+          employee_expenses: {
+            labels: (charts?.top_users || []).slice(0, MAX_CHART_ITEMS).map(item => item.user_name),
+            data: (charts?.top_users || []).slice(0, MAX_CHART_ITEMS).map(item => item.total_amount),
+            colors: CHART_COLORS.slice(0, MAX_CHART_ITEMS)
+          },
+          amount_distribution: {
+            labels: (charts?.amount_distribution || []).map(item => item.range),
+            data: (charts?.amount_distribution || []).map(item => item.count)
+          },
+          vendor_expenses: {
+            labels: (charts?.top_accounts || []).slice(0, 5).map(item => `Vendor ${item.gl_account}`),
+            data: (charts?.top_accounts || []).slice(0, 5).map(item => item.total_amount)
+          },
+          risk_distribution: {
+            labels: generateRiskDistributionFromRiskData(risk_data).map(item => item.risk_level),
+            data: generateRiskDistributionFromRiskData(risk_data).map(item => item.count),
+            percentages: generateRiskDistributionFromRiskData(risk_data).map(item => item.percentage)
+          },
+          anomaly_breakdown: {
+            labels: ['Duplicates'],
+            data: [risk_data?.risk_stats?.duplicates?.total_patterns || 0]
+          }
+        },
+        flagged_expenses: transformFlaggedExpensesFromRiskData(risk_data, general_stats),
+        anomalies_data: {
+          anomaly_summary: {
+            duplicate_entries: risk_data?.risk_stats?.duplicates?.total_patterns || 0,
+            backdated_entries: 0,
+            closing_entries: 0,
+            unusual_days: 0,
+            holiday_entries: 0
+          },
+          risk_distribution: generateRiskDistributionFromRiskData(risk_data)
+        },
+        advanced_metrics: {
+          basic_metrics: {
+            total_expenses: general_stats?.total_transactions || 0,
+            total_amount: general_stats?.total_amount || 0,
+            average_expense: general_stats?.average_amount || 0,
+            median_expense: general_stats?.average_amount * 0.8 || 0,
+            largest_expense: general_stats?.max_amount || 0,
+            smallest_expense: general_stats?.min_amount || 0,
+            date_range_days: calculateDateRangeDays(general_stats?.date_range),
+            unique_users: general_stats?.unique_users || 0,
+            unique_accounts: general_stats?.unique_accounts || 0,
+            unique_profit_centers: 0,
+            high_value_transactions: summary?.high_value_transactions || 0
+          }
+        }
+      };
+
+      console.log("Result object created successfully");
+
+      // Debug the final transformed result
+      console.log("Final transformed result:", result);
+      console.log("Final statistics:", result.statistics);
+      console.log("Final fileInfo:", result.fileInfo);
+      console.log("Transformation function completed successfully");
+
+      return result;
+    } catch (error) {
+      console.error('Error in transformApiResponse:', error);
+      throw new Error(`Data transformation failed: ${error.message}`);
+    }
   };
 
   // Helper function to determine risk level
@@ -363,7 +399,7 @@ export default function ExpenseSheetDetails() {
     const distribution = AMOUNT_RANGES.map(range => ({
       label: range.label,
       count: topAccountsByAmount.filter(account => {
-        const amount = parseFloat(account.total_amount || account.avg_amount || 0);
+        const amount = parseFloat((account.total_debits || 0) + (account.total_credits || 0));
         return amount >= range.min && amount < range.max;
       }).length
     }));
@@ -374,18 +410,22 @@ export default function ExpenseSheetDetails() {
     };
   };
 
-  // Helper function to transform flagged expenses from risk distribution data
-  const transformFlaggedExpensesFromRiskData = (riskDistribution, summaryStatistics) => {
-    // Create sample flagged expenses based on risk distribution
+  // Helper function to transform flagged expenses from risk data
+  const transformFlaggedExpensesFromRiskData = (riskData, generalStats) => {
+    // Create sample flagged expenses based on risk data
     const flaggedExpenses = [];
     let id = 1;
 
-    // Add CRITICAL risk expenses
-    for (let i = 0; i < Math.min(riskDistribution.find(r => r.risk_level === 'CRITICAL')?.count || 0, 10); i++) {
+    const duplicatePatterns = riskData?.risk_stats?.duplicates?.total_patterns || 0;
+    const avgAmount = generalStats?.average_amount || 0;
+
+    // Add duplicate expenses based on the risk data
+    for (let i = 0; i < Math.min(duplicatePatterns, 20); i++) {
+      const riskLevel = i < 2 ? 'MEDIUM' : 'LOW'; // Based on the risk data structure
       flaggedExpenses.push({
         id: id++,
         employee: `User ${i + 1}`,
-        amount: summaryStatistics.avg_amount * (0.8 + Math.random() * 0.4), // Random amount around average
+        amount: avgAmount * (0.8 + Math.random() * 0.4), // Random amount around average
         date: '2025-01-15',
         category: '131005',
         profit_center: 'PC001',
@@ -393,62 +433,14 @@ export default function ExpenseSheetDetails() {
         document_type: 'Invoice',
         transaction_type: 'Debit',
         currency: 'SAR',
-        risk_level: 'CRITICAL',
-        description: 'High-value transaction flagged for review',
-        status: 'Pending',
-        anomaly_type: 'Amount',
-        anomaly_subtype: 'High Value',
-        risk_score: 85,
-        is_high_value: true,
-        is_cleared: false
-      });
-    }
-
-    // Add HIGH risk expenses
-    for (let i = 0; i < Math.min(riskDistribution.find(r => r.risk_level === 'HIGH')?.count || 0, 5); i++) {
-      flaggedExpenses.push({
-        id: id++,
-        employee: `User ${i + 11}`,
-        amount: summaryStatistics.avg_amount * (0.5 + Math.random() * 0.3),
-        date: '2025-01-20',
-        category: '124010',
-        profit_center: 'PC002',
-        document_number: `DOC${String(i + 11).padStart(3, '0')}`,
-        document_type: 'Invoice',
-        transaction_type: 'Debit',
-        currency: 'SAR',
-        risk_level: 'HIGH',
-        description: 'Suspicious transaction pattern detected',
-        status: 'Pending',
-        anomaly_type: 'Pattern',
-        anomaly_subtype: 'Unusual Pattern',
-        risk_score: 65,
+        risk_level: riskLevel,
+        description: 'Duplicate transaction detected',
+        status: riskLevel === 'MEDIUM' ? 'Pending' : 'Cleared',
+        anomaly_type: 'Duplicate',
+        anomaly_subtype: 'Type 1 Duplicate',
+        risk_score: riskLevel === 'MEDIUM' ? 30 : 20,
         is_high_value: false,
-        is_cleared: false
-      });
-    }
-
-    // Add MEDIUM risk expenses
-    for (let i = 0; i < Math.min(riskDistribution.find(r => r.risk_level === 'MEDIUM')?.count || 0, 3); i++) {
-      flaggedExpenses.push({
-        id: id++,
-        employee: `User ${i + 16}`,
-        amount: summaryStatistics.avg_amount * (0.3 + Math.random() * 0.2),
-        date: '2025-01-25',
-        category: '124700',
-        profit_center: 'PC003',
-        document_number: `DOC${String(i + 16).padStart(3, '0')}`,
-        document_type: 'Invoice',
-        transaction_type: 'Debit',
-        currency: 'SAR',
-        risk_level: 'MEDIUM',
-        description: 'Moderate risk transaction',
-        status: 'Cleared',
-        anomaly_type: 'Timing',
-        anomaly_subtype: 'Backdated',
-        risk_score: 45,
-        is_high_value: false,
-        is_cleared: true
+        is_cleared: riskLevel === 'LOW'
       });
     }
 
@@ -457,18 +449,221 @@ export default function ExpenseSheetDetails() {
 
   // Helper function to calculate date range days
   const calculateDateRangeDays = (dateRange) => {
-    if (!dateRange || !dateRange.start_date || !dateRange.end_date) {
+    if (!dateRange || !dateRange.min_date || !dateRange.max_date) {
       return 31; // Default fallback
     }
     
-    const startDate = new Date(dateRange.start_date);
-    const endDate = new Date(dateRange.end_date);
+    const startDate = new Date(dateRange.min_date);
+    const endDate = new Date(dateRange.max_date);
     const diffTime = Math.abs(endDate - startDate);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays + 1; // Include both start and end dates
   };
 
+  // Helper function to generate risk distribution from risk data
+  const generateRiskDistributionFromRiskData = (riskData) => {
+    if (!riskData?.risk_charts?.risk_levels) {
+      return [
+        { risk_level: 'LOW', count: 0, percentage: 0 },
+        { risk_level: 'MEDIUM', count: 0, percentage: 0 },
+        { risk_level: 'HIGH', count: 0, percentage: 0 },
+        { risk_level: 'CRITICAL', count: 0, percentage: 0 }
+      ];
+    }
 
+    return riskData.risk_charts.risk_levels.map(risk => ({
+      risk_level: risk.risk_level,
+      count: risk.count,
+      percentage: risk.percentage
+    }));
+  };
+
+  // Helper function to generate risk distribution from transaction analyses
+  const generateRiskDistributionFromTransactionAnalyses = (transactionAnalyses) => {
+    if (!transactionAnalyses || !Array.isArray(transactionAnalyses)) {
+      return [
+        { risk_level: 'LOW', count: 0, percentage: 0 },
+        { risk_level: 'MEDIUM', count: 0, percentage: 0 },
+        { risk_level: 'HIGH', count: 0, percentage: 0 },
+        { risk_level: 'CRITICAL', count: 0, percentage: 0 }
+      ];
+    }
+
+    const riskCounts = {
+      'LOW': 0,
+      'MEDIUM': 0,
+      'HIGH': 0,
+      'CRITICAL': 0
+    };
+
+    transactionAnalyses.forEach(transaction => {
+      const riskLevel = transaction.risk_level || 'LOW';
+      if (riskCounts.hasOwnProperty(riskLevel)) {
+        riskCounts[riskLevel]++;
+      }
+    });
+
+    const total = transactionAnalyses.length;
+    return Object.entries(riskCounts).map(([risk_level, count]) => ({
+      risk_level,
+      count,
+      percentage: total > 0 ? Math.round((count / total) * 100) : 0
+    }));
+  };
+
+  // Helper function to generate top users from user patterns
+  const generateTopUsersFromUserPatterns = (userPatterns) => {
+    if (!userPatterns?.by_user) {
+      return [];
+    }
+
+    return Object.entries(userPatterns.by_user)
+      .map(([userName, userData]) => ({
+        userName,
+        totalAmount: userData.total_amount || 0,
+        currency: 'SAR',
+        transactionCount: userData.transaction_count || 0,
+        avgAmount: userData.transaction_count ? userData.total_amount / userData.transaction_count : 0
+      }))
+      .sort((a, b) => b.totalAmount - a.totalAmount)
+      .slice(0, 10);
+  };
+
+  // Helper function to generate monthly data from temporal patterns
+  const generateMonthlyDataFromTemporalPatterns = (temporalPatterns) => {
+    if (!temporalPatterns?.monthly_patterns) {
+      return [];
+    }
+
+    return Object.entries(temporalPatterns.monthly_patterns)
+      .map(([month, monthData]) => ({
+        month,
+        transactionCount: monthData.count || 0,
+        totalAmount: monthData.amount || 0,
+        debitAmount: monthData.amount || 0, // Assuming all are debits based on the data
+        creditAmount: 0,
+        currency: 'SAR'
+      }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+  };
+
+  // Helper function to generate account type distribution
+  const generateAccountTypeDistribution = (topAccounts) => {
+    if (!topAccounts || !Array.isArray(topAccounts)) {
+      return [];
+    }
+
+    // Since account_type is not available, we'll categorize based on account_id ranges
+    const typeCounts = {
+      'Assets': 0,
+      'Liabilities': 0,
+      'Equity': 0,
+      'Revenue': 0,
+      'Expenses': 0
+    };
+
+    topAccounts.forEach(account => {
+      const accountId = parseInt(account.gl_account) || 0;
+      if (accountId >= 100000 && accountId < 200000) {
+        typeCounts['Assets']++;
+      } else if (accountId >= 200000 && accountId < 300000) {
+        typeCounts['Liabilities']++;
+      } else if (accountId >= 300000 && accountId < 400000) {
+        typeCounts['Equity']++;
+      } else if (accountId >= 400000 && accountId < 500000) {
+        typeCounts['Revenue']++;
+      } else if (accountId >= 500000 && accountId < 600000) {
+        typeCounts['Expenses']++;
+      } else {
+        typeCounts['Assets']++; // Default to Assets
+      }
+    });
+
+    return Object.entries(typeCounts)
+      .filter(([type, count]) => count > 0)
+      .map(([type, count]) => ({
+        type,
+        count,
+        percentage: Math.round((count / topAccounts.length) * 100)
+      }));
+  };
+
+  // Helper function to generate balance distribution
+  const generateBalanceDistribution = (topAccounts) => {
+    if (!topAccounts || !Array.isArray(topAccounts)) {
+      return [];
+    }
+
+    const balanceTypes = {
+      'Debit': 0,
+      'Credit': 0,
+      'Zero': 0
+    };
+
+    topAccounts.forEach(account => {
+      const totalAmount = account.total_amount || 0;
+      if (totalAmount > 0) {
+        balanceTypes['Debit']++;
+      } else if (totalAmount < 0) {
+        balanceTypes['Credit']++;
+      } else {
+        balanceTypes['Zero']++;
+      }
+    });
+
+    return Object.entries(balanceTypes).map(([type, count]) => ({
+      type,
+      count,
+      percentage: Math.round((count / topAccounts.length) * 100)
+    }));
+  };
+
+  // Helper function to generate monthly account activity
+  const generateMonthlyAccountActivity = (temporalPatterns) => {
+    if (!temporalPatterns?.monthly_patterns) {
+      return [];
+    }
+
+    return Object.entries(temporalPatterns.monthly_patterns)
+      .map(([month, monthData]) => ({
+        month,
+        transactionCount: monthData.count || 0,
+        totalAmount: monthData.amount || 0,
+        avgAmount: monthData.count ? monthData.amount / monthData.count : 0
+      }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+  };
+
+  // Helper function to transform flagged expenses from transaction analyses
+  const transformFlaggedExpensesFromTransactionAnalyses = (transactionAnalyses, summary) => {
+    if (!transactionAnalyses || !Array.isArray(transactionAnalyses)) {
+      return [];
+    }
+
+    return transactionAnalyses
+      .filter(transaction => transaction.risk_level === 'CRITICAL' || transaction.risk_level === 'HIGH')
+      .slice(0, 20) // Limit to top 20 flagged expenses
+      .map((transaction, index) => ({
+        id: index + 1,
+        employee: transaction.user_name || `User ${index + 1}`,
+        amount: transaction.amount || (summary?.total_amount && summary?.total_transactions ? summary.total_amount / summary.total_transactions : 0),
+        date: transaction.transaction_date || '2025-01-15',
+        category: transaction.account_id || '131005',
+        profit_center: transaction.profit_center || 'PC001',
+        document_number: transaction.document_number || `DOC${String(index + 1).padStart(3, '0')}`,
+        document_type: transaction.document_type || 'Invoice',
+        transaction_type: transaction.transaction_type || 'Debit',
+        currency: 'SAR',
+        risk_level: transaction.risk_level || 'CRITICAL',
+        description: transaction.anomaly_description || 'High-risk transaction flagged for review',
+        status: transaction.risk_level === 'CRITICAL' ? 'Pending' : 'Cleared',
+        anomaly_type: transaction.anomaly_type || 'Amount',
+        anomaly_subtype: transaction.anomaly_subtype || 'High Value',
+        risk_score: transaction.risk_score || 85,
+        is_high_value: transaction.risk_level === 'CRITICAL',
+        is_cleared: transaction.risk_level !== 'CRITICAL'
+      }));
+  };
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -490,4 +685,4 @@ export default function ExpenseSheetDetails() {
       </Box>
     </Box>
   );
-} 
+}

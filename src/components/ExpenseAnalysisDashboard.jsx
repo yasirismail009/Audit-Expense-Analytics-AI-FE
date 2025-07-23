@@ -78,8 +78,9 @@ export default function ExpenseAnalysisDashboard({ sheetData }) {
   const flaggedExpenses = sheetData.flagged_expenses;
   const anomaliesData = sheetData.anomalies_data;
   const advancedMetrics = sheetData.advanced_metrics;
-console.log("sheetData", sheetData)
-console.log("anomaliesData", anomaliesData)
+console.log("Dashboard - sheetData:", sheetData)
+console.log("Dashboard - statistics:", statistics)
+console.log("Dashboard - fileInfo:", fileInfo)
   // Helper function to format currency
   const formatCurrency = (amount) => {
     const num = parseFloat(amount || 0);
@@ -110,6 +111,18 @@ console.log("anomaliesData", anomaliesData)
   const riskLevel = (statistics?.flagRate || 0) >= 80 ? 'CRITICAL' : 
                    (statistics?.flagRate || 0) >= 60 ? 'HIGH' : 
                    (statistics?.flagRate || 0) >= 40 ? 'MEDIUM' : 'LOW';
+
+  // Debug the values being displayed
+  console.log("Display values:", {
+    totalTransactions: statistics?.totalTransactions,
+    totalAmount: statistics?.totalAmount,
+    uniqueUsers: statistics?.uniqueUsers,
+    uniqueAccounts: statistics?.uniqueAccounts,
+    flaggedTransactions: statistics?.flaggedTransactions,
+    flagRate: statistics?.flagRate,
+    overallRiskScore,
+    riskLevel
+  });
 
   return (
     <Box sx={{ minHeight: '100vh', background: colorScheme.background, p: 3 }}>
@@ -226,7 +239,7 @@ console.log("anomaliesData", anomaliesData)
                           mb: 0.5,
                           fontSize: '1.1rem'
                         }}>
-                          {formatCurrency(statistics?.totalAmount)}
+                          {formatCurrency(statistics?.totalAmount || 0)}
                         </Typography>
                         <Typography variant="body2" sx={{ 
                           color: colorScheme.textSecondary,

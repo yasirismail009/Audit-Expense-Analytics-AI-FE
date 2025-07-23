@@ -38,7 +38,7 @@ const anomalyTypes = [
     title: 'Duplicate Entries',
     icon: <TrendingUpIcon />,
     description: 'Analysis of duplicate transactions and entries',
-    apiEndpoint: '/api/duplicate-anomalies/analyze/',
+    apiEndpoint: '/api/db-comprehensive-duplicate-analysis/file/',
     color: '#FF6384'
   },
   {
@@ -106,9 +106,8 @@ export default function AnomalyAnalysisAccordion({ sheetId, anomalySummary }) {
     setErrorStates(prev => ({ ...prev, [anomalyType]: null }));
 
     try {
-      const response = await axios.post(
-        `http://localhost:8000${anomalyConfig.apiEndpoint}`,
-        { sheet_id: sheetId }
+      const response = await axios.get(
+        `http://localhost:8000${anomalyConfig.apiEndpoint}${sheetId}/`
       );
       
       setAnomalyData(prev => ({ ...prev, [anomalyType]: response.data }));

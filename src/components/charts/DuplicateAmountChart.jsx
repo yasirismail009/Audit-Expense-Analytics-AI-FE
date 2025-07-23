@@ -2,8 +2,26 @@ import React from 'react';
 import { Card, CardContent, Typography, Box } from '@mui/material';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
-export default function DuplicateAmountChart({ data }) {
-  if (!data || !data.duplicates || data.duplicates.length === 0) {
+export default function DuplicateAmountChart({ data, currency = 'SAR' }) {
+  // Helper function to format currency
+  const formatCurrency = (amount) => {
+    const num = parseFloat(amount || 0);
+    
+    if (num >= 1000000000000) {
+      return `${(num / 1000000000000).toFixed(1)}T ${currency}`;
+    } else if (num >= 1000000) {
+      return `${(num / 1000000).toFixed(1)}M ${currency}`;
+    } else if (num >= 1000) {
+      return `${(num / 1000).toFixed(1)}K ${currency}`;
+    } else {
+      return `${num.toFixed(0)} ${currency}`;
+    }
+  };
+
+  // Check for new data structure first, then fallback to old structure
+  const chartData = data?.chart_data?.amount_distribution_chart || data?.duplicates;
+
+  if (!data || !chartData || (Array.isArray(chartData) && chartData.length === 0)) {
     return (
       <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2 }}>
         <CardContent>
@@ -16,42 +34,56 @@ export default function DuplicateAmountChart({ data }) {
     );
   }
 
-  // Group duplicates by amount ranges
-  const amountRanges = [
-    { min: 0, max: 1000, label: '$0-1K' },
-    { min: 1000, max: 5000, label: '$1K-5K' },
-    { min: 5000, max: 10000, label: '$5K-10K' },
-    { min: 10000, max: 50000, label: '$10K-50K' },
-    { min: 50000, max: Infinity, label: '$50K+' }
-  ];
+  // Transform data based on structure
+  let transformedData;
+  if (Array.isArray(chartData) && chartData.length > 0 && chartData[0].range) {
+    // New structure: chart_data.amount_distribution_chart is an array with range property
+    transformedData = chartData
+      .filter(item => item.duplicate_groups > 0) // Only show ranges with data
+      .map((item, index) => ({
+        name: item.range,
+        value: item.duplicate_groups,
+        totalAmount: item.total_amount,
+        totalTransactions: item.transactions
+      }));
+  } else {
+    // Old structure: duplicates array - group by amount ranges
+    const amountRanges = [
+      { min: 0, max: 1000, label: `${currency} 0-1K` },
+      { min: 1000, max: 5000, label: `${currency} 1K-5K` },
+      { min: 5000, max: 10000, label: `${currency} 5K-10K` },
+      { min: 10000, max: 50000, label: `${currency} 10K-50K` },
+      { min: 50000, max: Infinity, label: `${currency} 50K+` }
+    ];
 
-  const amountGroups = data.duplicates.reduce((acc, duplicate) => {
-    const amount = duplicate.amount || 0;
-    const range = amountRanges.find(r => amount >= r.min && amount < r.max);
-    
-    if (range) {
-      if (!acc[range.label]) {
-        acc[range.label] = {
-          count: 0,
-          totalAmount: 0,
-          totalTransactions: 0
-        };
+    const amountGroups = chartData.reduce((acc, duplicate) => {
+      const amount = duplicate.amount || 0;
+      const range = amountRanges.find(r => amount >= r.min && amount < r.max);
+      
+      if (range) {
+        if (!acc[range.label]) {
+          acc[range.label] = {
+            count: 0,
+            totalAmount: 0,
+            totalTransactions: 0
+          };
+        }
+        
+        acc[range.label].count += 1;
+        acc[range.label].totalAmount += amount;
+        acc[range.label].totalTransactions += duplicate.count || 0;
       }
       
-      acc[range.label].count += 1;
-      acc[range.label].totalAmount += amount;
-      acc[range.label].totalTransactions += duplicate.count || 0;
-    }
-    
-    return acc;
-  }, {});
+      return acc;
+    }, {});
 
-  const chartData = Object.entries(amountGroups).map(([range, details], index) => ({
-    name: range,
-    value: details.count,
-    totalAmount: details.totalAmount,
-    totalTransactions: details.totalTransactions
-  }));
+    transformedData = Object.entries(amountGroups).map(([range, details], index) => ({
+      name: range,
+      value: details.count,
+      totalAmount: details.totalAmount,
+      totalTransactions: details.totalTransactions
+    }));
+  }
 
   // Generate gradient colors based on #925a9b
   const generateGradientColors = (count) => {
@@ -63,7 +95,7 @@ export default function DuplicateAmountChart({ data }) {
     return colors;
   };
 
-  const segmentColors = generateGradientColors(chartData.length);
+  const segmentColors = generateGradientColors(transformedData.length);
 
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
@@ -83,7 +115,7 @@ export default function DuplicateAmountChart({ data }) {
             Count: {data.value}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Amount: ${data.totalAmount?.toLocaleString()}
+            Amount: {formatCurrency(data.totalAmount)}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Transactions: {data.totalTransactions}
@@ -102,7 +134,7 @@ export default function DuplicateAmountChart({ data }) {
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={chartData}
+                data={transformedData}
                 cx="50%"
                 cy="50%"
                 innerRadius={60}
@@ -110,7 +142,7 @@ export default function DuplicateAmountChart({ data }) {
                 paddingAngle={5}
                 dataKey="value"
               >
-                {chartData.map((entry, index) => (
+                {transformedData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={segmentColors[index]} />
                 ))}
               </Pie>

@@ -1,9 +1,9 @@
 import React from 'react';
 import { Card, CardContent, Typography, Box } from '@mui/material';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { colorScheme, getColorByIndex } from '../../utils/colorScheme';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { colorScheme } from '../../utils/colorScheme';
 
-export default function DuplicateTypeChart({ data, currency = 'SAR' }) {
+export default function DuplicateMonthlyTrendChart({ data, currency = 'SAR' }) {
   // Helper function to format currency
   const formatCurrency = (amount) => {
     const num = parseFloat(amount || 0);
@@ -20,15 +20,15 @@ export default function DuplicateTypeChart({ data, currency = 'SAR' }) {
   };
 
   // Check for new data structure first, then fallback to old structure
-  const chartData = data?.chart_data?.duplicate_type_chart || data?.type_breakdown;
+  const chartData = data?.chart_data?.monthly_trend_chart || data?.monthly_trend;
 
-  if (!data || !chartData || (Array.isArray(chartData) && chartData.length === 0) || (typeof chartData === 'object' && Object.keys(chartData).length === 0)) {
+  if (!data || !chartData || (Array.isArray(chartData) && chartData.length === 0)) {
     return (
       <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2 }}>
         <CardContent>
-          <Typography variant="subtitle2" sx={{ mb: 2 }}>Duplicate Types Distribution</Typography>
+          <Typography variant="subtitle2" sx={{ mb: 2 }}>Monthly Duplicate Trend</Typography>
           <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Typography variant="body2" color="text.secondary">No duplicate type data available</Typography>
+            <Typography variant="body2" color="text.secondary">No monthly trend data available</Typography>
           </Box>
         </CardContent>
       </Card>
@@ -37,23 +37,25 @@ export default function DuplicateTypeChart({ data, currency = 'SAR' }) {
 
   // Transform data based on structure
   let transformedData;
-  if (Array.isArray(chartData)) {
-    // New structure: chart_data.duplicate_type_chart is an array
+  if (Array.isArray(chartData) && chartData.length > 0 && chartData[0].month) {
+    // New structure: chart_data.monthly_trend_chart is an array with month property
     transformedData = chartData.map((item, index) => ({
-      type: item.type,
-      count: item.groups,
-      amount: item.total_amount,
+      month: item.month,
+      duplicateGroups: item.duplicate_groups,
       transactions: item.transactions,
-      color: getColorByIndex(index)
+      totalAmount: item.total_amount,
+      debitAmount: item.debit_amount,
+      creditAmount: item.credit_amount
     }));
   } else {
-    // Old structure: type_breakdown is an object
-    transformedData = Object.entries(chartData).map(([type, details], index) => ({
-      type: type,
-      count: details.count,
-      amount: details.total_amount,
-      transactions: details.total_transactions,
-      color: getColorByIndex(index)
+    // Old structure: monthly_trend object
+    transformedData = Object.entries(chartData).map(([month, details]) => ({
+      month: month,
+      duplicateGroups: details.count || 0,
+      transactions: details.transactions || 0,
+      totalAmount: details.amount || 0,
+      debitAmount: details.debit_amount || 0,
+      creditAmount: details.credit_amount || 0
     }));
   }
 
@@ -72,13 +74,19 @@ export default function DuplicateTypeChart({ data, currency = 'SAR' }) {
             {label}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Count: {data.count}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Amount: {formatCurrency(data.amount)}
+            Duplicate Groups: {data.duplicateGroups}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Transactions: {data.transactions}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Total Amount: {formatCurrency(data.totalAmount)}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Debit: {formatCurrency(data.debitAmount)}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Credit: {formatCurrency(data.creditAmount)}
           </Typography>
         </Box>
       );
@@ -89,19 +97,19 @@ export default function DuplicateTypeChart({ data, currency = 'SAR' }) {
   return (
     <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2 }}>
       <CardContent>
-        <Typography variant="subtitle2" sx={{ mb: 2 }}>Duplicate Types Distribution</Typography>
+        <Typography variant="subtitle2" sx={{ mb: 2 }}>Monthly Duplicate Trend</Typography>
         <Box sx={{ height: 300 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={transformedData}>
+            <LineChart data={transformedData}>
               <defs>
-                <linearGradient id="purpleGradient" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="lineGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#925A9B" stopOpacity={0.8}/>
                   <stop offset="95%" stopColor="#925A9B" stopOpacity={0.1}/>
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis 
-                dataKey="type" 
+                dataKey="month" 
                 tick={{ fontSize: 12 }} 
                 axisLine={false} 
                 tickLine={false}
@@ -113,16 +121,18 @@ export default function DuplicateTypeChart({ data, currency = 'SAR' }) {
                 tick={{ fontSize: 12 }} 
                 axisLine={false} 
                 tickLine={false}
+                tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Area 
+              <Line 
                 type="monotone" 
-                dataKey="count" 
+                dataKey="duplicateGroups" 
                 stroke="#925A9B"
                 strokeWidth={3}
-                fill="url(#purpleGradient)"
+                dot={{ fill: '#925A9B', strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6, stroke: '#925A9B', strokeWidth: 2 }}
               />
-            </AreaChart>
+            </LineChart>
           </ResponsiveContainer>
         </Box>
       </CardContent>

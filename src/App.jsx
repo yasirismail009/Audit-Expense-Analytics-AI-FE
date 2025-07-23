@@ -7,6 +7,7 @@ import ExpenseSheetDetails from './ExpenseSheetDetails';
 import UploadModal from './components/UploadModal';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import axios from 'axios';
+import { colorScheme } from './utils/colorScheme';
 
 function TableListing() {
   const [rows, setRows] = useState([]);
@@ -16,7 +17,7 @@ function TableListing() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    axios.get('http://localhost:8000/api/file-list/')
+    axios.get('http://localhost:8000/api/all-files/')
       .then(res => {
         // Handle new payload structure with files array
         const files = res.data.files || res.data;
@@ -35,7 +36,7 @@ function TableListing() {
 
   const handleUploadSuccess = (data) => {
     // Refresh the data
-    axios.get('http://localhost:8000/api/file-list/')
+    axios.get('http://localhost:8000/api/all-files/')
       .then(res => {
         const files = res.data.files || res.data;
         setRows(Array.isArray(files) ? files : []);
@@ -53,21 +54,21 @@ function TableListing() {
       <Box sx={{ flexGrow: 1, width: 'calc(100% - 240px)', display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <TopBar />
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 4 }}>
-          <Typography variant="h5" fontWeight={700} sx={{ mb: 3 }}>File Listing</Typography>
+          <Typography variant="h5" fontWeight={700} sx={{ mb: 3, color: colorScheme.textPrimary }}>File Listing</Typography>
           
           {/* Summary Statistics */}
           {summary && (
             <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <Paper sx={{ p: 2, minWidth: 150, textAlign: 'center', bgcolor: '#e6faf5' }}>
-                <Typography variant="h6" color="#014D4E" fontWeight={700}>{summary.total_files}</Typography>
+              <Paper sx={{ p: 2, minWidth: 150, textAlign: 'center', bgcolor: '#f3e8f7' }}>
+                <Typography variant="h6" color={colorScheme.textPrimary}  fontWeight={700}>{summary.total_files}</Typography>
                 <Typography variant="body2" color="#64748B">Total Files</Typography>
               </Paper>
-              <Paper sx={{ p: 2, minWidth: 150, textAlign: 'center', bgcolor: '#e6faf5' }}>
-                <Typography variant="h6" color="#014D4E" fontWeight={700}>{summary.total_records}</Typography>
+              <Paper sx={{ p: 2, minWidth: 150, textAlign: 'center', bgcolor: '#f3e8f7' }}>
+                <Typography variant="h6" color={colorScheme.textPrimary}  fontWeight={700}>{summary.total_records}</Typography>
                 <Typography variant="body2" color="#64748B">Total Records</Typography>
               </Paper>
-              <Paper sx={{ p: 2, minWidth: 150, textAlign: 'center', bgcolor: '#e6faf5' }}>
-                <Typography variant="h6" color="#014D4E" fontWeight={700}>{summary.success_rate}%</Typography>
+              <Paper sx={{ p: 2, minWidth: 150, textAlign: 'center', bgcolor: '#f3e8f7' }}>
+                <Typography variant="h6" color={colorScheme.textPrimary}  fontWeight={700}>{summary.success_rate}%</Typography>
                 <Typography variant="body2" color="#64748B">Success Rate</Typography>
               </Paper>
             </Box>
@@ -83,17 +84,17 @@ function TableListing() {
               </Typography>
             </Paper>
           ) : (
-            <TableContainer component={Paper} sx={{ width: '100%', borderRadius: 3, boxShadow: '0 4px 24px 0 rgba(1,77,78,0.10)', mx: 'auto', bgcolor: 'white' }}>
+            <TableContainer component={Paper} sx={{ width: '100%', borderRadius: 3, boxShadow: '0 4px 24px 0 rgba(154,95,163,0.10)', mx: 'auto', bgcolor: 'white' }}>
               <Table>
                 <TableHead>
-                  <TableRow sx={{ bgcolor: '#e6faf5' }}>
-                    <TableCell sx={{ fontWeight: 700, color: '#014D4E' }}>ID</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: '#014D4E' }}>File Name</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: '#014D4E' }}>Client Name</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: '#014D4E' }}>Fiscal Year</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: '#014D4E' }}>Total Records</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: '#014D4E' }}>Status</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: '#014D4E' }}>Uploaded At</TableCell>
+                  <TableRow sx={{ bgcolor: '#f3e8f7' }}>
+                    <TableCell sx={{ fontWeight: 700, color: colorScheme.textPrimary }}>ID</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: colorScheme.textPrimary }}>File Name</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: colorScheme.textPrimary }}>Client Name</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: colorScheme.textPrimary }}>Fiscal Year</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: colorScheme.textPrimary }}>Total Records</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: colorScheme.textPrimary }}>Status</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: colorScheme.textPrimary }}>Uploaded At</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -103,11 +104,11 @@ function TableListing() {
                       hover
                       sx={{
                         cursor: 'pointer',
-                        '&:hover': { bgcolor: '#e6faf5' }
+                        '&:hover': { bgcolor: '#f3e8f7' }
                       }}
-                      onClick={() => navigate(`/expense-sheet-details/${row.id}`)}
+                      onClick={() => navigate(`/expense-sheet-details/${row.file_id}`)}
                     >
-                      <TableCell>{row.id}</TableCell>
+                      <TableCell>{row.file_id}</TableCell>
                       <TableCell>{row.file_name}</TableCell>
                       <TableCell>{row.client_name}</TableCell>
                       <TableCell>{row.fiscal_year}</TableCell>
@@ -115,8 +116,8 @@ function TableListing() {
                       <TableCell>
                         <span
                           style={{
-                            color: row.status === 'COMPLETED' ? '#00B686' : 
-                                   row.status === 'PROCESSING' ? '#F59E0B' : '#F43F5E',
+                            color: row.status === 'COMPLETED' ? '#9A5FA3' : 
+                                   row.status === 'PROCESSING' ? '#9A5FA3' : '#9A5FA3',
                             fontWeight: 700
                           }}
                         >
