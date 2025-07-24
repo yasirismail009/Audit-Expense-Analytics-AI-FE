@@ -322,7 +322,7 @@ export default function UploadModal({ open, onClose, onUploadSuccess }) {
         bgcolor: '#f8fafc',
         borderBottom: '1px solid #e5e7eb'
       }}>
-        <Typography variant="h6" fontWeight={700} color="#9A5FA3">
+        <Typography variant="h6" fontWeight={700} color="#9A5FA3" component="span">
           Upload Expense Sheet
         </Typography>
         <IconButton onClick={handleClose} size="small">
@@ -450,23 +450,7 @@ export default function UploadModal({ open, onClose, onUploadSuccess }) {
                 }}
               />
             </Grid>
-             <Grid item size={{xs: 12, sm: 6}}>
-               <TextField
-                 fullWidth
-                 label="Description"
-                 value={formData.description}
-                 onChange={(e) => handleFormChange('description', e.target.value)}
-                 multiline
-                 rows={3}
-                 sx={{
-                   '& .MuiOutlinedInput-root': {
-                     '& fieldset': { borderColor: '#e5e7eb' },
-                     '&:hover fieldset': { borderColor: '#9A5FA3' },
-                     '&.Mui-focused fieldset': { borderColor: '#9A5FA3' }
-                   }
-                 }}
-               />
-             </Grid>
+           
              <Grid item size={{xs: 12, sm: 6}}>
                <FormControl component="fieldset">
                  <FormLabel component="legend" sx={{ color: '#374151', fontWeight: 600 }}>
@@ -490,7 +474,7 @@ export default function UploadModal({ open, onClose, onUploadSuccess }) {
                  </RadioGroup>
                </FormControl>
              </Grid>
-             <Grid item size={{xs: 12, sm: 6}}>
+            {formData.run_anomalies && <Grid item size={{xs: 12, sm: 6}}>
                <FormControl component="fieldset" fullWidth>
                  <FormLabel component="legend" sx={{ color: '#374151', fontWeight: 600 }}>
                    Select Anomalies
@@ -528,6 +512,23 @@ export default function UploadModal({ open, onClose, onUploadSuccess }) {
                    ))}
                  </FormGroup>
                </FormControl>
+             </Grid>}
+             <Grid item size={{xs: 12, sm: 12}}>
+               <TextField
+                 fullWidth
+                 label="Description"
+                 value={formData.description}
+                 onChange={(e) => handleFormChange('description', e.target.value)}
+                 multiline
+                 rows={3}
+                 sx={{
+                   '& .MuiOutlinedInput-root': {
+                     '& fieldset': { borderColor: '#e5e7eb' },
+                     '&:hover fieldset': { borderColor: '#9A5FA3' },
+                     '&.Mui-focused fieldset': { borderColor: '#9A5FA3' }
+                   }
+                 }}
+               />
              </Grid>
            </Grid>
          </Box>

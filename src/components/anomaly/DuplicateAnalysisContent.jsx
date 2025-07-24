@@ -37,6 +37,7 @@ import {
 import DuplicateAnalysisDashboard from '../charts/DuplicateAnalysisDashboard';
 import ColorCodedDuplicateList from './shared/ColorCodedDuplicateList';
 import DuplicateDetailDrawer from '../FlaggedExpenseDrawer';
+import DuplicateAnalysisPDF from './DuplicateAnalysisPDF';
 import { getRiskColor } from '../../utils/colorScheme';
 
 // Import chart components
@@ -49,6 +50,7 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
   const [expandedTransactions, setExpandedTransactions] = useState({});
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedDuplicate, setSelectedDuplicate] = useState(null);
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
 
   // Extract currency from data or use default
   const currency = data?.currency || data?.file_info?.currency || 'SAR';
@@ -105,7 +107,7 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
   const totalTransactions = analysisInfo.total_transactions || 0;
   const overallRiskScore = totalTransactions > 0 ? Math.round((totalDuplicates / totalTransactions) * 100) : 0;
   const riskLevel = getRiskLevel(overallRiskScore);
-
+console.log("duplicate data",   data);
   return (
     <Box sx={{ minHeight: '100vh', background: '#f8f9fa', p: 3 }}>
       {/* Analysis Status */}
@@ -127,6 +129,33 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
         )}
       </Alert>
 
+      {/* Open Report Button */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
+        <Button
+          variant="contained"
+          onClick={() => setPdfModalOpen(true)}
+          sx={{
+            backgroundColor: '#925a9b',
+            color: 'white',
+            fontWeight: 600,
+            px: 3,
+            py: 1.5,
+            borderRadius: 2,
+            textTransform: 'none',
+            fontSize: '0.9rem',
+            boxShadow: '0 2px 8px rgba(146, 90, 155, 0.3)',
+            '&:hover': {
+              backgroundColor: '#7a4a82',
+              boxShadow: '0 4px 12px rgba(146, 90, 155, 0.4)',
+              transform: 'translateY(-1px)'
+            },
+            transition: 'all 0.2s ease-in-out'
+          }}
+        >
+          📄 Open Report
+        </Button>
+      </Box>
+
       {/* Top Summary Banner */}
       <Card sx={{ 
         mb: 4, 
@@ -138,7 +167,7 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
         <CardContent sx={{ p: 4 }}>
           <Grid container spacing={4} alignItems="center">
             {/* Left Section - File Information */}
-            <Grid item xs={12} md={6}>
+            <Grid item size={{xs: 12, md: 6}}>
               <Typography variant="h4" sx={{ 
                 fontWeight: 700, 
                 color: '#2c3e50', 
@@ -373,6 +402,161 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
       {/* Charts Dashboard */}
       <DuplicateAnalysisDashboard data={data} />
 
+      {/* Duplicate Flags Summary Cards */}
+      {breakdowns.duplicate_flags && (
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h5" sx={{ 
+            fontWeight: 600, 
+            mb: 3, 
+            color: '#2c3e50',
+            fontSize: '1.25rem'
+          }}>
+            Duplicate Type Summary
+          </Typography>
+          <Grid container spacing={3}>
+            {Object.entries(breakdowns.duplicate_flags).map(([type, details], index) => (
+              <Grid item size={{xs: 12, sm: 6, md: 4}} key={type}>
+                <Card sx={{ 
+                  background: 'white', 
+                  borderRadius: 2,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                  border: '1px solid #e9ecef',
+                  height: '100%',
+                  transition: 'transform 0.2s ease-in-out',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.1)'
+                  }
+                }}>
+                  <CardContent sx={{ p: 3 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                      <Avatar sx={{ 
+                        width: 40, 
+                        height: 40, 
+                        backgroundColor: '#925a9b',
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                        mr: 2
+                      }}>
+                        {type.charAt(0)}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 600, 
+                          color: '#2c3e50',
+                          fontSize: '1rem'
+                        }}>
+                          {type}
+                        </Typography>
+                        <Chip 
+                          label={details.amount > 10000000 ? 'HIGH' : details.amount > 5000000 ? 'MEDIUM' : 'LOW'}
+                          size="small"
+                          sx={{ 
+                            backgroundColor: getRiskColor(details.amount > 10000000 ? 'HIGH' : details.amount > 5000000 ? 'MEDIUM' : 'LOW'),
+                            color: 'white',
+                            fontWeight: 600,
+                            fontSize: '0.7rem',
+                            mt: 0.5
+                          }}
+                        />
+                      </Box>
+                    </Box>
+                    
+                    <Grid container spacing={2}>
+                      <Grid item size={{xs: 6}}>
+                        <Box sx={{ textAlign: 'center' }}>
+                          <Typography variant="h4" sx={{ 
+                            fontWeight: 700, 
+                            color: '#925a9b',
+                            fontSize: '1.5rem'
+                          }}>
+                            {details.count}
+                          </Typography>
+                          <Typography variant="body2" sx={{ 
+                            color: '#6c757d',
+                            fontSize: '0.75rem'
+                          }}>
+                            Groups
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item size={{xs: 6}}>
+                        <Box sx={{ textAlign: 'center' }}>
+                          <Typography variant="h4" sx={{ 
+                            fontWeight: 700, 
+                            color: '#925a9b',
+                            fontSize: '1.5rem'
+                          }}>
+                            {details.transactions}
+                          </Typography>
+                          <Typography variant="body2" sx={{ 
+                            color: '#6c757d',
+                            fontSize: '0.75rem'
+                          }}>
+                            Transactions
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    </Grid>
+                    
+                    <Divider sx={{ my: 2 }} />
+                    
+                    <Box sx={{ textAlign: 'center' }}>
+                      <Typography variant="h5" sx={{ 
+                        fontWeight: 700, 
+                        color: '#2c3e50',
+                        fontSize: '1.25rem'
+                      }}>
+                        {formatCurrency(details.amount)}
+                      </Typography>
+                      <Typography variant="body2" sx={{ 
+                        color: '#6c757d',
+                        fontSize: '0.75rem'
+                      }}>
+                        Total Amount
+                      </Typography>
+                    </Box>
+                    
+                    <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between' }}>
+                      <Box sx={{ textAlign: 'center', flex: 1 }}>
+                        <Typography variant="body2" sx={{ 
+                          fontWeight: 600, 
+                          color: '#28a745',
+                          fontSize: '0.875rem'
+                        }}>
+                          {formatCurrency(details.debit_amount)}
+                        </Typography>
+                        <Typography variant="caption" sx={{ 
+                          color: '#6c757d',
+                          fontSize: '0.7rem'
+                        }}>
+                          Debit
+                        </Typography>
+                      </Box>
+                      <Box sx={{ textAlign: 'center', flex: 1 }}>
+                        <Typography variant="body2" sx={{ 
+                          fontWeight: 600, 
+                          color: '#dc3545',
+                          fontSize: '0.875rem'
+                        }}>
+                          {formatCurrency(details.credit_amount)}
+                        </Typography>
+                        <Typography variant="caption" sx={{ 
+                          color: '#6c757d',
+                          fontSize: '0.7rem'
+                        }}>
+                          Credit
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+      )}
+
       {/* All Content in One View */}
       <Grid container spacing={3} sx={{ mt: 3 }}>
 
@@ -389,7 +573,7 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
               </Typography>
 
               {/* Color-Coded Lists */}
-              <Box sx={{ mb: 4 }}>
+              {breakdowns.duplicate_flags && <Box sx={{ mb: 4 }}>
                 <Typography variant="h6" sx={{ 
                   fontWeight: 600, 
                   mb: 3, 
@@ -398,8 +582,25 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
                 }}>
                   Color-Coded Duplicate Lists
                 </Typography>
-                <ColorCodedDuplicateList data={data} currency={currency} />
-              </Box>
+                <ColorCodedDuplicateList 
+                  data={{
+                    ...data,
+                    duplicates: Object.entries(breakdowns.duplicate_flags).map(([type, details], index) => ({
+                      type: type,
+                      amount: details.amount,
+                      count: details.transactions,
+                      risk_score: details.amount > 10000000 ? 80 : details.amount > 5000000 ? 60 : 40,
+                      criteria: type,
+                      gl_account: `GL Account ${index + 1}`,
+                      duplicate_type: type,
+                      transactions: details.transactions,
+                      debit_amount: details.debit_amount,
+                      credit_amount: details.credit_amount
+                    }))
+                  }} 
+                  currency={currency} 
+                />
+              </Box>}
 
               {/* Type Breakdown Table */}
               {breakdowns.duplicate_flags && (
@@ -436,9 +637,11 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
                             }
                           }}>
                             <TableCell>Duplicate Type</TableCell>
-                            <TableCell align="right">Count</TableCell>
-                            <TableCell align="right">Total Transactions</TableCell>
+                            <TableCell align="right">Groups</TableCell>
+                            <TableCell align="right">Transactions</TableCell>
                             <TableCell align="right">Total Amount</TableCell>
+                            <TableCell align="right">Debit Amount</TableCell>
+                            <TableCell align="right">Credit Amount</TableCell>
                             <TableCell align="center">Risk Level</TableCell>
                           </TableRow>
                         </TableHead>
@@ -515,12 +718,30 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
                                   {formatCurrency(details.amount)}
                                 </Typography>
                               </TableCell>
+                              <TableCell align="right" sx={{ py: 2 }}>
+                                <Typography variant="body2" sx={{ 
+                                  color: '#6c757d',
+                                  fontSize: '0.875rem',
+                                  fontWeight: 500
+                                }}>
+                                  {formatCurrency(details.debit_amount)}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="right" sx={{ py: 2 }}>
+                                <Typography variant="body2" sx={{ 
+                                  color: '#6c757d',
+                                  fontSize: '0.875rem',
+                                  fontWeight: 500
+                                }}>
+                                  {formatCurrency(details.credit_amount)}
+                                </Typography>
+                              </TableCell>
                               <TableCell align="center" sx={{ py: 2 }}>
                                 <Chip 
-                                  label="MEDIUM"
+                                  label={details.amount > 10000000 ? 'HIGH' : details.amount > 5000000 ? 'MEDIUM' : 'LOW'}
                                   size="small"
                                   sx={{ 
-                                    backgroundColor: getRiskColor('MEDIUM'),
+                                    backgroundColor: getRiskColor(details.amount > 10000000 ? 'HIGH' : details.amount > 5000000 ? 'MEDIUM' : 'LOW'),
                                     color: 'white',
                                     fontWeight: 600,
                                     fontSize: '0.75rem'
@@ -705,7 +926,7 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
 
         {/* Section 2: User Analysis */}
         {breakdowns.user_breakdown && (
-          <Grid item xs={12}>
+          <Grid item size={{xs: 12}}>
             <Card sx={{ 
               background: 'white', 
               borderRadius: 2,
@@ -838,7 +1059,7 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
 
         {/* Section 3: GL Account Analysis */}
         {breakdowns.fs_line_breakdown && (
-          <Grid item xs={12}>
+          <Grid item size={{xs: 12}}>
             <Card sx={{ 
               background: 'white', 
               borderRadius: 2,
@@ -974,7 +1195,7 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
 
         {/* Section 4: Risk Analysis */}
         {breakdowns.risk_breakdown && (
-          <Grid item xs={12}>
+            <Grid item size={{xs: 12}}>
             <Card sx={{ 
               background: 'white', 
               borderRadius: 2,
@@ -1085,7 +1306,7 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
 
         {/* Section 5: Detailed Insights */}
         {detailedInsights && Object.keys(detailedInsights).length > 0 && (
-          <Grid item xs={12}>
+          <Grid item size={{xs: 12}}>
             <Card sx={{ 
               background: 'white', 
               borderRadius: 2,
@@ -1105,7 +1326,7 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
                 <Grid container spacing={3}>
                   {/* Risk Assessment */}
                   {detailedInsights.risk_assessment && (
-                    <Grid item xs={12} md={6}>
+                    <Grid item size={{xs: 12, md: 6}}>
                       <Box sx={{ p: 2, background: '#f8f9fa', borderRadius: 2, border: '1px solid #e9ecef' }}>
                         <Typography variant="h6" sx={{ 
                           fontWeight: 600, 
@@ -1150,7 +1371,7 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
 
                   {/* Audit Recommendations */}
                   {detailedInsights.audit_recommendations && (
-                    <Grid item xs={12} md={6}>
+                    <Grid item size={{xs: 12, md: 6}}>
                       <Box sx={{ p: 2, background: '#f8f9fa', borderRadius: 2, border: '1px solid #e9ecef' }}>
                         <Typography variant="h6" sx={{ 
                           fontWeight: 600, 
@@ -1195,7 +1416,7 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
 
                   {/* Comparative Analysis */}
                   {detailedInsights.comparative_analysis && (
-                    <Grid item xs={12}>
+                    <Grid item size={{xs: 12}}>
                       <Box sx={{ p: 2, background: '#f8f9fa', borderRadius: 2, border: '1px solid #e9ecef' }}>
                         <Typography variant="h6" sx={{ 
                           fontWeight: 600, 
@@ -1206,7 +1427,7 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
                           Comparative Analysis
                         </Typography>
                         <Grid container spacing={2}>
-                          <Grid item xs={12} md={4}>
+                          <Grid item size={{xs: 12, md: 4}}>
                             <Box sx={{ textAlign: 'center', p: 2, background: 'white', borderRadius: 2 }}>
                               <Typography variant="h4" sx={{ 
                                 fontWeight: 700, 
@@ -1220,7 +1441,7 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
                               </Typography>
                             </Box>
                           </Grid>
-                          <Grid item xs={12} md={4}>
+                          <Grid item size={{xs: 12, md: 4}}>
                             <Box sx={{ textAlign: 'center', p: 2, background: 'white', borderRadius: 2 }}>
                               <Typography variant="h4" sx={{ 
                                 fontWeight: 700, 
@@ -1234,7 +1455,7 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
                               </Typography>
                             </Box>
                           </Grid>
-                          <Grid item xs={12} md={4}>
+                          <Grid item size={{xs: 12, md: 4}}>
                             <Box sx={{ textAlign: 'center', p: 2, background: 'white', borderRadius: 2 }}>
                               <Chip 
                                 label={detailedInsights.comparative_analysis.benchmark_comparison?.status || 'Unknown'}
@@ -1277,6 +1498,13 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
         open={drawerOpen}
         onClose={handleDrawerClose}
         duplicate={selectedDuplicate}
+      />
+
+      <DuplicateAnalysisPDF
+        open={pdfModalOpen}
+        setOpen={setPdfModalOpen}
+        data={data}
+        currency={currency}
       />
     </Box>
   );

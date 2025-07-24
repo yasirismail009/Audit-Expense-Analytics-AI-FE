@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, Typography, Box } from '@mui/material';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Legend, Area, AreaChart } from 'recharts';
 import { colorScheme } from '../../utils/colorScheme';
 
 const ANOMALY_COLORS = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'];
@@ -92,7 +92,13 @@ export default function AnomaliesDistributionChart({ data }) {
         <Box sx={{ height: 120, width: '100%', minWidth: '100%' }}>
         <ResponsiveContainer width="100%" height="100%">
             {chartData.length > 0 ? (
-              <LineChart data={chartData}>
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="anomalyGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#925A9B" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#925A9B" stopOpacity={0.1}/>
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis 
                   dataKey="name" 
@@ -107,15 +113,16 @@ export default function AnomaliesDistributionChart({ data }) {
                 />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend wrapperStyle={{ fontSize: '10px' }} />
-                <Line 
+                <Area 
                   type="monotone" 
                   dataKey="value" 
                   stroke="#925A9B"
                   strokeWidth={3}
+                  fill="url(#anomalyGradient)"
                   dot={{ fill: '#925A9B', strokeWidth: 2, r: 3 }}
                   activeDot={{ r: 5, stroke: '#925A9B', strokeWidth: 2, fill: '#925A9B' }}
                 />
-              </LineChart>
+              </AreaChart>
             ) : (
               <Box sx={{ 
                 height: '100%', 

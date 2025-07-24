@@ -38,12 +38,11 @@ import {
 } from '@mui/icons-material';
 import { colorScheme, getRiskColor } from '../utils/colorScheme';
 
+
 // Import chart widgets
 import RiskDistributionChart from './charts/RiskDistributionChart';
 import AnomaliesDistributionChart from './charts/AnomaliesDistributionChart';
 import EmployeeExpensesChart from './charts/EmployeeExpensesChart';
-import MonthlyTrendChart from './charts/MonthlyTrendChart';
-import AmountDistributionChart from './charts/AmountDistributionChart';
 import CategoryExpensesChart from './charts/CategoryExpensesChart';
 import DepartmentExpensesChart from './charts/DepartmentExpensesChart';
 
@@ -51,6 +50,7 @@ import DepartmentExpensesChart from './charts/DepartmentExpensesChart';
 import AnomalyAnalysisAccordion from './AnomalyAnalysisAccordion';
 
 export default function ExpenseAnalysisDashboard({ sheetData }) {
+  console.log("Dashboard - sheetData:", sheetData)
   if (!sheetData) {
     return (
       <Box sx={{ p: 4, textAlign: 'center' }}>
@@ -67,7 +67,6 @@ export default function ExpenseAnalysisDashboard({ sheetData }) {
   const glSummary = sheetData.glSummary;
   const anomaliesStats = sheetData.anomaliesStats;
   const anomaliesAccordion = sheetData.anomaliesAccordion;
-  const riskDistribution = sheetData.anomaliesStats?.riskDistribution;
   const chartsData = sheetData.chartsData;
   const glChartsData = sheetData.glChartsData;
   const analysisSessionsSummary = sheetData.analysisSessionsSummary;
@@ -78,9 +77,15 @@ export default function ExpenseAnalysisDashboard({ sheetData }) {
   const flaggedExpenses = sheetData.flagged_expenses;
   const anomaliesData = sheetData.anomalies_data;
   const advancedMetrics = sheetData.advanced_metrics;
-console.log("Dashboard - sheetData:", sheetData)
-console.log("Dashboard - statistics:", statistics)
-console.log("Dashboard - fileInfo:", fileInfo)
+
+  console.log("Dashboard - sheetData:", sheetData)
+  console.log("Dashboard - statistics:", statistics)
+  console.log("Dashboard - fileInfo:", fileInfo)
+  console.log("Dashboard - analysisSummary:", analysisSummary)
+  console.log("Dashboard - anomaliesAccordion:", anomaliesAccordion)
+  console.log("Dashboard - chartsData:", chartsData)
+  console.log("Dashboard - chartsData?.topUsersByAmount:", chartsData?.topUsersByAmount)
+
   // Helper function to format currency
   const formatCurrency = (amount) => {
     const num = parseFloat(amount || 0);
@@ -106,11 +111,29 @@ console.log("Dashboard - fileInfo:", fileInfo)
     }
   };
 
-  // Calculate overall risk score
-  const overallRiskScore = Math.round(statistics?.flagRate || 0);
-  const riskLevel = (statistics?.flagRate || 0) >= 80 ? 'CRITICAL' : 
-                   (statistics?.flagRate || 0) >= 60 ? 'HIGH' : 
-                   (statistics?.flagRate || 0) >= 40 ? 'MEDIUM' : 'LOW';
+  // Calculate overall risk score from the actual data structure
+  const overallRiskScore = Math.round(analysisSummary?.overall_fraud_score || 0);
+  const riskLevel = analysisSummary?.risk_level || 
+                   (overallRiskScore >= 80 ? 'CRITICAL' : 
+                   overallRiskScore >= 60 ? 'HIGH' : 
+                   overallRiskScore >= 40 ? 'MEDIUM' : 'LOW');
+
+  // Extract anomaly data from the actual structure
+  const anomalyData = {
+    duplicateEntries: anomaliesAccordion?.duplicateEntries || 0,
+    userAnomalies: anomaliesAccordion?.userAnomalies || 0,
+    backdatedEntries: anomaliesAccordion?.backdatedEntries || 0,
+    closingEntries: anomaliesAccordion?.closingEntries || 0,
+    unusualDays: anomaliesAccordion?.unusualDays || 0,
+    holidayEntries: anomaliesAccordion?.holidayEntries || 0,
+    totalAnomalies: anomaliesAccordion?.totalAnomalies || 
+                   (anomaliesAccordion?.duplicateEntries || 0) + 
+                   (anomaliesAccordion?.userAnomalies || 0) + 
+                   (anomaliesAccordion?.backdatedEntries || 0) + 
+                   (anomaliesAccordion?.closingEntries || 0) + 
+                   (anomaliesAccordion?.unusualDays || 0) + 
+                   (anomaliesAccordion?.holidayEntries || 0)
+  };
 
   // Debug the values being displayed
   console.log("Display values:", {
@@ -119,11 +142,45 @@ console.log("Dashboard - fileInfo:", fileInfo)
     uniqueUsers: statistics?.uniqueUsers,
     uniqueAccounts: statistics?.uniqueAccounts,
     flaggedTransactions: statistics?.flaggedTransactions,
-    flagRate: statistics?.flagRate,
     overallRiskScore,
-    riskLevel
+    riskLevel,
+    anomalyData
   });
 
+  // Comprehensive statistics object for display
+  const comprehensiveStats = {
+    // Basic Transaction Stats
+    totalTransactions: statistics?.totalTransactions || 0,
+    totalAmount: statistics?.totalAmount || 0,
+    avgAmount: statistics?.avgAmount || 0,
+    minAmount: statistics?.minAmount || 0,
+    maxAmount: statistics?.maxAmount || 0,
+    currency: statistics?.currency || '',
+    
+    // User & Account Stats
+    uniqueUsers: statistics?.uniqueUsers || 0,
+    uniqueAccounts: statistics?.uniqueAccounts || 0,
+    uniqueProfitCenters: statistics?.uniqueProfitCenters || 0,
+    
+    // Risk & Anomaly Stats
+    riskScore: statistics?.riskScore || overallRiskScore,
+    riskLevel: statistics?.riskLevel || riskLevel,
+    anomaliesDetected: statistics?.anomaliesDetected || anomalyData.totalAnomalies,
+    duplicatesFound: statistics?.duplicatesFound || anomalyData.duplicateEntries,
+    flaggedTransactions: statistics?.flaggedTransactions || analysisSummary?.total_flagged_expenses || 0,
+    flagRate: statistics?.flagRate || 0,
+    highValueTransactions: statistics?.highValueTransactions || 0,
+    
+    // Financial Stats
+    totalDebits: statistics?.totalDebits || 0,
+    totalCredits: statistics?.totalCredits || 0,
+    trialBalance: statistics?.trialBalance || 0,
+    
+    // Date Range
+    dateRange: statistics?.dateRange || { startDate: '', endDate: '' }
+  };
+
+console.log("sheetData:", sheetData)
   return (
     <Box sx={{ minHeight: '100vh', background: colorScheme.background, p: 3 }}>
       {/* Top Summary Banner */}
@@ -216,7 +273,7 @@ console.log("Dashboard - fileInfo:", fileInfo)
                           mb: 0.5,
                           fontSize: '1.1rem'
                         }}>
-                          {statistics?.totalTransactions || 0}
+                          {comprehensiveStats.totalTransactions}
                         </Typography>
                         <Typography variant="body2" sx={{ 
                           color: colorScheme.textSecondary,
@@ -239,7 +296,7 @@ console.log("Dashboard - fileInfo:", fileInfo)
                           mb: 0.5,
                           fontSize: '1.1rem'
                         }}>
-                          {formatCurrency(statistics?.totalAmount || 0)}
+                          {formatCurrency(comprehensiveStats.totalAmount)}
                         </Typography>
                         <Typography variant="body2" sx={{ 
                           color: colorScheme.textSecondary,
@@ -262,7 +319,7 @@ console.log("Dashboard - fileInfo:", fileInfo)
                           mb: 0.5,
                           fontSize: '1.1rem'
                         }}>
-                          {statistics?.uniqueUsers || 0}
+                          {comprehensiveStats.uniqueUsers}
                         </Typography>
                         <Typography variant="body2" sx={{ 
                           color: colorScheme.textSecondary,
@@ -285,7 +342,7 @@ console.log("Dashboard - fileInfo:", fileInfo)
                           mb: 0.5,
                           fontSize: '1.1rem'
                         }}>
-                          {statistics?.uniqueAccounts || 0}
+                          {comprehensiveStats.uniqueAccounts}
                         </Typography>
                         <Typography variant="body2" sx={{ 
                           color: colorScheme.textSecondary,
@@ -308,7 +365,7 @@ console.log("Dashboard - fileInfo:", fileInfo)
                           mb: 0.5,
                           fontSize: '1.1rem'
                         }}>
-                          {statistics?.flaggedTransactions || 0}
+                          {comprehensiveStats.flaggedTransactions}
                         </Typography>
                         <Typography variant="body2" sx={{ 
                           color: colorScheme.textSecondary,
@@ -318,29 +375,7 @@ console.log("Dashboard - fileInfo:", fileInfo)
                         </Typography>
                       </Box>
                     </Grid>
-                    <Grid item size={{xs: 3, md: 3}}>
-                      <Box sx={{ textAlign: 'center' }}>
-                        <Business sx={{ 
-                          color: colorScheme.primary, 
-                          fontSize: 24, 
-                          mb: 0.5 
-                        }} />
-                        <Typography variant="h6" sx={{ 
-                          fontWeight: 700, 
-                          color: colorScheme.textPrimary,
-                          mb: 0.5,
-                          fontSize: '1.1rem'
-                        }}>
-                          {statistics?.uniqueProfitCenters || 0}
-                        </Typography>
-                        <Typography variant="body2" sx={{ 
-                          color: colorScheme.textSecondary,
-                          fontSize: '0.8rem'
-                        }}>
-                          Profit Centers
-                        </Typography>
-                      </Box>
-                    </Grid>
+                 
                     <Grid item size={{xs: 3, md: 3}}>
                       <Box sx={{ textAlign: 'center' }}>
                         <Receipt sx={{ 
@@ -354,7 +389,7 @@ console.log("Dashboard - fileInfo:", fileInfo)
                           mb: 0.5,
                           fontSize: '1.1rem'
                         }}>
-                          {formatCurrency(statistics?.avgAmount || 0)}
+                          {formatCurrency(comprehensiveStats.avgAmount)}
                         </Typography>
                         <Typography variant="body2" sx={{ 
                           color: colorScheme.textSecondary,
@@ -364,7 +399,377 @@ console.log("Dashboard - fileInfo:", fileInfo)
                         </Typography>
                       </Box>
                     </Grid>
+                    <Grid item size={{xs: 3, md: 3}}>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Warning sx={{ 
+                          color: colorScheme.primary, 
+                          fontSize: 24, 
+                          mb: 0.5 
+                        }} />
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 700, 
+                          color: colorScheme.textPrimary,
+                          mb: 0.5,
+                          fontSize: '1.1rem'
+                        }}>
+                          {comprehensiveStats.anomaliesDetected}
+                        </Typography>
+                        <Typography variant="body2" sx={{ 
+                          color: colorScheme.textSecondary,
+                          fontSize: '0.8rem'
+                        }}>
+                          Anomalies
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item size={{xs: 3, md: 3}}>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Error sx={{ 
+                          color: colorScheme.primary, 
+                          fontSize: 24, 
+                          mb: 0.5 
+                        }} />
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 700, 
+                          color: colorScheme.textPrimary,
+                          mb: 0.5,
+                          fontSize: '1.1rem'
+                        }}>
+                          {comprehensiveStats.duplicatesFound}
+                        </Typography>
+                        <Typography variant="body2" sx={{ 
+                          color: colorScheme.textSecondary,
+                          fontSize: '0.8rem'
+                        }}>
+                          Duplicates
+                        </Typography>
+                      </Box>
+                    </Grid>
                   </Grid>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+
+      {/* Comprehensive Statistics Section */}
+      <Card sx={{ 
+        mb: 4, 
+        background: colorScheme.cardBackground, 
+        borderRadius: 3,
+        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+        overflow: 'visible'
+      }}>
+        <CardContent sx={{ p: 4 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
+            <Analytics sx={{ 
+              color: colorScheme.primary, 
+              fontSize: 32, 
+              mr: 2 
+            }} />
+            <Typography variant="h5" sx={{ 
+              fontWeight: 700, 
+              color: colorScheme.textPrimary, 
+              fontSize: '1.5rem'
+            }}>
+              Comprehensive Statistics
+            </Typography>
+          </Box>
+          
+          <Grid container spacing={4}>
+            {/* Basic Transaction Stats */}
+            <Grid item size={{xs: 12, md: 6}}>
+              <Card sx={{ 
+                background: 'linear-gradient(135deg, #925A9B 0%, #7B4B8A 100%)',
+                borderRadius: 3,
+                boxShadow: '0 8px 32px rgba(146, 90, 155, 0.3)',
+                position: 'relative',
+                overflow: 'hidden',
+                height: 320
+              }}>
+                <Box sx={{ 
+                  position: 'absolute', 
+                  top: -20, 
+                  right: -20, 
+                  width: 100, 
+                  height: 100, 
+                  background: 'rgba(255,255,255,0.1)', 
+                  borderRadius: '50%' 
+                }} />
+                <CardContent sx={{ p: 3, position: 'relative', zIndex: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <Timeline sx={{ color: 'white', fontSize: 24, mr: 1.5 }} />
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: 600, 
+                      color: 'white',
+                      fontSize: '1.1rem'
+                    }}>
+                      Transaction Statistics
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'grid', gap: 1.5, flex: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>
+                        Total Transactions
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>
+                        {comprehensiveStats.totalTransactions}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>
+                        Total Amount
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>
+                        {formatCurrency(comprehensiveStats.totalAmount)}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>
+                        Average Amount
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>
+                        {formatCurrency(comprehensiveStats.avgAmount)}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>
+                        Currency
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>
+                        {comprehensiveStats.currency || 'SAR'}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* User & Account Stats */}
+            <Grid item size={{xs: 12, md: 6}}>
+              <Card sx={{ 
+                background: 'linear-gradient(135deg, #925A9B 0%, #7B4B8A 100%)',
+                borderRadius: 3,
+                boxShadow: '0 8px 32px rgba(146, 90, 155, 0.3)',
+                position: 'relative',
+                overflow: 'hidden',
+                height: 320
+              }}>
+                <Box sx={{ 
+                  position: 'absolute', 
+                  top: -20, 
+                  right: -20, 
+                  width: 100, 
+                  height: 100, 
+                  background: 'rgba(255,255,255,0.1)', 
+                  borderRadius: '50%' 
+                }} />
+                <CardContent sx={{ p: 3, position: 'relative', zIndex: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <People sx={{ color: 'white', fontSize: 24, mr: 1.5 }} />
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: 600, 
+                      color: 'white',
+                      fontSize: '1.1rem'
+                    }}>
+                      User & Account Statistics
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'grid', gap: 1.5, flex: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>
+                        Unique Users
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>
+                        {comprehensiveStats.uniqueUsers}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>
+                        Unique Accounts
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>
+                        {comprehensiveStats.uniqueAccounts}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>
+                        Profit Centers
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>
+                        {comprehensiveStats.uniqueProfitCenters}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Risk & Anomaly Stats */}
+            <Grid item size={{xs: 12, md: 6}}>
+              <Card sx={{ 
+                background: 'linear-gradient(135deg, #925A9B 0%, #7B4B8A 100%)',
+                borderRadius: 3,
+                boxShadow: '0 8px 32px rgba(146, 90, 155, 0.3)',
+                position: 'relative',
+                overflow: 'hidden',
+                height: 320
+              }}>
+                <Box sx={{ 
+                  position: 'absolute', 
+                  top: -20, 
+                  right: -20, 
+                  width: 100, 
+                  height: 100, 
+                  background: 'rgba(255,255,255,0.1)', 
+                  borderRadius: '50%' 
+                }} />
+                <CardContent sx={{ p: 3, position: 'relative', zIndex: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <Security sx={{ color: 'white', fontSize: 24, mr: 1.5 }} />
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: 600, 
+                      color: 'white',
+                      fontSize: '1.1rem'
+                    }}>
+                      Risk & Anomaly Statistics
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'grid', gap: 1.5, flex: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>
+                        Risk Score
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>
+                        {comprehensiveStats.riskScore}%
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>
+                        Risk Level
+                      </Typography>
+                      <Chip 
+                        label={comprehensiveStats.riskLevel} 
+                        size="small"
+                        sx={{ 
+                          backgroundColor: 'rgba(255,255,255,0.2)',
+                          color: 'white',
+                          fontWeight: 600,
+                          fontSize: '0.7rem',
+                          px: 1,
+                          py: 0.2,
+                          border: '1px solid rgba(255,255,255,0.3)'
+                        }}
+                      />
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>
+                        Anomalies Detected
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>
+                        {comprehensiveStats.anomaliesDetected}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>
+                        Duplicates Found
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>
+                        {comprehensiveStats.duplicatesFound}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>
+                        Flagged Transactions
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>
+                        {comprehensiveStats.flaggedTransactions}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>
+                        Flag Rate
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>
+                        {comprehensiveStats.flagRate}%
+                      </Typography>
+                    </Box>
+                  </Box>
+                  
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Financial Stats */}
+            <Grid item size={{xs: 12, md: 6}}>
+              <Card sx={{ 
+                background: 'linear-gradient(135deg, #925A9B 0%, #7B4B8A 100%)',
+                borderRadius: 3,
+                boxShadow: '0 8px 32px rgba(146, 90, 155, 0.3)',
+                position: 'relative',
+                overflow: 'hidden',
+                height: 320
+              }}>
+                <Box sx={{ 
+                  position: 'absolute', 
+                  top: -20, 
+                  right: -20, 
+                  width: 100, 
+                  height: 100, 
+                  background: 'rgba(255,255,255,0.1)', 
+                  borderRadius: '50%' 
+                }} />
+                <CardContent sx={{ p: 3, position: 'relative', zIndex: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <AccountBalance sx={{ color: 'white', fontSize: 24, mr: 1.5 }} />
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: 600, 
+                      color: 'white',
+                      fontSize: '1.1rem'
+                    }}>
+                      Financial Statistics
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'grid', gap: 1.5, flex: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>
+                        Total Debits
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>
+                        {formatCurrency(comprehensiveStats.totalDebits)}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>
+                        Total Credits
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>
+                        {formatCurrency(comprehensiveStats.totalCredits)}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>
+                        Trial Balance
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>
+                        {formatCurrency(comprehensiveStats.trialBalance)}
+                      </Typography>
+                    </Box>
+                    {comprehensiveStats.dateRange?.startDate && (
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>
+                          Date Range
+                        </Typography>
+                        <Typography variant="body1" sx={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>
+                          {formatDate(comprehensiveStats.dateRange.startDate)} - {formatDate(comprehensiveStats.dateRange.endDate)}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+
+                </CardContent>
+              </Card>
             </Grid>
           </Grid>
         </CardContent>
@@ -390,45 +795,58 @@ console.log("Dashboard - fileInfo:", fileInfo)
                 Risk Distribution
               </Typography>
               <Box sx={{ mb: 3 }}>
-                {(riskDistribution || []).map((risk, index) => (
-                  <Box key={index} sx={{ mb: 2.5 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <Warning sx={{ 
-                        color: "#925A9B", 
-                        fontSize: 20,
-                        mr: 1.5 
-                      }} />
-                      <Typography variant="body1" sx={{ 
-                        flex: 1, 
-                        fontWeight: 600,
-                        color: colorScheme.textPrimary,
-                        fontSize: '0.9rem'
-                      }}>
-                        {risk.risk_level}
-                      </Typography>
-                      <Typography variant="body1" sx={{ 
-                        fontWeight: 600, 
-                        color: "#925A9B",
-                        fontSize: '0.9rem'
-                      }}>
-                        {risk.count} ({risk.percentage.toFixed(1)}%)
-                      </Typography>
-                    </Box>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={risk.percentage} 
-                      sx={{ 
-                        height: 6, 
-                        borderRadius: 3,
-                        backgroundColor: '#f0f0f0',
-                        '& .MuiLinearProgress-bar': {
-                          backgroundColor: "#b18db7",
-                          borderRadius: 3
-                        }
-                      }} 
-                    />
-                  </Box>
-                ))}
+                {/* Generate risk distribution based on current risk level */}
+                {(() => {
+                  const riskLevels = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+                  const currentRiskLevel = riskLevel;
+                  const currentRiskIndex = riskLevels.indexOf(currentRiskLevel);
+                  
+                  return riskLevels.map((level, index) => {
+                    const isCurrentLevel = level === currentRiskLevel;
+                    const count = isCurrentLevel ? 1 : 0;
+                    const percentage = isCurrentLevel ? 100 : 0;
+                    
+                    return (
+                      <Box key={index} sx={{ mb: 2.5 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                          <Warning sx={{ 
+                            color: isCurrentLevel ? "#925A9B" : "#ccc", 
+                            fontSize: 20,
+                            mr: 1.5 
+                          }} />
+                          <Typography variant="body1" sx={{ 
+                            flex: 1, 
+                            fontWeight: 600,
+                            color: isCurrentLevel ? colorScheme.textPrimary : colorScheme.textSecondary,
+                            fontSize: '0.9rem'
+                          }}>
+                            {level}
+                          </Typography>
+                          <Typography variant="body1" sx={{ 
+                            fontWeight: 600, 
+                            color: isCurrentLevel ? "#925A9B" : colorScheme.textSecondary,
+                            fontSize: '0.9rem'
+                          }}>
+                            {count} ({percentage.toFixed(1)}%)
+                          </Typography>
+                        </Box>
+                        <LinearProgress 
+                          variant="determinate" 
+                          value={percentage} 
+                          sx={{ 
+                            height: 6, 
+                            borderRadius: 3,
+                            backgroundColor: '#f0f0f0',
+                            '& .MuiLinearProgress-bar': {
+                              backgroundColor: isCurrentLevel ? "#b18db7" : "#e0e0e0",
+                              borderRadius: 3
+                            }
+                          }} 
+                        />
+                      </Box>
+                    );
+                  });
+                })()}
               </Box>
               <Box sx={{ 
                 width: '100%',
@@ -439,7 +857,15 @@ console.log("Dashboard - fileInfo:", fileInfo)
                 justifyContent: 'center',
                 marginTop: '20px' 
               }}>
-                <RiskDistributionChart data={chartsData?.riskDistribution || chartData?.risk_distribution} />
+                <RiskDistributionChart data={{
+                  labels: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+                  data: [0, 0, 0, 0].map((_, index) => 
+                    ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'][index] === riskLevel ? 1 : 0
+                  ),
+                  percentages: [0, 0, 0, 0].map((_, index) => 
+                    ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'][index] === riskLevel ? 100 : 0
+                  )
+                }} />
               </Box>
             </CardContent>
           </Card>
@@ -466,37 +892,37 @@ console.log("Dashboard - fileInfo:", fileInfo)
                 {[
                   { 
                     label: 'Duplicate Entries', 
-                    value: anomaliesAccordion?.duplicateEntries || anomaliesData?.anomaly_summary?.duplicate_entries || 0, 
+                    value: anomalyData.duplicateEntries, 
                     icon: <Error sx={{ color: colorScheme.primary }} />,
                     color: colorScheme.primary
                   },
                   { 
                     label: 'User Anomalies', 
-                    value: anomaliesAccordion?.userAnomalies || anomaliesData?.anomaly_summary?.user_anomalies || 0, 
+                    value: anomalyData.userAnomalies, 
                     icon: <People sx={{ color: colorScheme.primary }} />,
                     color: colorScheme.primary
                   },
                   { 
                     label: 'Backdated Entries', 
-                    value: anomaliesAccordion?.backdatedEntries || anomaliesData?.anomaly_summary?.backdated_entries || 0, 
+                    value: anomalyData.backdatedEntries, 
                     icon: <Timeline sx={{ color: colorScheme.primary }} />,
                     color: colorScheme.primary
                   },
                   { 
                     label: 'Closing Entries', 
-                    value: anomaliesAccordion?.closingEntries || anomaliesData?.anomaly_summary?.closing_entries || 0, 
+                    value: anomalyData.closingEntries, 
                     icon: <CheckCircle sx={{ color: colorScheme.primary }} />,
                     color: colorScheme.primary
                   },
                   { 
                     label: 'Unusual Days', 
-                    value: anomaliesAccordion?.unusualDays || anomaliesData?.anomaly_summary?.unusual_days || 0, 
+                    value: anomalyData.unusualDays, 
                     icon: <Warning sx={{ color: colorScheme.primary }} />,
                     color: colorScheme.primary
                   },
                   { 
                     label: 'Holiday Entries', 
-                    value: anomaliesAccordion?.holidayEntries || anomaliesData?.anomaly_summary?.holiday_entries || 0, 
+                    value: anomalyData.holidayEntries, 
                     icon: <Assessment sx={{ color: colorScheme.primary }} />,
                     color: colorScheme.primary
                   }
@@ -524,7 +950,7 @@ console.log("Dashboard - fileInfo:", fileInfo)
                     </Box>
                     <LinearProgress 
                       variant="determinate" 
-                      value={Math.min((item.value / (anomaliesAccordion?.totalAnomalies || anomaliesData?.anomaly_summary?.total_anomalies || 1)) * 100, 100)} 
+                      value={Math.min((item.value / (anomalyData.totalAnomalies || 1)) * 100, 100)} 
                       sx={{ 
                         height: 6, 
                         borderRadius: 3,
@@ -546,22 +972,33 @@ console.log("Dashboard - fileInfo:", fileInfo)
                 alignItems: 'center', 
                 justifyContent: 'center' 
               }}>
-                <AnomaliesDistributionChart data={chartsData?.anomalyBreakdown || chartData?.anomaly_breakdown} />
+                <AnomaliesDistributionChart data={{
+                  labels: ['Duplicate Entries', 'User Anomalies', 'Backdated Entries', 'Closing Entries', 'Unusual Days', 'Holiday Entries'],
+                  data: [
+                    anomalyData.duplicateEntries,
+                    anomalyData.userAnomalies,
+                    anomalyData.backdatedEntries,
+                    anomalyData.closingEntries,
+                    anomalyData.unusualDays,
+                    anomalyData.holidayEntries
+                  ]
+                }} />
               </Box>
             </CardContent>
           </Card>
         </Grid>
 
         {/* Top Users by Amount */}
-        <Grid item size={{xs: 12, md: 12}}>
-          <Card sx={{ 
-            borderRadius: 3, 
-            boxShadow: '0 4px 20px rgba(0,0,0,0.08)', 
-            background: colorScheme.cardBackground,
-            height: '100%'
-          }}>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" sx={{ 
+        {(chartsData?.topUsersByAmount && chartsData.topUsersByAmount.length > 0) && (
+          <Grid item size={{xs: 12, md: 12}}>
+            <Card sx={{ 
+              borderRadius: 3, 
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)', 
+              background: colorScheme.cardBackground,
+              height: '100%'
+            }}>
+              <CardContent sx={{ p: 3 }}>
+                              <Typography variant="h6" sx={{ 
                 fontWeight: 600, 
                 mb: 3, 
                 color: colorScheme.textPrimary,
@@ -569,6 +1006,60 @@ console.log("Dashboard - fileInfo:", fileInfo)
               }}>
                 Top Users by Amount
               </Typography>
+              
+              {/* User Summary Statistics */}
+              {chartsData?.topUsersByAmount && chartsData.topUsersByAmount.length > 0 && (
+                <Box sx={{ 
+                  mb: 3, 
+                  p: 3, 
+                  background: '#f8f9fa', 
+                  borderRadius: 3,
+                  border: `1px solid ${colorScheme.border}`
+                }}>
+                  <Typography variant="subtitle1" sx={{ 
+                    fontWeight: 600, 
+                    mb: 2, 
+                    color: colorScheme.textPrimary,
+                    fontSize: '1rem'
+                  }}>
+                    User Activity Summary
+                  </Typography>
+                  <Grid container spacing={3}>
+                    <Grid item size={{xs: 12, md: 3}}>
+                      <Typography variant="body2" sx={{ color: colorScheme.textSecondary, mb: 1, fontSize: '0.875rem' }}>
+                        <strong>Total Users:</strong> {chartsData.topUsersByAmount.length}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: colorScheme.textSecondary, mb: 1, fontSize: '0.875rem' }}>
+                        <strong>Total Amount:</strong> {formatCurrency(chartsData.topUsersByAmount.reduce((sum, user) => sum + (user.totalAmount || 0), 0))}
+                      </Typography>
+                    </Grid>
+                    <Grid item size={{xs: 12, md: 3}}>
+                      <Typography variant="body2" sx={{ color: colorScheme.textSecondary, mb: 1, fontSize: '0.875rem' }}>
+                        <strong>Total Transactions:</strong> {chartsData.topUsersByAmount.reduce((sum, user) => sum + (user.transactionCount || 0), 0)}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: colorScheme.textSecondary, mb: 1, fontSize: '0.875rem' }}>
+                        <strong>Avg Amount per User:</strong> {formatCurrency(chartsData.topUsersByAmount.reduce((sum, user) => sum + (user.totalAmount || 0), 0) / chartsData.topUsersByAmount.length)}
+                      </Typography>
+                    </Grid>
+                    <Grid item size={{xs: 12, md: 3}}>
+                      <Typography variant="body2" sx={{ color: colorScheme.textSecondary, mb: 1, fontSize: '0.875rem' }}>
+                        <strong>Most Active User:</strong> {chartsData.topUsersByAmount[0]?.userName || 'N/A'}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: colorScheme.textSecondary, mb: 1, fontSize: '0.875rem' }}>
+                        <strong>Highest Spender:</strong> {chartsData.topUsersByAmount.reduce((max, user) => (user.totalAmount || 0) > (max.totalAmount || 0) ? user : max, { totalAmount: 0 })?.userName || 'N/A'}
+                      </Typography>
+                    </Grid>
+                    <Grid item size={{xs: 12, md: 3}}>
+                      <Typography variant="body2" sx={{ color: colorScheme.textSecondary, mb: 1, fontSize: '0.875rem' }}>
+                        <strong>Total Accounts Used:</strong> {chartsData.topUsersByAmount.reduce((sum, user) => sum + (user.accountsCount || 0), 0)}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: colorScheme.textSecondary, mb: 1, fontSize: '0.875rem' }}>
+                        <strong>Avg Accounts per User:</strong> {(chartsData.topUsersByAmount.reduce((sum, user) => sum + (user.accountsCount || 0), 0) / chartsData.topUsersByAmount.length).toFixed(1)}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Box>
+              )}
               <TableContainer component={Paper} sx={{ 
                 boxShadow: 'none', 
                 mb: 3,
@@ -591,7 +1082,7 @@ console.log("Dashboard - fileInfo:", fileInfo)
                         border: 'none',
                         pb: 1
                       }} align="right">
-                        Amount
+                        Total Amount
                       </TableCell>
                       <TableCell sx={{ 
                         fontWeight: 600, 
@@ -601,10 +1092,26 @@ console.log("Dashboard - fileInfo:", fileInfo)
                       }} align="right">
                         Transactions
                       </TableCell>
+                      <TableCell sx={{ 
+                        fontWeight: 600, 
+                        color: colorScheme.textPrimary,
+                        border: 'none',
+                        pb: 1
+                      }} align="right">
+                        Avg Amount
+                      </TableCell>
+                      <TableCell sx={{ 
+                        fontWeight: 600, 
+                        color: colorScheme.textPrimary,
+                        border: 'none',
+                        pb: 1
+                      }} align="right">
+                        Accounts
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {(chartsData?.topUsersByAmount || chartData?.employee_expenses?.data || []).slice(0, 5).map((user, index) => (
+                    {(chartsData?.topUsersByAmount || []).slice(0, 5).map((user, index) => (
                       <TableRow key={index} sx={{ '&:last-child td': { border: 0 } }}>
                         <TableCell sx={{ border: 'none', py: 1 }}>
                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -616,15 +1123,28 @@ console.log("Dashboard - fileInfo:", fileInfo)
                               fontSize: '0.875rem',
                               fontWeight: 600
                             }}>
-                              {user.userName?.charAt(0) || user.user_name?.charAt(0) || user?.charAt(0) || 'U'}
+                              {(user.userName || user.user_name || user || '')?.toString()?.charAt(0) || 'U'}
                             </Avatar>
-                            <Typography variant="body2" sx={{ 
-                              fontWeight: 600, 
-                              color: colorScheme.textPrimary,
-                              fontSize: '0.875rem'
-                            }}>
-                              {user.userName || user.user_name || user || 'Unknown User'}
-                            </Typography>
+                            <Box>
+                              <Typography variant="body2" sx={{ 
+                                fontWeight: 600, 
+                                color: colorScheme.textPrimary,
+                                fontSize: '0.875rem'
+                              }}>
+                                {user.userName || user.user_name || (typeof user === 'string' ? user : 'Unknown User')}
+                              </Typography>
+                              {user.dateRange && (
+                                <Typography variant="caption" sx={{ 
+                                  color: colorScheme.textSecondary,
+                                  fontSize: '0.75rem'
+                                }}>
+                                  {user.dateRange.min && user.dateRange.max ? 
+                                    `${new Date(user.dateRange.min).toLocaleDateString()} - ${new Date(user.dateRange.max).toLocaleDateString()}` : 
+                                    'Date range unavailable'
+                                  }
+                                </Typography>
+                              )}
+                            </Box>
                           </Box>
                         </TableCell>
                         <TableCell align="right" sx={{ border: 'none', py: 1 }}>
@@ -633,7 +1153,7 @@ console.log("Dashboard - fileInfo:", fileInfo)
                             color: colorScheme.primary,
                             fontSize: '0.875rem'
                           }}>
-                            {formatCurrency(user.totalAmount || user)}
+                            {formatCurrency(user.totalAmount || (typeof user === 'number' ? user : 0))}
                           </Typography>
                         </TableCell>
                         <TableCell align="right" sx={{ border: 'none', py: 1 }}>
@@ -642,6 +1162,22 @@ console.log("Dashboard - fileInfo:", fileInfo)
                             fontSize: '0.875rem'
                           }}>
                             {user.transactionCount || 1}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right" sx={{ border: 'none', py: 1 }}>
+                          <Typography variant="body2" sx={{ 
+                            color: colorScheme.textSecondary,
+                            fontSize: '0.875rem'
+                          }}>
+                            {formatCurrency(user.avgAmount || 0)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right" sx={{ border: 'none', py: 1 }}>
+                          <Typography variant="body2" sx={{ 
+                            color: colorScheme.textSecondary,
+                            fontSize: '0.875rem'
+                          }}>
+                            {user.accountsCount || 0}
                           </Typography>
                         </TableCell>
                       </TableRow>
@@ -657,26 +1193,41 @@ console.log("Dashboard - fileInfo:", fileInfo)
                 alignItems: 'center', 
                 justifyContent: 'center' 
               }}>
-                <EmployeeExpensesChart data={chartsData?.employeeExpenses || chartData?.employee_expenses} />
+                {(() => {
+                  const chartLabels = (chartsData?.topUsersByAmount || []).slice(0, 5).map(user => user.userName || user.user_name || (typeof user === 'string' ? user : 'Unknown User'));
+                  const chartData = (chartsData?.topUsersByAmount || []).slice(0, 5).map(user => user.totalAmount || 0);
+                  console.log('Chart - chartLabels:', chartLabels);
+                  console.log('Chart - chartData:', chartData);
+                  console.log('Chart - chartsData?.topUsersByAmount:', chartsData?.topUsersByAmount);
+                  
+                  return (
+                    <EmployeeExpensesChart data={{
+                      labels: chartLabels,
+                      data: chartData
+                    }} />
+                  );
+                })()}
               </Box>
             </CardContent>
           </Card>
         </Grid>
+        )}
 
         {/* Top GL Accounts */}
-        <Grid item size={{xs: 12, md: 12}}>
-          <Card sx={{ 
-            borderRadius: 3, 
-            boxShadow: '0 4px 20px rgba(0,0,0,0.08)', 
-            background: colorScheme.cardBackground
-          }}>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" sx={{ 
-                fontWeight: 600, 
-                mb: 3, 
-                color: colorScheme.textPrimary,
-                fontSize: '1.1rem'
-              }}>
+        {(glChartsData?.topAccountsByAmount && glChartsData.topAccountsByAmount.length > 0) && (
+          <Grid item size={{xs: 12, md: 12}}>
+            <Card sx={{ 
+              borderRadius: 3, 
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)', 
+              background: colorScheme.cardBackground
+            }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h6" sx={{ 
+                  fontWeight: 600, 
+                  mb: 3, 
+                  color: colorScheme.textPrimary,
+                  fontSize: '1.1rem'
+                }}>
                   Top GL Accounts
                 </Typography>
                 
@@ -767,7 +1318,7 @@ console.log("Dashboard - fileInfo:", fileInfo)
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {(glChartsData?.topAccountsByAmount || []).map((account, index) => (
+                      {(glChartsData?.topAccountsByAmount || []).slice(0, 5).map((account, index) => (
                       <TableRow key={index} sx={{ '&:last-child td': { border: 0 } }}>
                         <TableCell sx={{ border: 'none', py: 1 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -840,82 +1391,48 @@ console.log("Dashboard - fileInfo:", fileInfo)
                 justifyContent: 'center',
                 border: `1px solid ${colorScheme.border}`
               }}>
-                <CategoryExpensesChart data={chartsData?.categoryExpenses || chartData?.category_expenses} />
+                <CategoryExpensesChart data={{
+                  labels: (glChartsData?.topAccountsByAmount || []).slice(0, 5).map(account => `Account ${account.accountId}`),
+                  data: (glChartsData?.topAccountsByAmount || []).slice(0, 5).map(account => account.totalAmount || 0)
+                }} />
               </Box>
             </CardContent>
           </Card>
         </Grid>
+        )}
 
         {/* Chart Cards */}
-        <Grid item size={{xs: 12, md: 6}}>
-          <Card sx={{ 
-            borderRadius: 3, 
-            boxShadow: '0 4px 20px rgba(0,0,0,0.08)', 
-            background: colorScheme.cardBackground
-          }}>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" sx={{ 
-                fontWeight: 600, 
-                mb: 3, 
-                color: colorScheme.textPrimary,
-                fontSize: '1.1rem'
-              }}>
-                Monthly Trend Analysis
-                    </Typography>
-              <Box sx={{ height: 300 }}>
-                <MonthlyTrendChart data={chartsData?.monthlyTrend || chartData?.monthly_trend} />
-                  </Box>
-              </CardContent>
-            </Card>
-          </Grid>
 
-        <Grid item size={{xs: 12, md: 6}}>
-          <Card sx={{ 
-            borderRadius: 3, 
-            boxShadow: '0 4px 20px rgba(0,0,0,0.08)', 
-            background: colorScheme.cardBackground
-          }}>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" sx={{ 
-                fontWeight: 600, 
-                mb: 3, 
-                color: colorScheme.textPrimary,
-                fontSize: '1.1rem'
-              }}>
-                Amount Distribution
+        {(glChartsData?.topAccountsByAmount && glChartsData.topAccountsByAmount.length > 0) && (
+          <Grid item size={{xs: 12, md: 12}}>
+            <Card sx={{ 
+              borderRadius: 3, 
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)', 
+              background: colorScheme.cardBackground
+            }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h6" sx={{ 
+                  fontWeight: 600, 
+                  mb: 3, 
+                  color: colorScheme.textPrimary,
+                  fontSize: '1.1rem'
+                }}>
+                  Department Expenses
                 </Typography>
-              <Box sx={{ height: 300 }}>
-                <AmountDistributionChart data={chartsData?.amountDistribution || chartData?.amount_distribution} />
-              </Box>
-            </CardContent>
-          </Card>
-                  </Grid>
-
-        <Grid item size={{xs: 12, md: 12}}>
-          <Card sx={{ 
-            borderRadius: 3, 
-            boxShadow: '0 4px 20px rgba(0,0,0,0.08)', 
-            background: colorScheme.cardBackground
-          }}>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" sx={{ 
-                fontWeight: 600, 
-                mb: 3, 
-                color: colorScheme.textPrimary,
-                fontSize: '1.1rem'
-              }}>
-                Department Expenses
-              </Typography>
               <Box sx={{width: '100%' }}>
-                <DepartmentExpensesChart data={chartsData?.departmentExpenses || chartData?.department_expenses} />
+                <DepartmentExpensesChart data={{
+                  labels: (glChartsData?.topAccountsByAmount || []).slice(0, 5).map(account => `Account ${account.accountId}`),
+                  data: (glChartsData?.topAccountsByAmount || []).slice(0, 5).map(account => account.totalAmount || 0)
+                }} />
               </Box>
               </CardContent>
             </Card>
           </Grid>
+        )}
 
           {/* Anomaly Analysis Accordion */}
         <Grid item size={{xs: 12, md: 12}}>
-            <AnomalyAnalysisAccordion sheetId={sheetData?.sheet_id} anomalySummary={anomaliesData?.anomaly_summary} />
+            <AnomalyAnalysisAccordion sheetId={sheetData?.sheet_id} anomalySummary={sheetData?.anomalies_data?.anomaly_summary} />
           </Grid>
         </Grid>
     </Box>

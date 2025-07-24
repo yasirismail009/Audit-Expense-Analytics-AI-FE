@@ -46,7 +46,7 @@ const anomalyTypes = [
     title: 'User Analysis',
     icon: <PersonIcon />,
     description: 'User behavior and transaction patterns',
-    apiEndpoint: '/api/user-anomalies/analyze/',
+    apiEndpoint: '/api/db-comprehensive-user-analysis/file/',
     color: '#36A2EB'
   },
   {
@@ -54,7 +54,7 @@ const anomalyTypes = [
     title: 'Backdated Entries',
     icon: <CalendarIcon />,
     description: 'Transactions posted on dates different from document dates',
-    apiEndpoint: '/api/backdated-anomalies/analyze/',
+    apiEndpoint: '/api/db-comprehensive-backdated-analysis/file/',
     color: '#FFCE56'
   },
   {
@@ -173,7 +173,6 @@ export default function AnomalyAnalysisAccordion({ sheetId, anomalySummary }) {
       total: summary.total_anomalies || 0
     };
   };
-
   return (
     <Card sx={{ borderRadius: 3, boxShadow: 2 }}>
       <CardContent>

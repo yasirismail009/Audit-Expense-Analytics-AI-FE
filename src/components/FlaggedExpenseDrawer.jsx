@@ -116,7 +116,7 @@ export default function DuplicateDetailDrawer({ open, onClose, duplicate }) {
           justifyContent: 'space-between'
         }}>
           <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-            Duplicate Analysis Details
+            {duplicate.type} Analysis Details
           </Typography>
           <IconButton onClick={onClose} sx={{ color: 'white' }}>
             <CloseIcon />

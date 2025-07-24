@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, Typography, Box } from '@mui/material';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Legend, Area, AreaChart } from 'recharts';
 import { colorScheme, getColorByIndex } from '../../utils/colorScheme';
 
 export default function RiskDistributionChart({ data }) {
@@ -54,7 +54,13 @@ export default function RiskDistributionChart({ data }) {
                 <Box sx={{ height: 200, width: '100%', minWidth: '100%' }}>
           <ResponsiveContainer width="100%" height="100%">
             {chartData.length > 0 ? (
-              <LineChart data={chartData} height={200}>
+              <AreaChart data={chartData} height={200}>
+                <defs>
+                  <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={colorScheme.primary} stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor={colorScheme.primary} stopOpacity={0.1}/>
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis 
                   dataKey="name" 
@@ -71,15 +77,16 @@ export default function RiskDistributionChart({ data }) {
                 <Legend 
                   wrapperStyle={{ fontSize: '12px' }}
                 />
-                <Line 
+                <Area 
                   type="monotone" 
                   dataKey="value" 
                   stroke={colorScheme.primary}
                   strokeWidth={3}
+                  fill="url(#colorGradient)"
                   dot={{ fill: colorScheme.primary, strokeWidth: 2, r: 4 }}
                   activeDot={{ r: 6, stroke: colorScheme.primary, strokeWidth: 2, fill: colorScheme.primary }}
                 />
-              </LineChart>
+              </AreaChart>
             ) : (
               <Box sx={{ 
                 height: '100%', 
