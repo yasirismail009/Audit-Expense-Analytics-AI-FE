@@ -17,7 +17,7 @@ function TableListing() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    axios.get('http://localhost:8000/api/all-files/')
+    axios.get('http://localhost:8000/api/files-listing/')
       .then(res => {
         // Handle new payload structure with files array
         const files = res.data.files || res.data;
@@ -36,7 +36,7 @@ function TableListing() {
 
   const handleUploadSuccess = (data) => {
     // Refresh the data
-    axios.get('http://localhost:8000/api/all-files/')
+    axios.get('http://localhost:8000/api/files-listing/')
       .then(res => {
         const files = res.data.files || res.data;
         setRows(Array.isArray(files) ? files : []);
@@ -106,9 +106,9 @@ function TableListing() {
                         cursor: 'pointer',
                         '&:hover': { bgcolor: '#f3e8f7' }
                       }}
-                      onClick={() => navigate(`/expense-sheet-details/${row.file_id}`)}
+                      onClick={() => navigate(`/expense-sheet-details/${row.id}`)}
                     >
-                      <TableCell>{row.file_id}</TableCell>
+                      <TableCell>{row.id}</TableCell>
                       <TableCell>{row.file_name}</TableCell>
                       <TableCell>{row.client_name}</TableCell>
                       <TableCell>{row.fiscal_year}</TableCell>

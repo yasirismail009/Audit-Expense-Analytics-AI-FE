@@ -48,7 +48,7 @@ export default function DepartmentExpensesChart({ data }) {
   return (
     <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2 }}>
       <CardContent>
-        <Typography variant="subtitle2" sx={{ mb: 2 }}>Department Expenses</Typography>
+        <Typography variant="subtitle2" sx={{ mb: 2 }}>Gl Accounts Transaction</Typography>
         <Box sx={{ height: 300 }}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData}>

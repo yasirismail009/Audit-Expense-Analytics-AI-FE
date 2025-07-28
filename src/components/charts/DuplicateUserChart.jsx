@@ -19,7 +19,7 @@ export default function DuplicateUserChart({ data, currency = 'SAR' }) {
   };
 
   // Check for new data structure first, then fallback to old structure
-  const chartData = data?.chart_data?.user_breakdown_chart || data?.charts_data?.user_breakdown;
+  const chartData = data?.chart_data?.duplicate_activity_by_user || data?.charts_data?.user_breakdown;
 
   if (!data || !chartData || (Array.isArray(chartData) && chartData.length === 0)) {
     return (
@@ -36,8 +36,29 @@ export default function DuplicateUserChart({ data, currency = 'SAR' }) {
 
   // Transform data based on structure
   let transformedData;
-  if (Array.isArray(chartData)) {
-    // New structure: chart_data.user_breakdown_chart is an array
+  if (chartData.labels && chartData.data) {
+    // New structure: chart_data.duplicate_activity_by_user has labels and data arrays
+    transformedData = chartData.labels.map((user, index) => ({
+      user: user,
+      duplicateCount: chartData.data[index] || 0,
+      totalAmount: 0, // Will be calculated from duplicate entries
+      duplicateTypes: 0 // Will be calculated from duplicate entries
+    }));
+    
+    // Calculate amounts and types from duplicate entries if available
+    if (data.duplicate_entries) {
+      transformedData.forEach(item => {
+        const userDuplicates = data.duplicate_entries.filter(entry => 
+          entry.transaction1.user === item.user || entry.transaction2.user === item.user
+        );
+        item.totalAmount = userDuplicates.reduce((sum, entry) => 
+          sum + entry.transaction1.amount + entry.transaction2.amount, 0
+        );
+        item.duplicateTypes = new Set(userDuplicates.map(entry => entry.duplicate_type)).size;
+      });
+    }
+  } else if (Array.isArray(chartData)) {
+    // Fallback: chart_data is an array
     transformedData = chartData.map((user, index) => ({
       user: user.user,
       duplicateCount: user.duplicate_groups,

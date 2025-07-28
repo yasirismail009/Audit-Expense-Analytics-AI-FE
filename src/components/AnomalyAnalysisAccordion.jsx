@@ -38,7 +38,7 @@ const anomalyTypes = [
     title: 'Duplicate Entries',
     icon: <TrendingUpIcon />,
     description: 'Analysis of duplicate transactions and entries',
-    apiEndpoint: '/api/db-comprehensive-duplicate-analysis/file/',
+    apiEndpoint: '/api/duplicate-analysis/',
     color: '#FF6384'
   },
   {
@@ -54,7 +54,7 @@ const anomalyTypes = [
     title: 'Backdated Entries',
     icon: <CalendarIcon />,
     description: 'Transactions posted on dates different from document dates',
-    apiEndpoint: '/api/db-comprehensive-backdated-analysis/file/',
+    apiEndpoint: '/api/backdated-analysis/',
     color: '#FFCE56'
   },
   {

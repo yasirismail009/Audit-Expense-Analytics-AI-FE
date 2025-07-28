@@ -218,18 +218,23 @@ const DuplicateAnalysisPDF = ({
     return date.toLocaleDateString();
   };
 
-  // Extract data from the API structure
-  const analysisInfo = data?.analysis_info || {};
-  const duplicateList = data?.duplicate_list || [];
-  const chartData = data?.chart_data || {};
-  const breakdowns = data?.breakdowns || {};
-  const detailedInsights = data?.detailed_insights || {};
+  // Extract data from the new API structure
   const fileInfo = data?.file_info || {};
+  const analysisInfo = data?.analysis_info || {};
+  const summaryStats = data?.summary_statistics || {};
+  const riskAssessment = data?.risk_assessment || {};
+  const chartData = data?.chart_data || {};
+  const duplicateEntries = data?.duplicate_entries || [];
+  const duplicatePatterns = data?.duplicate_patterns || {};
+  const recommendations = data?.recommendations || [];
+  const auditImplications = data?.audit_implications || {};
+  const criticalAlerts = data?.critical_alerts || {};
 
-  // Calculate overall risk score
-  const totalDuplicates = analysisInfo.total_duplicate_groups || 0;
-  const totalTransactions = analysisInfo.total_transactions || 0;
-  const overallRiskScore = totalTransactions > 0 ? Math.round((totalDuplicates / totalTransactions) * 100) : 0;
+  // Calculate overall risk score based on new data structure
+  const totalDuplicates = summaryStats.duplicate_transactions || 0;
+  const totalTransactions = summaryStats.total_transactions || 0;
+  const overallRiskScore = summaryStats.avg_risk_score || 0;
+  const riskLevel = riskAssessment.risk_level || 'LOW';
 
   const getRiskLevel = (score) => {
     if (score >= 80) return 'CRITICAL';
@@ -245,7 +250,6 @@ const DuplicateAnalysisPDF = ({
     return 1;
   };
 
-  const riskLevel = getRiskLevel(overallRiskScore);
   const riskLevelNumber = getRiskLevelNumber(overallRiskScore);
 
   const getCurrentDateTime = () => {
@@ -481,7 +485,7 @@ const DuplicateAnalysisPDF = ({
                           lineHeight: "1.5",
                           color: "#333"
                         }}>
-                          <strong>Test Description:</strong> This test identifies Document Numbers which have identical characteristics. The classification for Duplicates are categorized as below:
+                          <strong>Test Description:</strong> This test identifies Journal Lines which have identical characteristics. The classification for Duplicates are categorized as below:
                         </p>
                         
                         <div style={{ 
@@ -608,13 +612,13 @@ const DuplicateAnalysisPDF = ({
                               </strong>
                               <div style={{ padding: "10px" }}>
                                 <b style={{ display: "block" }}>Total Duplicates</b>
-                                {totalDuplicates}
+                                {duplicateEntries.length}
                                 <br />
                                 <b style={{ display: "block" }}>Total Transactions</b>
-                                {analysisInfo.total_duplicate_transactions || 0}
+                                {totalDuplicates}
                                 <br />
                                 <b style={{ display: "block" }}>Total Amount</b>
-                                {formatCurrency(analysisInfo.total_amount_involved || 0)}
+                                {formatCurrency(summaryStats.total_duplicate_amount || 0)}
                               </div>
                             </td>
 
@@ -654,17 +658,17 @@ const DuplicateAnalysisPDF = ({
                                 <span style={{ display: "block" }}>
                                   Duplicate Types
                                   <br />
-                                  <b>{Object.keys(breakdowns.duplicate_flags || {}).length}</b>
+                                  <b>{chartData.duplicate_types_distribution?.labels?.length || 0}</b>
                                 </span>
                                 <span style={{ display: "block" }}>
                                   Users Involved
                                   <br />
-                                  <b>{Object.keys(breakdowns.user_breakdown || {}).length}</b>
+                                  <b>{chartData.duplicate_activity_by_user?.labels?.length || 0}</b>
                                 </span>
                                 <span style={{ display: "block" }}>
                                   GL Accounts
                                   <br />
-                                  <b>{Object.keys(breakdowns.fs_line_breakdown || {}).length}</b>
+                                  <b>{chartData.financial_statement_line_breakdown?.labels?.length || 0}</b>
                                 </span>
                               </div>
                             </td>
@@ -689,7 +693,7 @@ const DuplicateAnalysisPDF = ({
                           fallbackContent={
                             <FallbackChartContent 
                               title="Duplicate Types Distribution" 
-                              data={chartData.duplicate_type_chart || breakdowns.duplicate_flags}
+                              data={chartData.duplicate_types_distribution}
                               currency={currency}
                             />
                           }
@@ -703,7 +707,7 @@ const DuplicateAnalysisPDF = ({
                           fallbackContent={
                             <FallbackChartContent 
                               title="Risk Level Distribution" 
-                              data={chartData.risk_level_chart || breakdowns.risk_breakdown}
+                              data={chartData.risk_level_distribution}
                               currency={currency}
                             />
                           }
@@ -717,7 +721,7 @@ const DuplicateAnalysisPDF = ({
                           fallbackContent={
                             <FallbackChartContent 
                               title="Duplicate Activity by User" 
-                              data={chartData.user_breakdown_chart || breakdowns.user_breakdown}
+                              data={chartData.duplicate_activity_by_user}
                               currency={currency}
                             />
                           }
@@ -731,7 +735,7 @@ const DuplicateAnalysisPDF = ({
                           fallbackContent={
                             <FallbackChartContent 
                               title="Duplicate Amount Distribution" 
-                              data={chartData.amount_distribution_chart}
+                              data={chartData.duplicate_amount_distribution}
                               currency={currency}
                             />
                           }
@@ -745,7 +749,7 @@ const DuplicateAnalysisPDF = ({
                           fallbackContent={
                             <FallbackChartContent 
                               title="Financial Statement Line Breakdown" 
-                              data={chartData.fs_line_chart || breakdowns.fs_line_breakdown}
+                              data={chartData.financial_statement_line_breakdown}
                               currency={currency}
                             />
                           }
@@ -759,7 +763,7 @@ const DuplicateAnalysisPDF = ({
                           fallbackContent={
                             <FallbackChartContent 
                               title="Monthly Duplicate Trend" 
-                              data={chartData.monthly_trend_chart}
+                              data={chartData.monthly_duplicate_trend}
                               currency={currency}
                             />
                           }
@@ -771,7 +775,7 @@ const DuplicateAnalysisPDF = ({
                     </div>
 
                     {/* Duplicate Type Breakdown */}
-                    {breakdowns.duplicate_flags && (
+                    {chartData.duplicate_types_distribution && (
                       <div className='sections'>
                         <h5 style={{ margin: "10px 0" }}>Duplicate Type Breakdown</h5>
                         <table
@@ -791,32 +795,32 @@ const DuplicateAnalysisPDF = ({
                             </tr>
                           </thead>
                           <tbody style={{ textAlign: "center" }}>
-                            {Object.entries(breakdowns.duplicate_flags).map(([type, details], index) => (
+                            {chartData.duplicate_types_distribution.labels.map((type, index) => {
+                              const count = chartData.duplicate_types_distribution.data[index] || 0;
+                              const duplicateEntry = duplicateEntries.find(entry => entry.duplicate_type === type);
+                              const amount = duplicateEntry ? 
+                                (duplicateEntry.transaction1.amount + duplicateEntry.transaction2.amount) : 0;
+                              const transactions = duplicateEntry ? 2 : 0;
+                              
+                              return (
                               <tr key={type}>
                                 <td>{type}</td>
-                                <td>{details.count}</td>
-                                <td>{details.transactions}</td>
-                                <td>{formatCurrency(details.amount)}</td>
-                                <td>{formatCurrency(details.debit_amount)}</td>
-                                <td>{formatCurrency(details.credit_amount)}</td>
-                                <td>
-                                  <span
-                                    style={{
-                                      color: RiskColor[getRiskLevelNumber(details.amount > 10000000 ? 80 : details.amount > 5000000 ? 60 : 40)],
-                                      fontWeight: "bold"
-                                    }}>
-                                    {details.amount > 10000000 ? 'HIGH' : details.amount > 5000000 ? 'MEDIUM' : 'LOW'}
-                                  </span>
-                                </td>
+                                <td>{count}</td>
+                                <td>{transactions}</td>
+                                <td>{formatCurrency(amount)}</td>
+                                <td>{formatCurrency(amount / 2)}</td>
+                                <td>{formatCurrency(amount / 2)}</td>
+                                <td>{amount > 10000000 ? 'HIGH' : amount > 5000000 ? 'MEDIUM' : 'LOW'}</td>
                               </tr>
-                            ))}
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
                     )}
 
                     {/* User Breakdown */}
-                    {breakdowns.user_breakdown && (
+                    {chartData.duplicate_activity_by_user && (
                       <div className='sections'>
                         <h5 style={{ margin: "10px 0" }}>User Breakdown Analysis</h5>
                         <table
@@ -834,7 +838,23 @@ const DuplicateAnalysisPDF = ({
                             </tr>
                           </thead>
                           <tbody style={{ textAlign: "center" }}>
-                            {Object.entries(breakdowns.user_breakdown).map(([userName, userData], index) => (
+                            {chartData.duplicate_activity_by_user.labels.map((userName, index) => {
+                              const userData = {
+                                duplicate_groups: chartData.duplicate_activity_by_user.data[index] || 0,
+                                transactions: chartData.duplicate_activity_by_user.data[index] * 2 || 0,
+                                amount: 0,
+                                unique_accounts: 1
+                              };
+                              
+                              // Calculate amount from duplicate entries
+                              const userDuplicates = duplicateEntries.filter(entry => 
+                                entry.transaction1.user === userName || entry.transaction2.user === userName
+                              );
+                              userData.amount = userDuplicates.reduce((sum, entry) => 
+                                sum + entry.transaction1.amount + entry.transaction2.amount, 0
+                              );
+                              
+                              return (
                               <tr key={index}>
                                 <td>{userName}</td>
                                 <td>{userData.duplicate_groups}</td>
@@ -842,14 +862,15 @@ const DuplicateAnalysisPDF = ({
                                 <td>{formatCurrency(userData.amount)}</td>
                                 <td>{userData.unique_accounts}</td>
                               </tr>
-                            ))}
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
                     )}
 
                     {/* GL Account Breakdown */}
-                    {breakdowns.fs_line_breakdown && (
+                    {chartData.financial_statement_line_breakdown && (
                       <div className='sections'>
                         <h5 style={{ margin: "10px 0" }}>Financial Statement Line Breakdown</h5>
                         <table
@@ -868,7 +889,30 @@ const DuplicateAnalysisPDF = ({
                             </tr>
                           </thead>
                           <tbody style={{ textAlign: "center" }}>
-                            {Object.entries(breakdowns.fs_line_breakdown).map(([account, accountData], index) => (
+                            {chartData.financial_statement_line_breakdown.labels.map((account, index) => {
+                              const accountData = {
+                                duplicate_groups: chartData.financial_statement_line_breakdown.data[index] || 0,
+                                transactions: chartData.financial_statement_line_breakdown.data[index] * 2 || 0,
+                                amount: 0,
+                                debit_amount: 0,
+                                credit_amount: 0
+                              };
+                              
+                              // Calculate amounts from duplicate entries
+                              const accountDuplicates = duplicateEntries.filter(entry => 
+                                entry.transaction1.account === account || entry.transaction2.account === account
+                              );
+                              accountData.amount = accountDuplicates.reduce((sum, entry) => 
+                                sum + entry.transaction1.amount + entry.transaction2.amount, 0
+                              );
+                              accountData.debit_amount = accountDuplicates.reduce((sum, entry) => 
+                                sum + entry.transaction1.amount, 0
+                              );
+                              accountData.credit_amount = accountDuplicates.reduce((sum, entry) => 
+                                sum + entry.transaction2.amount, 0
+                              );
+                              
+                              return (
                               <tr key={index}>
                                 <td>{account}</td>
                                 <td>{accountData.duplicate_groups}</td>
@@ -877,14 +921,15 @@ const DuplicateAnalysisPDF = ({
                                 <td>{formatCurrency(accountData.debit_amount)}</td>
                                 <td>{formatCurrency(accountData.credit_amount)}</td>
                               </tr>
-                            ))}
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
                     )}
 
                     {/* Risk Breakdown */}
-                    {breakdowns.risk_breakdown && (
+                    {riskAssessment.risk_distribution && (
                       <div className='sections'>
                         <h5 style={{ margin: "10px 0" }}>Risk Level Breakdown</h5>
                         <table
@@ -901,29 +946,48 @@ const DuplicateAnalysisPDF = ({
                             </tr>
                           </thead>
                           <tbody style={{ textAlign: "center" }}>
-                            {Object.entries(breakdowns.risk_breakdown).map(([riskLevel, riskData], index) => (
+                            {Object.entries(riskAssessment.risk_distribution).map(([riskLevel, count], index) => {
+                              const riskData = {
+                                groups: count,
+                                transactions: count * 2,
+                                amount: 0
+                              };
+                              
+                              // Calculate amount from duplicate entries based on risk level
+                              const riskLevelDuplicates = duplicateEntries.filter(entry => {
+                                const entryRiskLevel = getRiskLevel(entry.risk_score);
+                                // Convert risk level from API format (e.g., "low_risk") to standard format (e.g., "LOW")
+                                const apiRiskLevel = riskLevel.replace('_risk', '').toUpperCase();
+                                return entryRiskLevel === apiRiskLevel;
+                              });
+                              riskData.amount = riskLevelDuplicates.reduce((sum, entry) => 
+                                sum + entry.transaction1.amount + entry.transaction2.amount, 0
+                              );
+                              
+                              return (
                               <tr key={index}>
                                 <td>
                                   <span
                                     style={{
-                                      color: RiskColor[getRiskLevelNumber(riskLevel === 'CRITICAL' ? 80 : riskLevel === 'HIGH' ? 60 : riskLevel === 'MEDIUM' ? 40 : 20)],
+                                      color: RiskColor[getRiskLevelNumber(riskData.amount > 10000000 ? 80 : riskData.amount > 5000000 ? 60 : 40)],
                                       fontWeight: "bold"
                                     }}>
-                                    {riskLevel}
+                                    {riskLevel.replace('_risk', '').toUpperCase()}
                                   </span>
                                 </td>
                                 <td>{riskData.groups}</td>
                                 <td>{riskData.transactions}</td>
                                 <td>{formatCurrency(riskData.amount)}</td>
                               </tr>
-                            ))}
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
                     )}
 
                     {/* Detailed Duplicates List */}
-                    {duplicateList && duplicateList.length > 0 && (
+                    {duplicateEntries && duplicateEntries.length > 0 && (
                       <div className='sections'>
                         <h5 style={{ margin: "10px 0" }}>Detailed Duplicates Analysis</h5>
                         <table
@@ -942,13 +1006,13 @@ const DuplicateAnalysisPDF = ({
                             </tr>
                           </thead>
                           <tbody style={{ textAlign: "center" }}>
-                            {duplicateList.map((duplicate, index) => (
+                            {duplicateEntries.map((duplicate, index) => (
                               <tr key={index}>
                                 <td>{duplicate.duplicate_type}</td>
-                                <td>{duplicate.gl_account}</td>
-                                <td>{duplicate.user_name}</td>
-                                <td>{formatDate(duplicate.posting_date)}</td>
-                                <td>{formatCurrency(duplicate.amount)}</td>
+                                <td>{duplicate.transaction1.account}</td>
+                                <td>{duplicate.transaction1.user}</td>
+                                <td>{formatDate(duplicate.transaction1.date)}</td>
+                                <td>{formatCurrency(duplicate.transaction1.amount + duplicate.transaction2.amount)}</td>
                                 <td>
                                   <span
                                     style={{
@@ -966,90 +1030,50 @@ const DuplicateAnalysisPDF = ({
                     )}
 
                     {/* Detailed Insights */}
-                    {detailedInsights && Object.keys(detailedInsights).length > 0 && (
+                    {(recommendations.length > 0 || auditImplications.immediate_actions) && (
                       <div className='sections'>
                         <h5 style={{ margin: "10px 0" }}>Detailed Insights & Recommendations</h5>
                         
-                        {/* Risk Assessment */}
-                        {detailedInsights.risk_assessment && (
+                        {/* Recommendations */}
+                        {recommendations.length > 0 && (
                           <div style={{ marginBottom: "20px" }}>
-                            <h6 style={{ margin: "10px 0" }}>Risk Assessment</h6>
-                            {detailedInsights.risk_assessment.mitigation_suggestions && (
-                              <div>
-                                <strong>Mitigation Suggestions:</strong>
-                                <ul style={{ marginLeft: "20px" }}>
-                                  {detailedInsights.risk_assessment.mitigation_suggestions.map((suggestion, index) => (
-                                    <li key={index}>{suggestion}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
+                            <h6 style={{ margin: "10px 0" }}>Recommendations</h6>
+                            <ul style={{ marginLeft: "20px" }}>
+                              {recommendations.map((recommendation, index) => (
+                                <li key={index}>
+                                  <strong>{recommendation.action}:</strong> {recommendation.description}
+                                </li>
+                              ))}
+                            </ul>
                           </div>
                         )}
 
-                        {/* Audit Recommendations */}
-                        {detailedInsights.audit_recommendations && (
+                        {/* Audit Implications */}
+                        {auditImplications.immediate_actions && (
                           <div style={{ marginBottom: "20px" }}>
-                            <h6 style={{ margin: "10px 0" }}>Audit Recommendations</h6>
-                            {detailedInsights.audit_recommendations.monitoring_suggestions && (
-                              <div>
-                                <strong>Monitoring Suggestions:</strong>
-                                <ul style={{ marginLeft: "20px" }}>
-                                  {detailedInsights.audit_recommendations.monitoring_suggestions.map((suggestion, index) => (
-                                    <li key={index}>{suggestion}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
+                            <h6 style={{ margin: "10px 0" }}>Audit Implications</h6>
+                            <div>
+                              <strong>Immediate Actions:</strong>
+                              <ul style={{ marginLeft: "20px" }}>
+                                {auditImplications.immediate_actions.map((action, index) => (
+                                  <li key={index}>{action}</li>
+                                ))}
+                              </ul>
+                            </div>
                           </div>
                         )}
 
-                        {/* Comparative Analysis */}
-                        {detailedInsights.comparative_analysis && (
-                          <div>
-                            <h6 style={{ margin: "10px 0" }}>Comparative Analysis</h6>
-                            <table
-                              width='100%'
-                              border='1'
-                              className='border'
-                              cellSpacing='0'>
-                              <thead>
-                                <tr>
-                                  <th>Metric</th>
-                                  <th>Value</th>
-                                  <th>Status</th>
-                                </tr>
-                              </thead>
-                              <tbody style={{ textAlign: "center" }}>
-                                <tr>
-                                  <td>Duplicate Transaction Rate</td>
-                                  <td>{detailedInsights.comparative_analysis.duplicate_percentage?.transaction_count?.toFixed(1) || 0}%</td>
-                                  <td>
-                                    <span style={{ color: "#6c757d" }}>Current Rate</span>
-                                  </td>
-                                </tr>
-                                <tr>
-                                  <td>Current Duplicate Rate</td>
-                                  <td>{detailedInsights.comparative_analysis.benchmark_comparison?.current_duplicate_rate?.toFixed(1) || 0}%</td>
-                                  <td>
-                                    <span style={{ color: "#6c757d" }}>Benchmark</span>
-                                  </td>
-                                </tr>
-                                <tr>
-                                  <td>vs Industry Average</td>
-                                  <td>{detailedInsights.comparative_analysis.benchmark_comparison?.status || 'Unknown'}</td>
-                                  <td>
-                                    <span
-                                      style={{
-                                        color: detailedInsights.comparative_analysis.benchmark_comparison?.status === 'Above Average' ? '#dc3545' : '#28a745',
-                                        fontWeight: "bold"
-                                      }}>
-                                      {detailedInsights.comparative_analysis.benchmark_comparison?.status || 'Unknown'}
-                                    </span>
-                                  </td>
-                                </tr>
-                              </tbody>
-                            </table>
+                        {/* Critical Alerts */}
+                        {criticalAlerts.length > 0 && (
+                          <div style={{ marginBottom: "20px" }}>
+                            <h6 style={{ margin: "10px 0" }}>Critical Alerts</h6>
+                            <ul style={{ marginLeft: "20px" }}>
+                              {criticalAlerts.map((alert, index) => (
+                                <li key={index}>
+                                  <strong>{alert.severity}:</strong> {alert.message} - Action Required: {alert.action_required}
+                                </li>
+                              ))}
+                            </ul>
                           </div>
                         )}
                       </div>
@@ -1086,19 +1110,19 @@ const DuplicateAnalysisPDF = ({
                           </tr>
                           <tr>
                             <td>Total Duplicates Found</td>
-                            <td>{totalDuplicates}</td>
+                            <td>{duplicateEntries.length}</td>
                             <td>
-                              <span style={{ color: totalDuplicates > 10 ? '#dc3545' : totalDuplicates > 5 ? '#ffc516' : '#40b159' }}>
-                                {totalDuplicates > 10 ? 'High' : totalDuplicates > 5 ? 'Medium' : 'Low'}
+                              <span style={{ color: duplicateEntries.length > 10 ? '#dc3545' : duplicateEntries.length > 5 ? '#ffc516' : '#40b159' }}>
+                                {duplicateEntries.length > 10 ? 'High' : duplicateEntries.length > 5 ? 'Medium' : 'Low'}
                               </span>
                             </td>
                           </tr>
                           <tr>
                             <td>Total Amount Involved</td>
-                            <td>{formatCurrency(analysisInfo.total_amount_involved || 0)}</td>
+                            <td>{formatCurrency(summaryStats.total_duplicate_amount || 0)}</td>
                             <td>
-                              <span style={{ color: (analysisInfo.total_amount_involved || 0) > 10000000 ? '#dc3545' : (analysisInfo.total_amount_involved || 0) > 5000000 ? '#ffc516' : '#40b159' }}>
-                                {(analysisInfo.total_amount_involved || 0) > 10000000 ? 'High' : (analysisInfo.total_amount_involved || 0) > 5000000 ? 'Medium' : 'Low'}
+                              <span style={{ color: (summaryStats.total_duplicate_amount || 0) > 10000000 ? '#dc3545' : (summaryStats.total_duplicate_amount || 0) > 5000000 ? '#ffc516' : '#40b159' }}>
+                                {(summaryStats.total_duplicate_amount || 0) > 10000000 ? 'High' : (summaryStats.total_duplicate_amount || 0) > 5000000 ? 'Medium' : 'Low'}
                               </span>
                             </td>
                           </tr>

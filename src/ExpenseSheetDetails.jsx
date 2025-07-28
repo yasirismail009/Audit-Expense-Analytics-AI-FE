@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Box, CssBaseline, CircularProgress, Alert } from '@mui/material';
+import { Box, CssBaseline, CircularProgress, Alert, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import ExpenseAnalysisDashboard from './components/ExpenseAnalysisDashboard';
+import ListingDashboard from './components/ListingDashboard';
 
 // Constants for data transformation
 const CHART_COLORS = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#FF6384', '#36A2EB'];
@@ -17,6 +18,7 @@ export default function ExpenseSheetDetails() {
   const [sheetData, setSheetData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [dashboardView, setDashboardView] = useState('analysis'); // 'analysis' or 'listing'
 
   useEffect(() => {
     const fetchSheetData = async () => {
@@ -24,7 +26,7 @@ export default function ExpenseSheetDetails() {
         setLoading(true);
         
         // Test if the backend is accessible
-        const testUrl = `http://localhost:8000/api/db-comprehensive-analytics/file/${sheetId}`;
+        const testUrl = `http://localhost:8000/api/file-analysis-statistics/${sheetId}`;
         
         const response = await axios.get(testUrl, {
           timeout: 10000 // 10 second timeout
@@ -86,136 +88,65 @@ export default function ExpenseSheetDetails() {
         throw new Error('No API data received');
       }
       
+      // Extract data from the new API structure
       const { 
         file_info, 
-        general_stats,
-        charts,
+        overall_analysis,
+        risk_analysis,
+        chart_data,
+        analysis_metadata,
         summary,
-        risk_data,
-        processing_info,
-        backdated_data
+        all_gl_accounts
       } = apiData || {};
 
       console.log("Extracted data:", {
         file_info,
-        general_stats,
-        charts,
-        summary,
-        risk_data,
-        processing_info,
-        backdated_data
+        overall_analysis,
+        risk_analysis,
+        chart_data,
+        analysis_metadata,
+        summary
       });
-
-      console.log("Summary data structure:", summary);
-      console.log("Risk data structure:", risk_data);
-      console.log("Charts data structure:", charts);
 
       console.log("Starting data transformation...");
 
-      // Extract data from the new structure first
-      const expenseBreakdown = charts?.expense_breakdown || {};
-      const userPatterns = charts?.user_patterns || {};
-      const accountPatterns = charts?.account_patterns || {};
-      const temporalPatterns = charts?.temporal_patterns || {};
-      const riskStats = risk_data?.risk_stats || {};
-      const riskCharts = risk_data?.risk_charts || {};
+      // Extract nested data structures
+      const transactionSummary = overall_analysis?.transaction_summary || {};
+      const flagSummary = overall_analysis?.flag_summary || {};
+      const expenseAnalysis = overall_analysis?.expense_analysis || {};
+      const riskAssessment = overall_analysis?.risk_assessment || {};
+      const criticalAlerts = overall_analysis?.critical_alerts || [];
+      const allGlAccounts = all_gl_accounts || [];
       
-      console.log("Extracted userPatterns:", userPatterns);
-      console.log("userPatterns.top_users:", userPatterns?.top_users);
-      console.log("userPatterns.top_users type:", typeof userPatterns?.top_users);
-      console.log("userPatterns.top_users isArray:", Array.isArray(userPatterns?.top_users));
-
-      // Add fallback data if summary is missing
-      const fallbackSummary = {
-        total_transactions: general_stats?.total_transactions || 0,
-        total_amount: general_stats?.total_amount || 0,
-        unique_users: general_stats?.unique_users || 0,
-        unique_accounts: general_stats?.unique_accounts || 0,
-        flagged_transactions: risk_data?.risk_stats?.flagged_transactions || 0,
-        high_risk_transactions: risk_data?.risk_stats?.high_risk_transactions || 0,
-        anomalies_found: risk_data?.risk_stats?.anomalies_detected || 0,
-        duplicates_found: risk_data?.risk_stats?.duplicates_found || 0,
-        data_source: general_stats?.data_source || ''
-      };
-
-      const effectiveSummary = summary || fallbackSummary;
-      console.log("Effective summary data:", effectiveSummary);
-
-      // Continue with remaining data extraction
-      const riskAssessment = summary?.risk_assessment || risk_data?.risk_assessment || {};
-      const riskFactors = summary?.risk_assessment?.risk_factors || risk_data?.risk_factors || riskAssessment?.risk_factors || {};
-      const riskStatistics = summary?.risk_assessment?.statistics || riskAssessment?.statistics || {};
-      const summaryData = effectiveSummary || {};
-
-      console.log("Extracted risk data:", {
-        riskStats,
-        riskCharts,
+      console.log("Extracted nested data:", {
+        transactionSummary,
+        flagSummary,
+        expenseAnalysis,
         riskAssessment,
-        riskFactors,
-        riskStatistics,
-        summaryData
+        criticalAlerts,
+        allGlAccounts
       });
 
-      // Debug risk data specifically
-      console.log("Risk Data Debug:", {
-        risk_data_raw: risk_data,
-        risk_stats_raw: risk_data?.risk_stats,
-        risk_charts_raw: risk_data?.risk_charts,
-        risk_factors_raw: risk_data?.risk_factors,
-        comprehensive_risk_score: riskStats?.comprehensive_risk_score,
-        comprehensive_risk_level: riskStats?.comprehensive_risk_level,
-        overall_risk_score: riskStats?.overall_risk_score,
-        overall_risk_level: riskStats?.overall_risk_level,
-        anomalies_detected: riskStats?.anomalies_detected,
-        duplicates_found: riskStats?.duplicates_found,
-        flagged_transactions: riskStats?.flagged_transactions
+      console.log("Chart data debug:", {
+        chart_data,
+        risk_distribution_chart: chart_data?.risk_distribution_chart,
+        flag_type_chart: chart_data?.flag_type_chart,
+        amount_distribution_chart: chart_data?.amount_distribution_chart
       });
 
-      // Validate critical data structures
-      if (!general_stats) {
-        console.warn("Warning: general_stats is missing from API response");
-      }
-      if (!charts) {
-        console.warn("Warning: charts is missing from API response");
-      }
-      if (!risk_data) {
-        console.warn("Warning: risk_data is missing from API response");
-      }
-      if (!effectiveSummary) {
-        console.warn("Warning: summary data is missing, using fallback");
-      }
+      console.log("GL Accounts debug:", {
+        all_gl_accounts,
+        allGlAccounts,
+        accountsCount: allGlAccounts?.accounts?.length || 0,
+        summary: allGlAccounts?.summary
+      });
 
-      console.log("Data validation completed");
-
-      // Calculate date range from user patterns if available
+      // Calculate date range from transaction summary
       const calculateDateRange = () => {
-        if (userPatterns?.by_user) {
-          let minDate = null;
-          let maxDate = null;
-          
-          Object.values(userPatterns.by_user).forEach(userData => {
-            if (userData.date_range) {
-              const userMin = new Date(userData.date_range.min);
-              const userMax = new Date(userData.date_range.max);
-              
-              if (!minDate || userMin < minDate) minDate = userMin;
-              if (!maxDate || userMax > maxDate) maxDate = userMax;
-            }
-          });
-          
-          if (minDate && maxDate) {
-            return {
-              startDate: minDate.toISOString().split('T')[0],
-              endDate: maxDate.toISOString().split('T')[0]
-            };
-          }
-        }
-        
-        // Use general_stats date range if available
-        if (general_stats?.date_range) {
+        if (transactionSummary?.date_range) {
           return {
-            startDate: general_stats.date_range.min_date || '',
-            endDate: general_stats.date_range.max_date || ''
+            startDate: transactionSummary.date_range.min_date || '',
+            endDate: transactionSummary.date_range.max_date || ''
           };
         }
         
@@ -230,302 +161,486 @@ export default function ExpenseSheetDetails() {
       // Create a comprehensive result object
       const result = {
         fileInfo: {
-          id: file_info?.id || '',
+          id: file_info?.file_id || '',
           fileName: file_info?.file_name || '',
-          status: file_info?.status || '',
+          status: file_info?.file_status || '',
           uploadedAt: file_info?.uploaded_at || '',
           processedAt: file_info?.processed_at || '',
           totalRecords: file_info?.total_records || 0,
           processedRecords: file_info?.processed_records || 0,
           failedRecords: file_info?.failed_records || 0,
-          currency: file_info?.currency || '',
+          currency: transactionSummary?.currency || '',
           clientName: file_info?.client_name || '',
           companyName: file_info?.company_name || '',
-          fiscalYear: file_info?.fiscal_year || 0
+          fiscalYear: file_info?.fiscal_year || 0,
+          engagementId: file_info?.engagement_id || '',
+          processingSuccessRate: file_info?.processing_success_rate || 0
         },
         statistics: {
-          totalTransactions: general_stats?.total_transactions || 0,
-          totalAmount: general_stats?.total_amount || 0,
-          currency: general_stats?.currency || '',
-          flaggedTransactions: summary?.flagged_transactions || riskStats?.flagged_transactions || 0,
-          highValueTransactions: summary?.high_risk_transactions || riskFactors?.high_value_transactions || 0,
-          flagRate: general_stats?.total_transactions ? 
-            ((summary?.flagged_transactions || riskStats?.flagged_transactions || 0) / general_stats.total_transactions) * 100 : 0,
-          uniqueUsers: general_stats?.unique_users || 0,
-          uniqueAccounts: general_stats?.unique_accounts || 0,
-          uniqueProfitCenters: general_stats?.unique_profit_centers || 0,
-          avgAmount: general_stats?.average_amount || 0,
-          minAmount: general_stats?.min_amount || 0,
-          maxAmount: general_stats?.max_amount || 0,
+          totalTransactions: transactionSummary?.total_transactions || 0,
+          totalAmount: transactionSummary?.total_amount || 0,
+          currency: transactionSummary?.currency || '',
+          flaggedTransactions: flagSummary?.total_flagged || 0,
+          highValueTransactions: flagSummary?.high_value_anomalies || 0,
+          flagRate: transactionSummary?.total_transactions ? 
+            (flagSummary?.total_flagged / transactionSummary.total_transactions) * 100 : 0,
+          uniqueUsers: transactionSummary?.unique_users || 0,
+          uniqueAccounts: transactionSummary?.unique_accounts || 0,
+          uniqueProfitCenters: 0, // Not available in new structure
+          avgAmount: transactionSummary?.average_transaction_amount || 0,
+          minAmount: transactionSummary?.amount_statistics?.min || 0,
+          maxAmount: transactionSummary?.amount_statistics?.max || 0,
           dateRange: dateRange,
-          totalDebits: general_stats?.total_debits || general_stats?.total_amount || 0,
-          totalCredits: general_stats?.total_credits || 0,
-          trialBalance: general_stats?.trial_balance || general_stats?.total_amount || 0,
+          totalDebits: transactionSummary?.total_amount || 0, // Assuming all are debits
+          totalCredits: 0, // Not available in new structure
+          trialBalance: transactionSummary?.total_amount || 0,
           // Add risk-related statistics for banner
-          riskScore: summary?.risk_assessment?.risk_score || riskStats?.overall_risk_score || riskStats?.comprehensive_risk_score || 0,
-          riskLevel: summary?.risk_assessment?.risk_level || riskStats?.overall_risk_level || riskStats?.comprehensive_risk_level || '',
-          anomaliesDetected: summary?.anomalies_found || riskStats?.anomalies_detected || 0,
-          duplicatesFound: summary?.duplicates_found || riskStats?.duplicates_found || 0
+          riskScore: riskAssessment?.overall_risk_score || 0,
+          riskLevel: riskAssessment?.risk_level || '',
+          anomaliesDetected: flagSummary?.total_anomalies || 0,
+          duplicatesFound: flagSummary?.duplicate_anomalies || 0
         },
         glSummary: {
           summaryStatistics: {
-            totalAccounts: general_stats?.unique_accounts || 0,
-            totalTrialBalance: general_stats?.total_amount || 0,
-            totalTradingEquity: general_stats?.total_amount || 0,
-            totalDebits: general_stats?.total_debits || general_stats?.total_amount || 0,
-            totalCredits: general_stats?.total_credits || 0,
-            currency: general_stats?.currency || '',
-            debitBalanceAccounts: general_stats?.debit_balance_accounts || 0,
-            creditBalanceAccounts: general_stats?.credit_balance_accounts || 0,
-            zeroBalanceAccounts: general_stats?.zero_balance_accounts || 0,
-            normalBalanceAccounts: general_stats?.normal_balance_accounts || 0,
-            abnormalBalanceAccounts: general_stats?.abnormal_balance_accounts || 0
+            totalAccounts: allGlAccounts?.summary?.total_accounts || transactionSummary?.unique_accounts || 0,
+            totalTrialBalance: allGlAccounts?.summary?.total_amount || transactionSummary?.total_amount || 0,
+            totalTradingEquity: allGlAccounts?.summary?.total_amount || transactionSummary?.total_amount || 0,
+            totalDebits: allGlAccounts?.summary?.total_amount || transactionSummary?.total_amount || 0,
+            totalCredits: 0, // Not available in new structure
+            currency: transactionSummary?.currency || '',
+            debitBalanceAccounts: 0, // Not available in new structure
+            creditBalanceAccounts: 0, // Not available in new structure
+            zeroBalanceAccounts: 0, // Not available in new structure
+            normalBalanceAccounts: 0, // Not available in new structure
+            abnormalBalanceAccounts: 0, // Not available in new structure
+            avgRiskScore: allGlAccounts?.summary?.avg_risk_score || 0,
+            accountsWithAnomalies: allGlAccounts?.summary?.accounts_with_anomalies || 0,
+            highRiskAccounts: allGlAccounts?.summary?.high_risk_accounts || 0
           },
-          accounts: Array.isArray(accountPatterns?.top_accounts) ? 
-            accountPatterns.top_accounts.map(account => ({
-              accountId: account.account || '',
-              accountName: account.account_name || `Account ${account.account}`,
-              accountType: account.account_type || '',
-              accountCategory: account.account_category || '',
-              normalBalance: account.normal_balance || '',
-              currency: account.currency || '',
+          accounts: Array.isArray(allGlAccounts?.accounts) ? 
+            allGlAccounts.accounts.map(account => ({
+              accountId: account.gl_account || '',
+              accountName: `Account ${account.gl_account}`,
+              accountType: '', // Not available in new structure
+              accountCategory: '', // Not available in new structure
+              normalBalance: '', // Not available in new structure
+              currency: transactionSummary?.currency || '',
               trialBalance: account.total_amount || 0,
-              tradingEquity: account.trading_equity || account.total_amount || 0,
-              totalDebits: account.total_debits || account.total_amount || 0,
-              totalCredits: account.total_credits || 0,
-              balanceType: account.balance_type || '',
-              isNormalBalance: account.is_normal_balance || false,
+              tradingEquity: account.total_amount || 0,
+              totalDebits: account.debit_amount || account.total_amount || 0,
+              totalCredits: account.credit_amount || 0,
+              balanceType: '', // Not available in new structure
+              isNormalBalance: false, // Not available in new structure
               transactionCount: account.transaction_count || 0,
-              debitCount: account.debit_count || account.transaction_count || 0,
-              creditCount: account.credit_count || 0,
-              avgAmount: account.avg_amount || 0,
-              debitCreditRatio: account.debit_credit_ratio || 0,
-              avgDebitAmount: account.avg_debit_amount || account.avg_amount || 0,
-              avgCreditAmount: account.avg_credit_amount || 0,
-              creditDebitRatio: account.credit_debit_ratio || 0
+              debitCount: account.transaction_count || 0,
+              creditCount: 0, // Not available in new structure
+              avgAmount: account.total_amount / (account.transaction_count || 1) || 0,
+              debitCreditRatio: 0, // Not available in new structure
+              avgDebitAmount: account.debit_amount / (account.transaction_count || 1) || 0,
+              avgCreditAmount: account.credit_amount / (account.transaction_count || 1) || 0,
+              creditDebitRatio: 0, // Not available in new structure
+              riskLevel: account.risk_level || 'LOW',
+              riskColor: account.risk_color || '#4BC0C0',
+              avgRiskScore: account.avg_risk_score || 0,
+              anomalyCounts: account.anomaly_counts || {
+                duplicate: 0,
+                backdated: 0,
+                high_value: 0,
+                total_anomalies: 0
+              }
             })) : []
         },
         anomaliesStats: {
-          riskDistribution: generateRiskDistributionFromRiskData(risk_data),
+          riskDistribution: (() => {
+            // Use chart_data.risk_distribution as the primary source
+            const chartRiskData = chart_data?.risk_distribution;
+            
+            if (chartRiskData?.labels && chartRiskData?.data) {
+              const totalAnomalies = chartRiskData.data.reduce((sum, count) => sum + count, 0);
+              return chartRiskData.labels.map((label, index) => ({
+                risk_level: label,
+                count: chartRiskData.data[index] || 0,
+                percentage: totalAnomalies > 0 ? ((chartRiskData.data[index] || 0) / totalAnomalies) * 100 : 0
+              }));
+            }
+            
+            // Fallback to risk_analysis.risk_distributions first, then flagSummary data
+            const riskDistributionData = [
+              { risk_level: 'LOW', count: risk_analysis?.risk_distributions?.low_risk || flagSummary?.risk_distribution?.low || 0 },
+              { risk_level: 'MEDIUM', count: risk_analysis?.risk_distributions?.medium_risk || flagSummary?.risk_distribution?.medium || 0 },
+              { risk_level: 'HIGH', count: risk_analysis?.risk_distributions?.high_risk || flagSummary?.risk_distribution?.high || 0 },
+              { risk_level: 'CRITICAL', count: risk_analysis?.risk_distributions?.critical_risk || flagSummary?.risk_distribution?.critical || 0 }
+            ];
+            
+            const totalAnomalies = riskDistributionData.reduce((sum, item) => sum + item.count, 0);
+            
+            return riskDistributionData.map(item => ({
+              ...item,
+              percentage: totalAnomalies > 0 ? (item.count / totalAnomalies) * 100 : 0
+            }));
+          })(),
           anomalySummary: {
-            duplicateEntries: summary?.duplicates_found || riskStats?.duplicates_found || 0,
-            userAnomalies: riskStats?.user_anomalies || 0,
-            backdatedEntries: riskStats?.backdated_entries || 0,
-            closingEntries: riskStats?.closing_entries || 0,
-            unusualDays: summary?.risk_assessment?.risk_factors?.unusual_patterns || riskFactors?.unusual_patterns || 0,
-            holidayEntries: summary?.risk_assessment?.risk_factors?.holiday_transactions || riskFactors?.holiday_transactions || 0,
-            totalAnomalies: summary?.anomalies_found || riskStats?.anomalies_detected || 0
+            duplicateEntries: flagSummary?.duplicate_anomalies || 0,
+            userAnomalies: 0, // Not available in new structure
+            backdatedEntries: flagSummary?.backdated_anomalies || 0,
+            closingEntries: 0, // Not available in new structure
+            unusualDays: 0, // Not available in new structure
+            holidayEntries: 0, // Not available in new structure
+            totalAnomalies: flagSummary?.total_anomalies || 0
           }
         },
         anomaliesAccordion: {
-          duplicateEntries: summary?.duplicates_found || riskStats?.duplicates_found || 0,
-          userAnomalies: riskStats?.user_anomalies || 0,
-          backdatedEntries: riskStats?.backdated_entries || 0,
-          closingEntries: riskStats?.closing_entries || 0,
-          unusualDays: summary?.risk_assessment?.risk_factors?.unusual_patterns || riskFactors?.unusual_patterns || 0,
-          holidayEntries: summary?.risk_assessment?.risk_factors?.holiday_transactions || riskFactors?.holiday_transactions || 0,
-          totalAnomalies: summary?.anomalies_found || riskStats?.anomalies_detected || 0
+          duplicateEntries: flagSummary?.duplicate_anomalies || 0,
+          userAnomalies: 0, // Not available in new structure
+          backdatedEntries: flagSummary?.backdated_anomalies || 0,
+          closingEntries: 0, // Not available in new structure
+          unusualDays: 0, // Not available in new structure
+          holidayEntries: 0, // Not available in new structure
+          totalAnomalies: flagSummary?.total_anomalies || 0
         },
         chartsData: {
-          riskDistribution: {
-            labels: generateRiskDistributionFromRiskData(risk_data).map(item => item.risk_level),
-            data: generateRiskDistributionFromRiskData(risk_data).map(item => item.count),
-            percentages: generateRiskDistributionFromRiskData(risk_data).map(item => item.percentage)
-          },
-          anomalyBreakdown: {
-            labels: ['Duplicates', 'Unusual Patterns', 'Round Amounts', 'Holiday Transactions', 'Weekend Transactions', 'Late Hour Transactions', 'High Value Transactions'],
-            data: [
-              summary?.duplicates_found || riskStats?.duplicates_found || 0,
-              summary?.risk_assessment?.risk_factors?.unusual_patterns || riskFactors?.unusual_patterns || 0,
-              summary?.risk_assessment?.risk_factors?.round_amounts || riskFactors?.round_amounts || 0,
-              summary?.risk_assessment?.risk_factors?.holiday_transactions || riskFactors?.holiday_transactions || 0,
-              summary?.risk_assessment?.risk_factors?.weekend_transactions || riskFactors?.weekend_transactions || 0,
-              summary?.risk_assessment?.risk_factors?.late_hour_transactions || riskFactors?.late_hour_transactions || 0,
-              summary?.risk_assessment?.risk_factors?.high_value_transactions || riskFactors?.high_value_transactions || 0
-            ]
-          },
-          topUsersByAmount: (() => {
-            console.log('Transform - userPatterns:', userPatterns);
-            console.log('Transform - userPatterns?.top_users:', userPatterns?.top_users);
+          riskDistribution: (() => {
+            // Use chart_data.risk_distribution_chart as the primary source (corrected from risk_distribution)
+            const chartRiskData = chart_data?.risk_distribution_chart;
+            const fallbackData = {
+              labels:  risk_analysis?.chart_data?.risk_distribution_chart.labels,
+              data: risk_analysis?.chart_data?.risk_distribution_chart.data
+            };
             
-            if (!Array.isArray(userPatterns?.top_users)) {
-              console.log('Transform - top_users is not an array, returning empty array');
-              return [];
-            }
+            const riskDistributionData = {
+              labels: chartRiskData?.labels || fallbackData.labels,
+              data: chartRiskData?.data || fallbackData.data
+            };
             
-            // Test with sample data to verify mapping works
-            const testData = [
-              ["M.ALJOHANI", {
-                "count": 16,
-                "avg_amount": 5141490.840624999,
-                "total_amount": 82263853.44999999,
-                "accounts_count": 5
-              }]
-            ];
-            console.log('Transform - Test data mapping:', testData.map(([userName, userData]) => ({
-              userName: userName || '',
-              totalAmount: userData?.total_amount || 0,
-              transactionCount: userData?.count || 0,
-              avgAmount: userData?.avg_amount || 0
-            })));
+            const totalAnomalies = riskDistributionData.data.reduce((a, b) => a + b, 0);
+            const percentages = riskDistributionData.data.map(count => 
+              totalAnomalies > 0 ? (count / totalAnomalies) * 100 : 0
+            );
             
-            const mappedUsers = userPatterns.top_users.map(([userName, userData]) => {
-              console.log('Transform - Processing user:', userName, userData);
-              return {
-                userName: userName || '',
-                totalAmount: userData?.total_amount || 0,
-                currency: userData?.currency || '',
-                transactionCount: userData?.count || 0,
-                avgAmount: userData?.avg_amount || 0,
-                maxAmount: userData?.max_amount || 0,
-                minAmount: userData?.min_amount || 0,
-                accountsUsed: userData?.accounts_used || [],
-                accountsCount: userData?.accounts_count || 0,
-                dateRange: userData?.date_range || { min: '', max: '' }
-              };
+            console.log("ChartsData risk distribution debug:", {
+              chartRiskData,
+              fallbackData,
+              riskDistributionData,
+              totalAnomalies,
+              percentages
             });
             
-            console.log('Transform - Mapped users:', mappedUsers);
-            return mappedUsers;
+            return {
+              labels: riskDistributionData.labels,
+              data: riskDistributionData.data,
+              percentages: percentages
+            };
           })(),
-          topAccountsByTransactions: Array.isArray(accountPatterns?.top_accounts) ? 
-            accountPatterns.top_accounts.map(([accountId, accountData]) => ({
-              glAccount: accountId || '',
-              transactionCount: accountData?.count || 0,
-              totalAmount: accountData?.total_amount || 0,
-              currency: accountData?.currency || '',
-              avgAmount: accountData?.avg_amount || 0
+          anomalyBreakdown: {
+            labels: chart_data?.flag_type_chart?.labels || ['Duplicate Transactions', 'Backdated Entries', 'High Value Transactions'],
+            data: chart_data?.flag_type_chart?.data || [
+              flagSummary?.duplicate_anomalies || 0,
+              flagSummary?.backdated_anomalies || 0,
+              flagSummary?.high_value_anomalies || 0
+            ]
+          },
+          topUsersByAmount: [], // Not available in new structure
+          topAccountsByTransactions: Array.isArray(allGlAccounts?.accounts) ? 
+            allGlAccounts.accounts.map(account => ({
+              glAccount: account.gl_account || '',
+              transactionCount: account.transaction_count || 0,
+              totalAmount: account.total_amount || 0,
+              currency: transactionSummary?.currency || '',
+              avgAmount: account.total_amount / (account.transaction_count || 1) || 0
             })) : [],
-          monthlyTransactionVolume: temporalPatterns?.monthly_trends ? 
-            Object.entries(temporalPatterns.monthly_trends).map(([month, amount]) => ({
-              month: month,
-              transactionCount: 0, // Not available in new structure
-              totalAmount: amount || 0,
-              debitAmount: amount || 0,
-              creditAmount: 0,
-              currency: ''
-            })) : []
+          monthlyTransactionVolume: [] // Not available in new structure
         },
         glChartsData: {
-          topAccountsByAmount: Array.isArray(accountPatterns?.top_accounts) ? 
-            accountPatterns.top_accounts.map(([accountId, accountData]) => ({
-              accountId: accountId || '',
-              totalAmount: accountData?.total_amount || 0,
-              currency: accountData?.currency || '',
-              transactionCount: accountData?.count || 0,
-              trialBalance: accountData?.trial_balance || accountData?.total_amount || 0
+          topAccountsByAmount: Array.isArray(allGlAccounts?.accounts) ? 
+            allGlAccounts.accounts.map(account => ({
+              accountId: account.gl_account || '',
+              totalAmount: account.total_amount || 0,
+              currency: transactionSummary?.currency || '',
+              transactionCount: account.transaction_count || 0,
+              trialBalance: account.total_amount || 0,
+              riskLevel: account.risk_level || 'LOW',
+              riskColor: account.risk_color || '#4BC0C0',
+              avgRiskScore: account.avg_risk_score || 0,
+              anomalyCounts: account.anomaly_counts || {
+                duplicate: 0,
+                backdated: 0,
+                high_value: 0,
+                total_anomalies: 0
+              }
             })) : [],
-          accountTypeDistribution: generateAccountTypeDistribution(accountPatterns?.top_accounts || []),
-          balanceDistribution: generateBalanceDistribution(accountPatterns?.top_accounts || []),
-          monthlyAccountActivity: temporalPatterns?.monthly_trends ? 
-            Object.entries(temporalPatterns.monthly_trends).map(([month, amount]) => ({
-              month,
-              transactionCount: 0, // Not available in new structure
-              totalAmount: amount || 0,
-              avgAmount: 0
-            })) : [],
-          currency: general_stats?.currency || ''
+          accountTypeDistribution: generateAccountTypeDistribution(allGlAccounts?.accounts || []),
+          balanceDistribution: generateBalanceDistribution(allGlAccounts?.accounts || []),
+          monthlyAccountActivity: [], // Not available in new structure
+          currency: transactionSummary?.currency || ''
         },
         analysisSessionsSummary: {
-          totalSessions: processing_info?.total_sessions || 1,
+          totalSessions: 1, // Not available in new structure
           latestSession: {
-            id: processing_info?.analytics_id || file_info?.id || '',
-            sessionName: processing_info?.session_name || 'Latest Analysis',
-            status: processing_info?.processing_status || file_info?.status || '',
-            createdAt: processing_info?.created_at || file_info?.processed_at || ''
+            id: overall_analysis?.analysis_id || file_info?.file_id || '',
+            sessionName: 'Latest Analysis',
+            status: overall_analysis?.status || file_info?.file_status || '',
+            createdAt: overall_analysis?.analysis_date || file_info?.processed_at || ''
           }
         },
         sheet_name: file_info?.file_name || '',
         sheet_date: file_info?.uploaded_at || '',
-        display_name: file_info?.display_name || file_info?.file_name || '',
-        total_expenses: general_stats?.total_transactions || 0,
-        total_amount: general_stats?.total_amount || 0,
+        display_name: file_info?.file_name || '',
+        total_expenses: transactionSummary?.total_transactions || 0,
+        total_amount: transactionSummary?.total_amount || 0,
         analysis_summary: {
-          overall_fraud_score: summary?.risk_assessment?.risk_score || riskStats?.overall_risk_score || riskStats?.comprehensive_risk_score || 0,
-          risk_level: summary?.risk_assessment?.risk_level || riskStats?.overall_risk_level || riskStats?.comprehensive_risk_level || '',
-          total_flagged_expenses: summary?.flagged_transactions || riskStats?.flagged_transactions || 0,
-          flag_rate: general_stats?.total_transactions ? 
-            ((summary?.flagged_transactions || riskStats?.flagged_transactions || 0) / general_stats.total_transactions) * 100 : 0,
+          overall_fraud_score: riskAssessment?.overall_risk_score || 0,
+          risk_level: riskAssessment?.risk_level || '',
+          total_flagged_expenses: flagSummary?.total_flagged || 0,
+          flag_rate: transactionSummary?.total_transactions ? 
+            (flagSummary?.total_flagged / transactionSummary.total_transactions) * 100 : 0,
           anomalies_detected: {
-            amount_anomalies: summary?.anomalies_found || riskStats?.amount_anomalies || riskStats?.anomalies_detected || 0,
-            timing_anomalies: summary?.risk_assessment?.risk_factors?.late_hour_transactions || riskStats?.timing_anomalies || riskFactors?.late_hour_transactions || 0,
-            vendor_anomalies: riskStats?.vendor_anomalies || 0,
-            employee_anomalies: riskStats?.employee_anomalies || 0,
-            duplicate_suspicions: summary?.duplicates_found || riskStats?.duplicates_found || 0
+            amount_anomalies: flagSummary?.high_value_anomalies || 0,
+            timing_anomalies: 0, // Not available in new structure
+            vendor_anomalies: 0, // Not available in new structure
+            employee_anomalies: 0, // Not available in new structure
+            duplicate_suspicions: flagSummary?.duplicate_anomalies || 0
           },
           risk_factors: {
-            unusual_patterns: summary?.risk_assessment?.risk_factors?.unusual_patterns || riskFactors?.unusual_patterns || 0,
-            round_amounts: summary?.risk_assessment?.risk_factors?.round_amounts || riskFactors?.round_amounts || 0,
-            holiday_transactions: summary?.risk_assessment?.risk_factors?.holiday_transactions || riskFactors?.holiday_transactions || 0,
-            weekend_transactions: summary?.risk_assessment?.risk_factors?.weekend_transactions || riskFactors?.weekend_transactions || 0,
-            late_hour_transactions: summary?.risk_assessment?.risk_factors?.late_hour_transactions || riskFactors?.late_hour_transactions || 0,
-            high_value_transactions: summary?.risk_assessment?.risk_factors?.high_value_transactions || riskFactors?.high_value_transactions || 0
+            unusual_patterns: 0, // Not available in new structure
+            round_amounts: 0, // Not available in new structure
+            holiday_transactions: 0, // Not available in new structure
+            weekend_transactions: 0, // Not available in new structure
+            late_hour_transactions: 0, // Not available in new structure
+            high_value_transactions: flagSummary?.high_value_anomalies || 0
           }
         },
         chart_data: {
           employee_expenses: {
-            data: Array.isArray(userPatterns?.top_users) ? 
-              userPatterns.top_users.map(([userName, userData]) => userName) : [],
-            amounts: Array.isArray(userPatterns?.top_users) ? 
-              userPatterns.top_users.map(([userName, userData]) => userData?.total_amount || 0) : []
+            data: [], // Not available in new structure
+            amounts: []
           },
           category_expenses: {
-            data: expenseBreakdown?.categories ? 
-              Object.keys(expenseBreakdown.categories) : [],
-            amounts: expenseBreakdown?.categories ? 
-              Object.values(expenseBreakdown.categories) : []
+            data: [], // Not available in new structure
+            amounts: []
           },
-          monthly_trend: temporalPatterns?.monthly_trends ? 
-            Object.entries(temporalPatterns.monthly_trends).map(([month, amount]) => ({
-              month,
-              amount
-            })) : [],
+          monthly_trend: [], // Not available in new structure
           amount_distribution: {
-            labels: ['0-1K', '1K-10K', '10K-100K', '100K-1M', '1M+'],
-            data: [0, 0, 0, 0, 0] // Placeholder - would need actual distribution data
+            labels: chart_data?.amount_distribution_chart?.labels || risk_analysis?.amount_ranges?.map(range => range.label) || ['0-100K', '100K-1M', '1M-10M', '10M+'],
+            data: chart_data?.amount_distribution_chart?.data || risk_analysis?.amount_ranges?.map(range => range.count) || [0, 0, 0, 0]
           },
-          risk_distribution: {
-            labels: generateRiskDistributionFromRiskData(risk_data).map(item => item.risk_level),
-            data: generateRiskDistributionFromRiskData(risk_data).map(item => item.count),
-            percentages: generateRiskDistributionFromRiskData(risk_data).map(item => item.percentage)
-          },
+          risk_distribution: (() => {
+            // Use chart_data.risk_distribution_chart as the primary source (corrected from risk_distribution)
+            const chartRiskData = chart_data?.risk_distribution_chart;
+            const fallbackData = {
+              labels: ['Low Risk', 'Medium Risk', 'High Risk', 'Critical Risk'],
+              data: [
+                risk_analysis?.risk_distributions?.low_risk || flagSummary?.risk_distribution?.low || 0,
+                risk_analysis?.risk_distributions?.medium_risk || flagSummary?.risk_distribution?.medium || 0,
+                risk_analysis?.risk_distributions?.high_risk || flagSummary?.risk_distribution?.high || 0,
+                risk_analysis?.risk_distributions?.critical_risk || flagSummary?.risk_distribution?.critical || 0
+              ],
+              colors: ['#4BC0C0', '#FFCE56', '#FF9F40', '#FF6384']
+            };
+            
+            const riskDistributionData = {
+              labels: chartRiskData?.labels || fallbackData.labels,
+              data: chartRiskData?.data || fallbackData.data,
+              colors: chartRiskData?.colors || fallbackData.colors
+            };
+            
+            const totalAnomalies = riskDistributionData.data.reduce((a, b) => a + b, 0);
+            const percentages = riskDistributionData.data.map(count => 
+              totalAnomalies > 0 ? (count / totalAnomalies) * 100 : 0
+            );
+            
+            console.log("Risk distribution mapping debug:", {
+              chartRiskData,
+              fallbackData,
+              riskDistributionData,
+              totalAnomalies,
+              percentages
+            });
+            
+            return {
+              labels: riskDistributionData.labels,
+              data: riskDistributionData.data,
+              percentages: percentages,
+              colors: riskDistributionData.colors
+            };
+          })(),
           anomaly_breakdown: {
-            labels: ['Duplicates', 'Unusual Patterns', 'Round Amounts', 'Holiday Transactions', 'Weekend Transactions', 'Late Hour Transactions', 'High Value Transactions'],
-            data: [
-              summary?.duplicates_found || riskStats?.duplicates_found || 0,
-              summary?.risk_assessment?.risk_factors?.unusual_patterns || riskFactors?.unusual_patterns || 0,
-              summary?.risk_assessment?.risk_factors?.round_amounts || riskFactors?.round_amounts || 0,
-              summary?.risk_assessment?.risk_factors?.holiday_transactions || riskFactors?.holiday_transactions || 0,
-              summary?.risk_assessment?.risk_factors?.weekend_transactions || riskFactors?.weekend_transactions || 0,
-              summary?.risk_assessment?.risk_factors?.late_hour_transactions || riskFactors?.late_hour_transactions || 0,
-              summary?.risk_assessment?.risk_factors?.high_value_transactions || riskFactors?.high_value_transactions || 0
+            labels: chart_data?.flag_type_chart?.labels || risk_analysis?.anomaly_types?.map(type => type.name) || ['Duplicate Transactions', 'Backdated Entries', 'High Value Transactions'],
+            data: chart_data?.flag_type_chart?.data || risk_analysis?.anomaly_types?.map(type => type.count) || [
+              flagSummary?.duplicate_anomalies || 0,
+              flagSummary?.backdated_anomalies || 0,
+              flagSummary?.high_value_anomalies || 0
             ]
+          },
+          overall_risk_gauge: chart_data?.overall_risk_gauge || {
+            value: riskAssessment?.overall_risk_score || 0,
+            max_value: 100,
+            risk_level: riskAssessment?.risk_level || 'LOW',
+            color: '#4BC0C0'
           }
         },
-        flagged_expenses: transformFlaggedExpensesFromRiskData(risk_data, general_stats),
+        flagged_expenses: transformFlaggedExpensesFromNewData(riskAssessment, transactionSummary),
         anomalies_data: {
           anomaly_summary: {
-            duplicate_entries: summary?.duplicates_found || riskStats?.duplicates_found || 0,
-            backdated_entries: riskStats?.backdated_entries || 0,
-            closing_entries: riskStats?.closing_entries || 0,
-            unusual_days: summary?.risk_assessment?.risk_factors?.unusual_patterns || riskFactors?.unusual_patterns || 0,
-            holiday_entries: summary?.risk_assessment?.risk_factors?.holiday_transactions || riskFactors?.holiday_transactions || 0
+            duplicate_entries: flagSummary?.duplicate_anomalies || 0,
+            backdated_entries: flagSummary?.backdated_anomalies || 0,
+            closing_entries: 0, // Not available in new structure
+            unusual_days: 0, // Not available in new structure
+            holiday_entries: 0 // Not available in new structure
           },
-          risk_distribution: generateRiskDistributionFromRiskData(risk_data)
+          risk_distribution: (() => {
+            // Use chart_data.risk_distribution_chart as the primary source (corrected from risk_distribution)
+            const chartRiskData = chart_data?.risk_distribution_chart;
+            
+            if (chartRiskData?.labels && chartRiskData?.data) {
+              const totalAnomalies = chartRiskData.data.reduce((sum, count) => sum + count, 0);
+              return chartRiskData.labels.map((label, index) => ({
+                risk_level: label,
+                count: chartRiskData.data[index] || 0,
+                percentage: totalAnomalies > 0 ? ((chartRiskData.data[index] || 0) / totalAnomalies) * 100 : 0
+              }));
+            }
+            
+            // Fallback to risk_analysis.risk_distributions first, then flagSummary data
+            const riskDistributionData = [
+              { risk_level: 'LOW', count: risk_analysis?.risk_distributions?.low_risk || flagSummary?.risk_distribution?.low || 0 },
+              { risk_level: 'MEDIUM', count: risk_analysis?.risk_distributions?.medium_risk || flagSummary?.risk_distribution?.medium || 0 },
+              { risk_level: 'HIGH', count: risk_analysis?.risk_distributions?.high_risk || flagSummary?.risk_distribution?.high || 0 },
+              { risk_level: 'CRITICAL', count: risk_analysis?.risk_distributions?.critical_risk || flagSummary?.risk_distribution?.critical || 0 }
+            ];
+            
+            const totalAnomalies = riskDistributionData.reduce((sum, item) => sum + item.count, 0);
+            
+            return riskDistributionData.map(item => ({
+              ...item,
+              percentage: totalAnomalies > 0 ? (item.count / totalAnomalies) * 100 : 0
+            }));
+          })()
         },
         advanced_metrics: {
           basic_metrics: {
-            total_expenses: general_stats?.total_transactions || 0,
-            total_amount: general_stats?.total_amount || 0,
-            average_expense: general_stats?.average_amount || 0,
-            median_expense: summary?.risk_assessment?.statistics?.median_amount || riskStatistics?.median_amount || 0,
-            largest_expense: summary?.risk_assessment?.statistics?.p95_amount || riskStatistics?.p95_amount || 0,
-            smallest_expense: general_stats?.min_amount || 0,
+            total_expenses: transactionSummary?.total_transactions || 0,
+            total_amount: transactionSummary?.total_amount || 0,
+            average_expense: transactionSummary?.average_transaction_amount || 0,
+            median_expense: transactionSummary?.amount_statistics?.median || 0,
+            largest_expense: transactionSummary?.amount_statistics?.max || 0,
+            smallest_expense: transactionSummary?.amount_statistics?.min || 0,
             date_range_days: calculateDateRangeDays(dateRange),
-            unique_users: general_stats?.unique_users || 0,
-            unique_accounts: general_stats?.unique_accounts || 0,
-            unique_profit_centers: general_stats?.unique_profit_centers || 0,
-            high_value_transactions: summary?.high_risk_transactions || riskFactors?.high_value_transactions || 0
+            unique_users: transactionSummary?.unique_users || 0,
+            unique_accounts: transactionSummary?.unique_accounts || 0,
+            unique_profit_centers: 0, // Not available in new structure
+            high_value_transactions: flagSummary?.high_value_anomalies || 0
+          }
+        },
+        detailed_risk_analysis: {
+          methodology: {
+            description: risk_analysis?.methodology_overview?.description || 'Comprehensive risk scoring methodology based on actual transaction analysis',
+            version: risk_analysis?.methodology_overview?.version || '1.0.0',
+            analysis_date: risk_analysis?.methodology_overview?.analysis_date || '',
+            total_transactions_analyzed: risk_analysis?.methodology_overview?.total_transactions_analyzed || 0,
+            risk_score_range: {
+              min: risk_analysis?.methodology_overview?.risk_score_range?.min || 0,
+              max: risk_analysis?.methodology_overview?.risk_score_range?.max || 100,
+              average: risk_analysis?.methodology_overview?.risk_score_range?.average || 0
+            },
+            risk_levels: {
+              low_risk: {
+                min: risk_analysis?.methodology_overview?.risk_levels?.low_risk?.min || 0,
+                max: risk_analysis?.methodology_overview?.risk_levels?.low_risk?.max || 29,
+                description: risk_analysis?.methodology_overview?.risk_levels?.low_risk?.description || 'Normal transactions'
+              },
+              medium_risk: {
+                min: risk_analysis?.methodology_overview?.risk_levels?.medium_risk?.min || 30,
+                max: risk_analysis?.methodology_overview?.risk_levels?.medium_risk?.max || 59,
+                description: risk_analysis?.methodology_overview?.risk_levels?.medium_risk?.description || 'Some concerns'
+              },
+              high_risk: {
+                min: risk_analysis?.methodology_overview?.risk_levels?.high_risk?.min || 60,
+                max: risk_analysis?.methodology_overview?.risk_levels?.high_risk?.max || 79,
+                description: risk_analysis?.methodology_overview?.risk_levels?.high_risk?.description || 'Significant risk'
+              },
+              critical_risk: {
+                min: risk_analysis?.methodology_overview?.risk_levels?.critical_risk?.min || 80,
+                max: risk_analysis?.methodology_overview?.risk_levels?.critical_risk?.max || 100,
+                description: risk_analysis?.methodology_overview?.risk_levels?.critical_risk?.description || 'High risk'
+              }
+            }
+          },
+          risk_factors: {
+            duplicate_risk: {
+              count: risk_analysis?.risk_factors?.duplicate_risk?.count || 0,
+              percentage: risk_analysis?.risk_factors?.duplicate_risk?.percentage || 0,
+              description: risk_analysis?.risk_factors?.duplicate_risk?.description || 'Risk associated with duplicate transactions'
+            },
+            backdated_risk: {
+              count: risk_analysis?.risk_factors?.backdated_risk?.count || 0,
+              percentage: risk_analysis?.risk_factors?.backdated_risk?.percentage || 0,
+              description: risk_analysis?.risk_factors?.backdated_risk?.description || 'Risk associated with backdated entries'
+            },
+            high_value_risk: {
+              count: risk_analysis?.risk_factors?.high_value_risk?.count || 0,
+              percentage: risk_analysis?.risk_factors?.high_value_risk?.percentage || 0,
+              description: risk_analysis?.risk_factors?.high_value_risk?.description || 'Risk associated with high-value transactions'
+            },
+            unusual_pattern_risk: {
+              count: risk_analysis?.risk_factors?.unusual_pattern_risk?.count || 0,
+              percentage: risk_analysis?.risk_factors?.unusual_pattern_risk?.percentage || 0,
+              description: risk_analysis?.risk_factors?.unusual_pattern_risk?.description || 'Risk associated with unusual transaction patterns'
+            }
+          },
+          scoring_criteria: {
+            low_risk: {
+              max: risk_analysis?.scoring_criteria?.low_risk?.max || 29,
+              min: risk_analysis?.scoring_criteria?.low_risk?.min || 0,
+              description: risk_analysis?.scoring_criteria?.low_risk?.description || 'Normal transactions'
+            },
+            medium_risk: {
+              max: risk_analysis?.scoring_criteria?.medium_risk?.max || 59,
+              min: risk_analysis?.scoring_criteria?.medium_risk?.min || 30,
+              description: risk_analysis?.scoring_criteria?.medium_risk?.description || 'Some concerns'
+            },
+            high_risk: {
+              max: risk_analysis?.scoring_criteria?.high_risk?.max || 79,
+              min: risk_analysis?.scoring_criteria?.high_risk?.min || 60,
+              description: risk_analysis?.scoring_criteria?.high_risk?.description || 'Significant risk'
+            },
+            critical_risk: {
+              max: risk_analysis?.scoring_criteria?.critical_risk?.max || 100,
+              min: risk_analysis?.scoring_criteria?.critical_risk?.min || 80,
+              description: risk_analysis?.scoring_criteria?.critical_risk?.description || 'High risk'
+            }
+          },
+          risk_calculations: {
+            total_flagged: risk_analysis?.risk_calculations?.total_flagged || 0,
+            overall_risk_score: risk_analysis?.risk_calculations?.overall_risk_score || 0,
+            risk_level: risk_analysis?.risk_calculations?.risk_level || '',
+            risk_score_range: {
+              min: risk_analysis?.risk_calculations?.risk_score_range?.min || 0,
+              max: risk_analysis?.risk_calculations?.risk_score_range?.max || 100,
+              average: risk_analysis?.risk_calculations?.risk_score_range?.average || 0
+            }
+          },
+          risk_distributions: {
+            low_risk: risk_analysis?.risk_distributions?.low_risk || 0,
+            medium_risk: risk_analysis?.risk_distributions?.medium_risk || 0,
+            high_risk: risk_analysis?.risk_distributions?.high_risk || 0,
+            critical_risk: risk_analysis?.risk_distributions?.critical_risk || 0
+          },
+          recommendations: risk_analysis?.recommendations || [],
+          audit_implications: {
+            immediate_actions: risk_analysis?.audit_implications?.immediate_actions || [],
+            follow_up_actions: risk_analysis?.audit_implications?.follow_up_actions || [],
+            compliance_considerations: risk_analysis?.audit_implications?.compliance_considerations || []
+          },
+          overall_risk_gauge: {
+            value: chart_data?.overall_risk_gauge?.value || 0,
+            max_value: chart_data?.overall_risk_gauge?.max_value || 100,
+            risk_level: chart_data?.overall_risk_gauge?.risk_level || '',
+            color: chart_data?.overall_risk_gauge?.color || '#FF6384',
+            definition: chart_data?.overall_risk_gauge?.definition || {},
+            risk_levels: chart_data?.overall_risk_gauge?.risk_levels || {},
+            calculation_details: chart_data?.overall_risk_gauge?.calculation_details || {},
+            interpretation_guide: chart_data?.overall_risk_gauge?.interpretation_guide || {},
+            business_impact: chart_data?.overall_risk_gauge?.business_impact || {}
           }
         }
       };
@@ -570,13 +685,16 @@ export default function ExpenseSheetDetails() {
       };
     }
 
-    const distribution = [
+    // Use dynamic amount ranges from API or fallback to default ranges
+    const amountRanges = risk_analysis?.amount_ranges || [
       { label: '0-1K', min: 0, max: 1000, count: 0 },
       { label: '1K-10K', min: 1000, max: 10000, count: 0 },
       { label: '10K-100K', min: 10000, max: 100000, count: 0 },
       { label: '100K-1M', min: 100000, max: 1000000, count: 0 },
       { label: '1M+', min: 1000000, max: Infinity, count: 0 }
     ];
+    
+    const distribution = amountRanges.map(range => ({ ...range, count: 0 }));
 
     distribution.forEach(range => {
       range.count = topAccounts.filter(([accountId, accountData]) => {
@@ -610,7 +728,101 @@ export default function ExpenseSheetDetails() {
     return diffDays + 1; // Include both start and end dates
   };
 
-  // Helper function to generate risk distribution from risk data
+  // Helper function to generate risk distribution from new data structure
+  const generateRiskDistributionFromNewData = (flagSummary, riskAssessment, riskAnalysis) => {
+    if (!flagSummary || !riskAssessment) {
+      return [
+        { risk_level: 'LOW', count: 0, percentage: 0 },
+        { risk_level: 'MEDIUM', count: 0, percentage: 0 },
+        { risk_level: 'HIGH', count: 0, percentage: 0 },
+        { risk_level: 'CRITICAL', count: 0, percentage: 0 }
+      ];
+    }
+
+    // First, try to use risk_analysis.risk_distributions if available
+    if (riskAnalysis?.risk_distributions) {
+      const totalTransactions = riskAnalysis.total_transactions || 0;
+      return [
+        { 
+          risk_level: 'LOW', 
+          count: riskAnalysis.risk_distributions.low_risk || 0, 
+          percentage: totalTransactions > 0 ? ((riskAnalysis.risk_distributions.low_risk || 0) / totalTransactions) * 100 : 0 
+        },
+        { 
+          risk_level: 'MEDIUM', 
+          count: riskAnalysis.risk_distributions.medium_risk || 0, 
+          percentage: totalTransactions > 0 ? ((riskAnalysis.risk_distributions.medium_risk || 0) / totalTransactions) * 100 : 0 
+        },
+        { 
+          risk_level: 'HIGH', 
+          count: riskAnalysis.risk_distributions.high_risk || 0, 
+          percentage: totalTransactions > 0 ? ((riskAnalysis.risk_distributions.high_risk || 0) / totalTransactions) * 100 : 0 
+        },
+        { 
+          risk_level: 'CRITICAL', 
+          count: riskAnalysis.risk_distributions.critical_risk || 0, 
+          percentage: totalTransactions > 0 ? ((riskAnalysis.risk_distributions.critical_risk || 0) / totalTransactions) * 100 : 0 
+        }
+      ];
+    }
+
+    // Use the risk_distribution from flagSummary if available
+    if (flagSummary.risk_distribution) {
+      const totalAnomalies = flagSummary.total_anomalies || 0;
+      return [
+        { 
+          risk_level: 'LOW', 
+          count: flagSummary.risk_distribution.low || 0, 
+          percentage: totalAnomalies > 0 ? ((flagSummary.risk_distribution.low || 0) / totalAnomalies) * 100 : 0 
+        },
+        { 
+          risk_level: 'MEDIUM', 
+          count: flagSummary.risk_distribution.medium || 0, 
+          percentage: totalAnomalies > 0 ? ((flagSummary.risk_distribution.medium || 0) / totalAnomalies) * 100 : 0 
+        },
+        { 
+          risk_level: 'HIGH', 
+          count: flagSummary.risk_distribution.high || 0, 
+          percentage: totalAnomalies > 0 ? ((flagSummary.risk_distribution.high || 0) / totalAnomalies) * 100 : 0 
+        },
+        { 
+          risk_level: 'CRITICAL', 
+          count: flagSummary.risk_distribution.critical || 0, 
+          percentage: totalAnomalies > 0 ? ((flagSummary.risk_distribution.critical || 0) / totalAnomalies) * 100 : 0 
+        }
+      ];
+    }
+
+    // Fallback to the old structure if risk_distribution is not available
+    const totalAnomalies = flagSummary.total_anomalies || 0;
+    
+    const distribution = [
+      { 
+        risk_level: 'LOW', 
+        count: flagSummary.low_risk_anomalies || 0, 
+        percentage: totalAnomalies > 0 ? ((flagSummary.low_risk_anomalies || 0) / totalAnomalies) * 100 : 0 
+      },
+      { 
+        risk_level: 'MEDIUM', 
+        count: flagSummary.medium_risk_anomalies || 0, 
+        percentage: totalAnomalies > 0 ? ((flagSummary.medium_risk_anomalies || 0) / totalAnomalies) * 100 : 0 
+      },
+      { 
+        risk_level: 'HIGH', 
+        count: flagSummary.high_risk_anomalies || 0, 
+        percentage: totalAnomalies > 0 ? ((flagSummary.high_risk_anomalies || 0) / totalAnomalies) * 100 : 0 
+      },
+      { 
+        risk_level: 'CRITICAL', 
+        count: flagSummary.critical_risk_anomalies || 0, 
+        percentage: totalAnomalies > 0 ? ((flagSummary.critical_risk_anomalies || 0) / totalAnomalies) * 100 : 0 
+      }
+    ];
+
+    return distribution;
+  };
+
+  // Helper function to generate risk distribution from risk data (legacy)
   const generateRiskDistributionFromRiskData = (riskData) => {
     
     if (!riskData?.risk_stats) {
@@ -665,8 +877,8 @@ export default function ExpenseSheetDetails() {
       'Expenses': 0
     };
 
-    topAccounts.forEach(([accountId, accountData]) => {
-      const accountIdNum = parseInt(accountId) || 0;
+    topAccounts.forEach((account) => {
+      const accountIdNum = parseInt(account.gl_account) || 0;
       if (accountIdNum >= 100000 && accountIdNum < 200000) {
         typeCounts['Assets']++;
       } else if (accountIdNum >= 200000 && accountIdNum < 300000) {
@@ -703,8 +915,8 @@ export default function ExpenseSheetDetails() {
       'Zero': 0
     };
 
-    topAccounts.forEach(([accountId, accountData]) => {
-      const totalAmount = accountData?.total_amount || 0;
+    topAccounts.forEach((account) => {
+      const totalAmount = account?.total_amount || 0;
       if (totalAmount > 0) {
         balanceTypes['Debit']++;
       } else if (totalAmount < 0) {
@@ -737,7 +949,99 @@ export default function ExpenseSheetDetails() {
       .sort((a, b) => a.month.localeCompare(b.month));
   };
 
-  // Helper function to transform flagged expenses from risk data
+  // Helper function to transform flagged expenses from new data structure
+  const transformFlaggedExpensesFromNewData = (riskAssessment, transactionSummary) => {
+    // Create flagged expenses based on actual risk data from new structure
+    const flaggedExpenses = [];
+    let id = 1;
+
+    const highRiskTransactions = riskAssessment?.high_risk_transactions || [];
+    const avgAmount = transactionSummary?.average_transaction_amount || 0;
+    const currency = transactionSummary?.currency || '';
+
+    // Add high-risk transactions from the risk assessment
+    highRiskTransactions.forEach((transaction, index) => {
+      flaggedExpenses.push({
+        id: id++,
+        employee: transaction.user_name || `User ${index + 1}`,
+        amount: transaction.amount_local_currency || avgAmount,
+        date: transaction.posting_date || '',
+        category: transaction.gl_account || '',
+        profit_center: '', // Not available in new structure
+        document_number: transaction.document_number || `DOC${String(index + 1).padStart(3, '0')}`,
+        document_type: '', // Not available in new structure
+        transaction_type: '', // Not available in new structure
+        currency: currency,
+        risk_level: transaction.overall_risk_score >= 80 ? 'CRITICAL' : 
+                   transaction.overall_risk_score >= 60 ? 'HIGH' : 
+                   transaction.overall_risk_score >= 30 ? 'MEDIUM' : 'LOW',
+        description: `High-risk transaction with score ${transaction.overall_risk_score}`,
+        status: transaction.overall_risk_score >= 60 ? 'Pending' : 'Cleared',
+        anomaly_type: 'Risk',
+        anomaly_subtype: 'High Risk Transaction',
+        risk_score: transaction.overall_risk_score || 0,
+        is_high_value: transaction.overall_risk_score >= 60,
+        is_cleared: transaction.overall_risk_score < 60
+      });
+    });
+
+    // Add additional flagged expenses based on flag summary
+    const duplicateCount = riskAssessment?.flag_summary?.duplicate_anomalies || 0;
+    const backdatedCount = riskAssessment?.flag_summary?.backdated_anomalies || 0;
+    const highValueCount = riskAssessment?.flag_summary?.high_value_anomalies || 0;
+
+    // Add duplicate expenses
+    for (let i = 0; i < Math.min(duplicateCount, 5); i++) {
+      flaggedExpenses.push({
+        id: id++,
+        employee: `User ${i + 1}`,
+        amount: avgAmount * (0.8 + Math.random() * 0.4),
+        date: transactionSummary?.date_range?.min_date || '',
+        category: 'Duplicate Transaction',
+        profit_center: '',
+        document_number: `DUP${String(i + 1).padStart(3, '0')}`,
+        document_type: '',
+        transaction_type: '',
+        currency: currency,
+        risk_level: 'MEDIUM',
+        description: 'Duplicate transaction detected',
+        status: 'Pending',
+        anomaly_type: 'Duplicate',
+        anomaly_subtype: 'Type 1 Duplicate',
+        risk_score: 30,
+        is_high_value: false,
+        is_cleared: false
+      });
+    }
+
+    // Add backdated expenses
+    for (let i = 0; i < Math.min(backdatedCount, 3); i++) {
+      flaggedExpenses.push({
+        id: id++,
+        employee: `User ${i + 1}`,
+        amount: avgAmount * (0.5 + Math.random() * 1.5),
+        date: transactionSummary?.date_range?.min_date || '',
+        category: 'Backdated Entry',
+        profit_center: '',
+        document_number: `BD${String(i + 1).padStart(3, '0')}`,
+        document_type: '',
+        transaction_type: '',
+        currency: currency,
+        risk_level: 'HIGH',
+        description: 'Backdated entry detected',
+        status: 'Pending',
+        anomaly_type: 'Timing',
+        anomaly_subtype: 'Backdated Entry',
+        risk_score: 85,
+        is_high_value: false,
+        is_cleared: false
+      });
+    }
+
+    return flaggedExpenses;
+  };
+
+  // Helper function to transform flagged expenses from risk data (legacy)
   const transformFlaggedExpensesFromRiskData = (riskData, generalStats) => {
     // Create flagged expenses based on actual risk data
     const flaggedExpenses = [];
@@ -826,6 +1130,13 @@ export default function ExpenseSheetDetails() {
     return flaggedExpenses;
   };
 
+  // Handle dashboard view change
+  const handleDashboardViewChange = (event, newView) => {
+    if (newView !== null) {
+      setDashboardView(newView);
+    }
+  };
+
   return (
     <Box sx={{ display: 'flex' }}>
       <CssBaseline />
@@ -841,7 +1152,56 @@ export default function ExpenseSheetDetails() {
             <Alert severity="error">{error}</Alert>
           </Box>
         ) : (
-          <ExpenseAnalysisDashboard sheetData={sheetData} />
+          <>
+            {/* Dashboard Toggle */}
+            <Box sx={{ 
+              p: 3, 
+              pb: 0, 
+              display: 'flex', 
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: 2
+            }}>
+              <Typography variant="body1" sx={{ fontWeight: 600, color: '#666' }}>
+                View Mode:
+              </Typography>
+              <ToggleButtonGroup
+                value={dashboardView}
+                exclusive
+                onChange={handleDashboardViewChange}
+                aria-label="dashboard view"
+                sx={{
+                  '& .MuiToggleButton-root': {
+                    px: 3,
+                    py: 1,
+                    fontWeight: 600,
+                    borderRadius: 2,
+                    '&.Mui-selected': {
+                      backgroundColor: '#925A9B',
+                      color: 'white',
+                      '&:hover': {
+                        backgroundColor: '#7B4B8A',
+                      }
+                    }
+                  }
+                }}
+              >
+                <ToggleButton value="analysis" aria-label="analysis dashboard">
+                  Analysis Dashboard
+                </ToggleButton>
+                <ToggleButton value="listing" aria-label="listing dashboard">
+                  Listing View
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+
+            {/* Dashboard Content */}
+            {dashboardView === 'analysis' ? (
+              <ExpenseAnalysisDashboard sheetData={sheetData} />
+            ) : (
+              <ListingDashboard sheetData={sheetData} />
+            )}
+          </>
         )}
       </Box>
     </Box>

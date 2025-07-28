@@ -20,7 +20,7 @@ export default function DuplicateMonthlyTrendChart({ data, currency = 'SAR' }) {
   };
 
   // Check for new data structure first, then fallback to old structure
-  const chartData = data?.chart_data?.monthly_trend_chart || data?.monthly_trend;
+  const chartData = data?.chart_data?.monthly_duplicate_trend || data?.monthly_trend;
 
   if (!data || !chartData || (Array.isArray(chartData) && chartData.length === 0)) {
     return (
@@ -37,8 +37,37 @@ export default function DuplicateMonthlyTrendChart({ data, currency = 'SAR' }) {
 
   // Transform data based on structure
   let transformedData;
-  if (Array.isArray(chartData) && chartData.length > 0 && chartData[0].month) {
-    // New structure: chart_data.monthly_trend_chart is an array with month property
+  if (chartData.labels && chartData.data) {
+    // New structure: chart_data.monthly_duplicate_trend has labels and data arrays
+    transformedData = chartData.labels.map((label, index) => ({
+      month: label,
+      duplicateGroups: chartData.data[index] || 0,
+      transactions: (chartData.data[index] || 0) * 2,
+      totalAmount: 0, // Will be calculated from duplicate entries
+      debitAmount: 0, // Will be calculated from duplicate entries
+      creditAmount: 0 // Will be calculated from duplicate entries
+    }));
+    
+    // Calculate amounts from duplicate entries if available
+    if (data.duplicate_entries) {
+      transformedData.forEach(item => {
+        const monthDuplicates = data.duplicate_entries.filter(entry => {
+          const entryMonth = new Date(entry.transaction1.date).toLocaleDateString('en-US', { month: 'short' });
+          return entryMonth === item.month;
+        });
+        item.totalAmount = monthDuplicates.reduce((sum, entry) => 
+          sum + entry.transaction1.amount + entry.transaction2.amount, 0
+        );
+        item.debitAmount = monthDuplicates.reduce((sum, entry) => 
+          sum + entry.transaction1.amount, 0
+        );
+        item.creditAmount = monthDuplicates.reduce((sum, entry) => 
+          sum + entry.transaction2.amount, 0
+        );
+      });
+    }
+  } else if (Array.isArray(chartData) && chartData.length > 0 && chartData[0].month) {
+    // Fallback: chart_data.monthly_trend_chart is an array with month property
     transformedData = chartData.map((item, index) => ({
       month: item.month,
       duplicateGroups: item.duplicate_groups,

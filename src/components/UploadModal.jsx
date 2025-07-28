@@ -48,8 +48,8 @@ export default function UploadModal({ open, onClose, onUploadSuccess }) {
     audit_end_date: '',
     company_name: '',
     description: 'Test',
-    run_anomalies: false,
-    anomalies: []
+    run_anomalies: true,
+    anomalies: ['duplicate', 'backdated']
   });
 
   // Available anomaly options with keys and descriptions
@@ -279,8 +279,8 @@ export default function UploadModal({ open, onClose, onUploadSuccess }) {
       audit_end_date: '',
       company_name: '',
       description: '',
-      run_anomalies: false,
-      anomalies: []
+      run_anomalies: true,
+      anomalies: ['duplicate', 'backdated']
     });
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -450,69 +450,6 @@ export default function UploadModal({ open, onClose, onUploadSuccess }) {
                 }}
               />
             </Grid>
-           
-             <Grid item size={{xs: 12, sm: 6}}>
-               <FormControl component="fieldset">
-                 <FormLabel component="legend" sx={{ color: '#374151', fontWeight: 600 }}>
-                   Run Anomalies
-                 </FormLabel>
-                 <RadioGroup
-                   value={formData.run_anomalies}
-                   onChange={(e) => handleFormChange('run_anomalies', e.target.value === 'true')}
-                   row
-                 >
-                   <FormControlLabel 
-                     value={true} 
-                     control={<Radio sx={{ color: '#9A5FA3', '&.Mui-checked': { color: '#9A5FA3' } }} />} 
-                     label="Yes" 
-                   />
-                   <FormControlLabel 
-                     value={false} 
-                     control={<Radio sx={{ color: '#9A5FA3', '&.Mui-checked': { color: '#9A5FA3' } }} />} 
-                     label="No" 
-                   />
-                 </RadioGroup>
-               </FormControl>
-             </Grid>
-            {formData.run_anomalies && <Grid item size={{xs: 12, sm: 6}}>
-               <FormControl component="fieldset" fullWidth>
-                 <FormLabel component="legend" sx={{ color: '#374151', fontWeight: 600 }}>
-                   Select Anomalies
-                 </FormLabel>
-                 <FormGroup>
-                   {anomalyOptions.map((anomaly) => (
-                     <FormControlLabel
-                       key={anomaly.key}
-                       control={
-                         <Checkbox
-                           checked={formData.anomalies.includes(anomaly.key)}
-                           onChange={() => handleAnomalyToggle(anomaly.key)}
-                           sx={{ color: '#9A5FA3', '&.Mui-checked': { color: '#9A5FA3' } }}
-                         />
-                       }
-                       label={
-                         <Box>
-                           <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                             {anomaly.label}
-                           </Typography>
-                           <Typography variant="caption" color="text.secondary">
-                             {anomaly.description}
-                           </Typography>
-                         </Box>
-                       }
-                       sx={{ 
-                         '& .MuiFormControlLabel-label': { 
-                           fontSize: '0.875rem',
-                           width: '100%'
-                         },
-                         alignItems: 'flex-start',
-                         mb: 1
-                       }}
-                     />
-                   ))}
-                 </FormGroup>
-               </FormControl>
-             </Grid>}
              <Grid item size={{xs: 12, sm: 12}}>
                <TextField
                  fullWidth

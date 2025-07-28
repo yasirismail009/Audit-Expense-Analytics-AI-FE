@@ -9,9 +9,9 @@ export default function EmployeeExpensesChart({ data }) {
 
   // Create fallback data if no data is provided
   const fallbackData = {
-    labels: ['Sample Employee'],
-    data: [1000],
-    colors: [getColorByIndex(0)]
+    labels: [],
+    data: [],
+    colors: []
   };
 
   const chartData = data || fallbackData;

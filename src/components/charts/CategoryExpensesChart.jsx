@@ -48,7 +48,7 @@ export default function CategoryExpensesChart({ data }) {
   return (
     <Card sx={{ width: '100%', borderRadius: 3, boxShadow: 2 }}>
       <CardContent>
-        <Typography variant="subtitle2" sx={{ mb: 2 }}>Category Expenses</Typography>
+        <Typography variant="subtitle2" sx={{ mb: 2 }}>Gl Accounts Transaction</Typography>
         <Box sx={{ height: 300 }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} barGap={4}>

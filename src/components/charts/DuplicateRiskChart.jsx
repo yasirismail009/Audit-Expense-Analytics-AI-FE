@@ -3,6 +3,14 @@ import { Card, CardContent, Typography, Box } from '@mui/material';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
+  // Helper function to get risk level from score
+  const getRiskLevel = (score) => {
+    if (score >= 80) return 'CRITICAL';
+    if (score >= 60) return 'HIGH';
+    if (score >= 40) return 'MEDIUM';
+    return 'LOW';
+  };
+
   // Helper function to format currency
   const formatCurrency = (amount) => {
     const num = parseFloat(amount || 0);
@@ -19,7 +27,7 @@ export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
   };
 
   // Check for new data structure first, then fallback to old structure
-  const chartData = data?.chart_data?.risk_level_chart || data?.duplicates;
+  const chartData = data?.chart_data?.risk_level_distribution || data?.duplicates;
 
   if (!data || !chartData || (Array.isArray(chartData) && chartData.length === 0)) {
     return (
@@ -36,8 +44,29 @@ export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
 
   // Transform data based on structure
   let transformedData;
-  if (Array.isArray(chartData) && chartData.length > 0 && chartData[0].risk_level) {
-    // New structure: chart_data.risk_level_chart is an array with risk_level property
+  if (chartData.labels && chartData.data) {
+    // New structure: chart_data.risk_level_distribution has labels and data arrays
+    transformedData = chartData.labels.map((label, index) => ({
+      riskLevel: label,
+      count: chartData.data[index] || 0,
+      amount: 0, // Will be calculated from duplicate entries
+      transactions: (chartData.data[index] || 0) * 2
+    }));
+    
+    // Calculate amounts from duplicate entries if available
+    if (data.duplicate_entries) {
+      transformedData.forEach(item => {
+        const matchingEntries = data.duplicate_entries.filter(entry => {
+          const entryRiskLevel = getRiskLevel(entry.risk_score);
+          return entryRiskLevel === item.riskLevel;
+        });
+        item.amount = matchingEntries.reduce((sum, entry) => 
+          sum + entry.transaction1.amount + entry.transaction2.amount, 0
+        );
+      });
+    }
+  } else if (Array.isArray(chartData) && chartData.length > 0 && chartData[0].risk_level) {
+    // Fallback: chart_data.risk_level_chart is an array with risk_level property
     transformedData = chartData
       .filter(item => item.duplicate_groups > 0) // Only show risk levels with data
       .map((item, index) => ({

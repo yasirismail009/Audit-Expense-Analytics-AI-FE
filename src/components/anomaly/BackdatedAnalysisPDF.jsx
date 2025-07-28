@@ -1,61 +1,64 @@
 /** @format */
 
-import React, { useRef } from "react";
-import { Button, Dialog } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
-import logoFull from "../../assets/full_logo.svg";
-import "./pdf.scss";
+import React, { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogActions,
+  Button,
+  Box,
+  Typography,
+  Grid,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
+  Divider,
+  Alert,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon
+} from '@mui/material';
+import {
+  Warning as WarningIcon,
+  Error as ErrorIcon,
+  Info as InfoIcon,
+  CheckCircle as CheckCircleIcon
+} from '@mui/icons-material';
+import { getRiskColor } from '../../utils/colorScheme';
 
-// Import chart components for PDF
-import RiskDistributionChart from "../charts/RiskDistributionChart";
-import AnomaliesDistributionChart from "../charts/AnomaliesDistributionChart";
-
-const RiskValue = {
-  1: "Low",
-  2: "Medium", 
-  3: "High",
-  4: "Critical",
-};
-
-const RiskColor = {
-  1: "#40b159",
-  2: "#ffc516", 
-  3: "#dc3545",
-  4: "#ff0000",
-};
-
-// PDF Chart Wrapper Component with Error Boundary
+// Error boundary for chart components
 const PDFChartWrapper = ({ title, children, fallbackContent }) => {
-  const [hasError, setHasError] = React.useState(false);
-
-  React.useEffect(() => {
-    // Reset error state when component mounts
-    setHasError(false);
-  }, []);
+  const [hasError, setHasError] = useState(false);
 
   const handleError = () => {
     setHasError(true);
   };
 
+  if (hasError) {
+    return (
+      <Box sx={{ p: 2, border: '1px solid #ddd', borderRadius: 1, bgcolor: '#f9f9f9' }}>
+        <Typography variant="h6" sx={{ mb: 1, fontSize: '0.9rem', fontWeight: 600 }}>
+          {title}
+        </Typography>
+        {fallbackContent}
+      </Box>
+    );
+  }
+
   return (
-    <div className='chart-section'>
-      <div className='chart-title'>{title}</div>
-      <div className='chart-content'>
-        {!hasError ? (
-          <React.Suspense fallback={<div>Loading chart...</div>}>
-            <ErrorBoundary onError={handleError} fallback={fallbackContent}>
-              {children}
-            </ErrorBoundary>
-          </React.Suspense>
-        ) : (
-          fallbackContent
-        )}
-      </div>
-    </div>
+    <Box onError={handleError}>
+      {children}
+    </Box>
   );
 };
 
-// Simple Error Boundary Component
+// Error boundary class component
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -67,132 +70,19 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('Chart rendering error:', error, errorInfo);
-    if (this.props.onError) {
-      this.props.onError();
-    }
+    console.error('PDF Chart Error:', error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
-      return this.props.fallback || <div>Chart failed to load</div>;
+      return this.props.fallback || <div>Chart unavailable</div>;
     }
 
     return this.props.children;
   }
 }
 
-// Fallback Chart Content with Simple HTML Visualization
 const FallbackChartContent = ({ title, data, currency = 'SAR' }) => {
-  const formatCurrency = (amount) => {
-    const num = parseFloat(amount || 0);
-    if (num >= 1000000000000) {
-      return `${(num / 1000000000000).toFixed(1)}T ${currency}`;
-    } else if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1)}M ${currency}`;
-    } else if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}K ${currency}`;
-    } else {
-      return `${num.toFixed(0)} ${currency}`;
-    }
-  };
-
-  // Create simple HTML-based chart visualization
-  const renderSimpleChart = () => {
-    if (!data || typeof data !== 'object') {
-      return <div>No data available</div>;
-    }
-
-    const entries = Object.entries(data).slice(0, 5); // Show top 5 items
-    if (entries.length === 0) {
-      return <div>No data available</div>;
-    }
-
-    // Find max value for scaling
-    const maxValue = Math.max(...entries.map(([key, value]) => {
-      if (typeof value === 'object' && value !== null) {
-        return value.count || value.amount || value.groups || 0;
-      }
-      return typeof value === 'number' ? value : 0;
-    }));
-
-    return (
-      <div style={{ width: '100%', padding: '10px' }}>
-        {entries.map(([key, value], index) => {
-          const numericValue = typeof value === 'object' && value !== null 
-            ? (value.count || value.amount || value.groups || 0)
-            : (typeof value === 'number' ? value : 0);
-          
-          const percentage = maxValue > 0 ? (numericValue / maxValue) * 100 : 0;
-          
-          return (
-            <div key={index} style={{ marginBottom: '8px' }}>
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                marginBottom: '2px',
-                fontSize: '11px'
-              }}>
-                <span style={{ fontWeight: 'bold' }}>{key}</span>
-                <span>{formatCurrency(numericValue)}</span>
-              </div>
-              <div style={{
-                width: '100%',
-                height: '12px',
-                backgroundColor: '#f0f0f0',
-                borderRadius: '6px',
-                overflow: 'hidden'
-              }}>
-                <div style={{
-                  width: `${percentage}%`,
-                  height: '100%',
-                  backgroundColor: '#e65100',
-                  borderRadius: '6px',
-                  transition: 'width 0.3s ease'
-                }} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  return (
-    <div style={{ 
-      padding: '15px', 
-      textAlign: 'center', 
-      color: '#333',
-      border: '1px solid #ddd',
-      borderRadius: '8px',
-      backgroundColor: '#fafafa',
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center'
-    }}>
-      <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '10px', color: '#e65100' }}>
-        {title}
-      </div>
-      <div style={{ fontSize: '11px', marginBottom: '10px', color: '#666' }}>
-        Interactive chart not available in PDF
-      </div>
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {renderSimpleChart()}
-      </div>
-    </div>
-  );
-};
-
-const BackdatedAnalysisPDF = ({
-  open,
-  setOpen,
-  data,
-  currency = 'SAR'
-}) => {
-  const printRef = useRef();
-
-  // Helper function to format currency
   const formatCurrency = (amount) => {
     const num = parseFloat(amount || 0);
     
@@ -207,22 +97,84 @@ const BackdatedAnalysisPDF = ({
     }
   };
 
-  // Helper function to format date
-  const formatDate = (dateString) => {
-    if (!dateString) return "---";
-    const date = new Date(dateString);
-    return date.toLocaleDateString();
+  const renderSimpleChart = () => {
+    if (!data || !data.labels || data.labels.length === 0) {
+      return (
+        <Box sx={{ p: 2, textAlign: 'center', color: '#666' }}>
+          <Typography variant="body2">No data available</Typography>
+        </Box>
+      );
+    }
+
+    return (
+      <Box sx={{ p: 1 }}>
+        {data.labels.map((label, index) => (
+          <Box key={index} sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            mb: 1,
+            p: 1,
+            bgcolor: '#f5f5f5',
+            borderRadius: 1
+          }}>
+            <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+              {label}
+            </Typography>
+            <Typography variant="body2" sx={{ 
+              fontWeight: 600, 
+              fontSize: '0.8rem',
+              color: '#e65100'
+            }}>
+              {data.data[index] || 0}
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+    );
   };
 
-  // Extract data from the API structure
-  const analysisInfo = data?.analysis_info || {};
-  const backdatedList = data?.backdated_list || [];
-  const chartData = data?.chart_data || {};
-  const breakdowns = data?.breakdowns || {};
-  const detailedInsights = data?.detailed_insights || {};
-  const fileInfo = data?.file_info || {};
+  return (
+    <Box sx={{ p: 2, border: '1px solid #ddd', borderRadius: 1, bgcolor: '#f9f9f9' }}>
+      <Typography variant="h6" sx={{ mb: 2, fontSize: '1rem', fontWeight: 600, color: '#333' }}>
+        {title}
+      </Typography>
+      {renderSimpleChart()}
+    </Box>
+  );
+};
 
-  // Helper functions
+const BackdatedAnalysisPDF = ({
+  open,
+  setOpen,
+  data,
+  currency = 'SAR'
+}) => {
+  const [pdfContent, setPdfContent] = useState(null);
+
+  const formatCurrency = (amount) => {
+    const num = parseFloat(amount || 0);
+    
+    if (num >= 1000000000000) {
+      return `${(num / 1000000000000).toFixed(1)}T ${currency}`;
+    } else if (num >= 1000000) {
+      return `${(num / 1000000).toFixed(1)}M ${currency}`;
+    } else if (num >= 1000) {
+      return `${(num / 1000).toFixed(1)}K ${currency}`;
+    } else {
+      return `${num.toFixed(0)} ${currency}`;
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch (error) {
+      return dateString;
+    }
+  };
+
   const getRiskLevel = (score) => {
     if (score >= 80) return 'CRITICAL';
     if (score >= 60) return 'HIGH';
@@ -237,914 +189,669 @@ const BackdatedAnalysisPDF = ({
     return 1;
   };
 
-  // Calculate overall risk score
-  const totalBackdated = analysisInfo.total_backdated_entries || 0;
-  const totalTransactions = analysisInfo.total_transactions || 0;
-  
-  // Calculate risk based on actual risk scores from the data
-  let overallRiskScore = 0;
-  let riskLevel = 'LOW';
-  
-  if (backdatedList.length > 0) {
-    // Calculate average risk score from all backdated entries
-    const totalRiskScore = backdatedList.reduce((sum, entry) => sum + (entry.risk_score || 0), 0);
-    overallRiskScore = Math.round(totalRiskScore / backdatedList.length);
-    riskLevel = getRiskLevel(overallRiskScore);
-  } else if (totalBackdated > 0) {
-    // Fallback: calculate based on percentage if no detailed risk scores
-    overallRiskScore = totalTransactions > 0 ? Math.round((totalBackdated / totalTransactions) * 100) : 0;
-    riskLevel = getRiskLevel(overallRiskScore);
-  }
-  
-  // Override with high risk if there are high-risk entries
-  const highRiskEntries = analysisInfo.high_risk_entries || 0;
-  const criticalRiskEntries = backdatedList.filter(entry => entry.risk_level === 'CRITICAL').length;
-  
-  if (criticalRiskEntries > 0 || highRiskEntries > 0) {
-    riskLevel = criticalRiskEntries > 0 ? 'CRITICAL' : 'HIGH';
-    overallRiskScore = Math.max(overallRiskScore, criticalRiskEntries > 0 ? 95 : 85);
-  }
+  useEffect(() => {
+    if (open && data) {
+      // Extract data from the new API structure
+      const fileInfo = data?.file_info || {};
+      const analysisInfo = data?.analysis_info || {};
+      const summaryStats = data?.summary_statistics || {};
+      const riskAssessment = data?.risk_assessment || {};
+      const chartData = data?.chart_data || {};
+      const backdatedEntries = data?.backdated_entries || [];
+      const recommendations = data?.recommendations || [];
+      const auditImplications = data?.audit_implications || {};
+      const criticalAlerts = data?.critical_alerts || [];
 
-  const riskLevelNumber = getRiskLevelNumber(overallRiskScore);
+      // Calculate overall risk score and level from new data structure
+      const totalBackdated = summaryStats.backdated_transactions || 0;
+      const overallRiskScore = riskAssessment.overall_risk_score || 0;
+      const riskLevel = riskAssessment.risk_level || 'LOW';
+
+      const content = (
+        <Box sx={{ p: 3, maxWidth: '100%', bgcolor: 'white' }}>
+          {/* Header */}
+          <Box sx={{ textAlign: 'center', mb: 4, borderBottom: '2px solid #e65100', pb: 2 }}>
+            <Typography variant="h4" sx={{ 
+              fontWeight: 700, 
+              color: '#2c3e50', 
+              mb: 1,
+              fontSize: '1.8rem'
+            }}>
+              Backdated Analysis Report
+            </Typography>
+            <Typography variant="body1" sx={{ color: '#6c757d', mb: 1 }}>
+              {fileInfo.client_name} - {fileInfo.company_name}
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#6c757d' }}>
+              Analysis Date: {formatDate(analysisInfo.analysis_date)} • File: {fileInfo.file_name}
+            </Typography>
+          </Box>
+
+          {/* Executive Summary */}
+          <Paper sx={{ p: 3, mb: 3, bgcolor: '#f8f9fa', border: '1px solid #e9ecef' }}>
+            <Typography variant="h5" sx={{ 
+              fontWeight: 600, 
+              mb: 2, 
+              color: '#2c3e50',
+              fontSize: '1.3rem'
+            }}>
+              Executive Summary
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item size={{xs: 6, md: 3}}>
+                <Box sx={{ textAlign: 'center', p: 2 }}>
+                  <Typography variant="h4" sx={{ 
+                    fontWeight: 700, 
+                    color: '#e65100',
+                    fontSize: '1.5rem'
+                  }}>
+                    {totalBackdated}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                    Backdated Entries
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item size={{xs: 6, md: 3}}>
+                <Box sx={{ textAlign: 'center', p: 2 }}>
+                  <Typography variant="h4" sx={{ 
+                    fontWeight: 700, 
+                    color: '#e65100',
+                    fontSize: '1.5rem'
+                  }}>
+                    {formatCurrency(summaryStats.total_backdated_amount || 0)}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                    Total Amount
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item size={{xs: 6, md: 3}}>
+                <Box sx={{ textAlign: 'center', p: 2 }}>
+                  <Typography variant="h4" sx={{ 
+                    fontWeight: 700, 
+                    color: '#e65100',
+                    fontSize: '1.5rem'
+                  }}>
+                    {Math.round(overallRiskScore)}%
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                    Risk Score
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item size={{xs: 6, md: 3}}>
+                <Box sx={{ textAlign: 'center', p: 2 }}>
+                  <Chip 
+                    label={riskLevel} 
+                    sx={{ 
+                      backgroundColor: getRiskColor(riskLevel),
+                      color: 'white',
+                      fontWeight: 600,
+                      fontSize: '0.9rem',
+                      px: 2,
+                      py: 1
+                    }}
+                  />
+                  <Typography variant="body2" sx={{ color: '#6c757d', mt: 1 }}>
+                    Risk Level
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          </Paper>
+
+          {/* Critical Alerts */}
+          {criticalAlerts && criticalAlerts.length > 0 && (
+            <Paper sx={{ p: 3, mb: 3, bgcolor: '#fff3e0', border: '1px solid #ffcc02' }}>
+              <Typography variant="h5" sx={{ 
+                fontWeight: 600, 
+                mb: 2, 
+                color: '#e65100',
+                fontSize: '1.3rem'
+              }}>
+                Critical Alerts
+              </Typography>
+              {criticalAlerts.map((alert, index) => (
+                <Alert 
+                  key={index}
+                  severity={alert.severity === 'HIGH' ? 'error' : 'warning'}
+                  sx={{ mb: 2 }}
+                  icon={alert.severity === 'HIGH' ? <ErrorIcon /> : <WarningIcon />}
+                >
+                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                    {alert.message}
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 1 }}>
+                    Action Required: {alert.action_required}
+                  </Typography>
+                </Alert>
+              ))}
+            </Paper>
+          )}
+
+          {/* Detailed Analysis */}
+          <Paper sx={{ p: 3, mb: 3 }}>
+            <Typography variant="h5" sx={{ 
+              fontWeight: 600, 
+              mb: 3, 
+              color: '#2c3e50',
+              fontSize: '1.3rem'
+            }}>
+              Detailed Analysis
+            </Typography>
+
+            {/* Summary Statistics */}
+            <Grid container spacing={3} sx={{ mb: 3 }}>
+              <Grid item size={{xs: 12, md: 6}}>
+                <Box sx={{ p: 2, bgcolor: '#f8f9fa', borderRadius: 1 }}>
+                  <Typography variant="h6" sx={{ mb: 2, fontSize: '1.1rem', fontWeight: 600 }}>
+                    Summary Statistics
+                  </Typography>
+                  <Grid container spacing={1}>
+                    <Grid item size={{xs: 6}}>
+                      <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                        Total Transactions:
+                      </Typography>
+                    </Grid>
+                    <Grid item size={{xs: 6}}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {summaryStats.total_transactions || 0}
+                      </Typography>
+                    </Grid>
+                    <Grid item size={{xs: 6}}>
+                      <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                        Backdated %:
+                      </Typography>
+                    </Grid>
+                    <Grid item size={{xs: 6}}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {summaryStats.backdated_percentage?.toFixed(2) || 0}%
+                      </Typography>
+                    </Grid>
+                    <Grid item size={{xs: 6}}>
+                      <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                        Avg Days Difference:
+                      </Typography>
+                    </Grid>
+                    <Grid item size={{xs: 6}}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {summaryStats.avg_backdated_days || 0}
+                      </Typography>
+                    </Grid>
+                    <Grid item size={{xs: 6}}>
+                      <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                        Avg Risk Score:
+                      </Typography>
+                    </Grid>
+                    <Grid item size={{xs: 6}}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {summaryStats.avg_risk_score?.toFixed(1) || 0}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Box>
+              </Grid>
+
+              <Grid item size={{xs: 12, md: 6}}>
+                <Box sx={{ p: 2, bgcolor: '#f8f9fa', borderRadius: 1 }}>
+                  <Typography variant="h6" sx={{ mb: 2, fontSize: '1.1rem', fontWeight: 600 }}>
+                    Risk Distribution
+                  </Typography>
+                  <Grid container spacing={1}>
+                    <Grid item size={{xs: 6}}>
+                      <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                        Low Risk:
+                      </Typography>
+                    </Grid>
+                    <Grid item size={{xs: 6}}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {riskAssessment.risk_distribution?.low_risk || 0}
+                      </Typography>
+                    </Grid>
+                    <Grid item size={{xs: 6}}>
+                      <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                        Medium Risk:
+                      </Typography>
+                    </Grid>
+                    <Grid item size={{xs: 6}}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {riskAssessment.risk_distribution?.medium_risk || 0}
+                      </Typography>
+                    </Grid>
+                    <Grid item size={{xs: 6}}>
+                      <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                        High Risk:
+                      </Typography>
+                    </Grid>
+                    <Grid item size={{xs: 6}}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {riskAssessment.risk_distribution?.high_risk || 0}
+                      </Typography>
+                    </Grid>
+                    <Grid item size={{xs: 6}}>
+                      <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                        Critical Risk:
+                      </Typography>
+                    </Grid>
+                    <Grid item size={{xs: 6}}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {riskAssessment.risk_distribution?.critical_risk || 0}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Box>
+              </Grid>
+            </Grid>
+
+            {/* Backdated Entries Table */}
+            {backdatedEntries && backdatedEntries.length > 0 && (
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" sx={{ mb: 2, fontSize: '1.1rem', fontWeight: 600 }}>
+                  Backdated Entries Details
+                </Typography>
+                <TableContainer sx={{ border: '1px solid #e9ecef' }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem' }}>Transaction ID</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem' }}>User</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem' }}>Account</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem' }}>Posting Date</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem' }}>Document Date</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem' }}>Days Diff</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem' }} align="right">Amount</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem' }} align="center">Risk Level</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem' }} align="right">Risk Score</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {backdatedEntries.map((entry, index) => (
+                        <TableRow key={index} sx={{ '&:nth-of-type(even)': { backgroundColor: '#fafbfc' } }}>
+                          <TableCell sx={{ fontSize: '0.75rem' }}>
+                            {entry.transaction_id}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: '0.75rem' }}>
+                            {entry.user}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: '0.75rem' }}>
+                            {entry.account}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: '0.75rem' }}>
+                            {formatDate(entry.posting_date)}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: '0.75rem' }}>
+                            {formatDate(entry.document_date)}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: '0.75rem' }}>
+                            {entry.days_difference}
+                          </TableCell>
+                          <TableCell align="right" sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                            {formatCurrency(entry.amount)}
+                          </TableCell>
+                          <TableCell align="center">
+                            <Chip 
+                              label={entry.risk_level?.toUpperCase()} 
+                              size="small"
+                              sx={{ 
+                                backgroundColor: getRiskColor(entry.risk_level?.toUpperCase()),
+                                color: 'white',
+                                fontWeight: 600,
+                                fontSize: '0.7rem'
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell align="right" sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                            {entry.risk_score}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+            )}
+          </Paper>
+
+          {/* Charts Section */}
+          <Paper sx={{ p: 3, mb: 3 }}>
+            <Typography variant="h5" sx={{ 
+              fontWeight: 600, 
+              mb: 3, 
+              color: '#2c3e50',
+              fontSize: '1.3rem'
+            }}>
+              Analysis Charts
+            </Typography>
+            <Grid container spacing={3}>
+              <Grid item size={{xs: 12, md: 6}}>
+                <ErrorBoundary fallback={
+                  <FallbackChartContent 
+                    title="Risk Level Distribution" 
+                    data={chartData.risk_level_distribution}
+                    currency={currency}
+                  />
+                }>
+                  <PDFChartWrapper 
+                    title="Risk Level Distribution"
+                    fallbackContent={
+                      <FallbackChartContent 
+                        title="Risk Level Distribution" 
+                        data={chartData.risk_level_distribution}
+                        currency={currency}
+                      />
+                    }
+                  >
+                    <FallbackChartContent 
+                      title="Risk Level Distribution" 
+                      data={chartData.risk_level_distribution}
+                      currency={currency}
+                    />
+                  </PDFChartWrapper>
+                </ErrorBoundary>
+              </Grid>
+              <Grid item size={{xs: 12, md: 6}}>
+                <ErrorBoundary fallback={
+                  <FallbackChartContent 
+                    title="Backdated Activity by User" 
+                    data={chartData.backdated_activity_by_user}
+                    currency={currency}
+                  />
+                }>
+                  <PDFChartWrapper 
+                    title="Backdated Activity by User"
+                    fallbackContent={
+                      <FallbackChartContent 
+                        title="Backdated Activity by User" 
+                        data={chartData.backdated_activity_by_user}
+                        currency={currency}
+                      />
+                    }
+                  >
+                    <FallbackChartContent 
+                      title="Backdated Activity by User" 
+                      data={chartData.backdated_activity_by_user}
+                      currency={currency}
+                    />
+                  </PDFChartWrapper>
+                </ErrorBoundary>
+              </Grid>
+            </Grid>
+          </Paper>
+
+          {/* Recommendations */}
+          {recommendations && recommendations.length > 0 && (
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="h5" sx={{ 
+                fontWeight: 600, 
+                mb: 3, 
+                color: '#2c3e50',
+                fontSize: '1.3rem'
+              }}>
+                Recommendations
+              </Typography>
+              <Grid container spacing={2}>
+                {recommendations.map((rec, index) => (
+                  <Grid item size={{xs: 12, md: 6}} key={index}>
+                    <Box sx={{ 
+                      p: 2, 
+                      bgcolor: '#f8f9fa', 
+                      borderRadius: 1, 
+                      border: '1px solid #e9ecef'
+                    }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 600, 
+                          color: '#2c3e50',
+                          fontSize: '1rem'
+                        }}>
+                          {rec.action}
+                        </Typography>
+                        <Chip 
+                          label={rec.priority} 
+                          size="small"
+                          sx={{ 
+                            backgroundColor: rec.priority === 'HIGH' ? '#dc3545' : rec.priority === 'MEDIUM' ? '#ffc107' : '#28a745',
+                            color: 'white',
+                            fontWeight: 600,
+                            fontSize: '0.75rem'
+                          }}
+                        />
+                      </Box>
+                      <Typography variant="body2" sx={{ 
+                        color: '#6c757d',
+                        fontSize: '0.875rem'
+                      }}>
+                        {rec.description}
+                      </Typography>
+                      {rec.count && (
+                        <Typography variant="caption" sx={{ 
+                          color: '#e65100',
+                          fontWeight: 600,
+                          fontSize: '0.75rem'
+                        }}>
+                          Count: {rec.count}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Grid>
+                ))}
+              </Grid>
+            </Paper>
+          )}
+
+          {/* Audit Implications */}
+          {auditImplications && Object.keys(auditImplications).length > 0 && (
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="h5" sx={{ 
+                fontWeight: 600, 
+                mb: 3, 
+                color: '#2c3e50',
+                fontSize: '1.3rem'
+              }}>
+                Audit Implications
+              </Typography>
+              
+              <Grid container spacing={3}>
+                {/* Immediate Actions */}
+                {auditImplications.immediate_actions && (
+                  <Grid item size={{xs: 12, md: 4}}>
+                    <Box sx={{ p: 2, bgcolor: '#fff3e0', borderRadius: 1, border: '1px solid #ffcc02' }}>
+                      <Typography variant="h6" sx={{ 
+                        fontWeight: 600, 
+                        mb: 2, 
+                        color: '#e65100',
+                        fontSize: '1rem'
+                      }}>
+                        Immediate Actions
+                      </Typography>
+                      <List dense>
+                        {auditImplications.immediate_actions.map((action, index) => (
+                          <ListItem key={index} sx={{ py: 0.5 }}>
+                            <ListItemIcon sx={{ minWidth: 24 }}>
+                              <WarningIcon sx={{ color: '#e65100', fontSize: 16 }} />
+                            </ListItemIcon>
+                            <ListItemText 
+                              primary={action}
+                              sx={{ 
+                                '& .MuiListItemText-primary': {
+                                  fontSize: '0.875rem',
+                                  color: '#6c757d'
+                                }
+                              }}
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Box>
+                  </Grid>
+                )}
+
+                {/* Follow-up Actions */}
+                {auditImplications.follow_up_actions && (
+                  <Grid item size={{xs: 12, md: 4}}>
+                    <Box sx={{ p: 2, bgcolor: '#e8f5e8', borderRadius: 1, border: '1px solid #28a745' }}>
+                      <Typography variant="h6" sx={{ 
+                        fontWeight: 600, 
+                        mb: 2, 
+                        color: '#28a745',
+                        fontSize: '1rem'
+                      }}>
+                        Follow-up Actions
+                      </Typography>
+                      <List dense>
+                        {auditImplications.follow_up_actions.map((action, index) => (
+                          <ListItem key={index} sx={{ py: 0.5 }}>
+                            <ListItemIcon sx={{ minWidth: 24 }}>
+                              <InfoIcon sx={{ color: '#28a745', fontSize: 16 }} />
+                            </ListItemIcon>
+                            <ListItemText 
+                              primary={action}
+                              sx={{ 
+                                '& .MuiListItemText-primary': {
+                                  fontSize: '0.875rem',
+                                  color: '#6c757d'
+                                }
+                              }}
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Box>
+                  </Grid>
+                )}
+
+                {/* Compliance Considerations */}
+                {auditImplications.compliance_considerations && (
+                  <Grid item size={{xs: 12, md: 4}}>
+                    <Box sx={{ p: 2, bgcolor: '#e3f2fd', borderRadius: 1, border: '1px solid #2196f3' }}>
+                      <Typography variant="h6" sx={{ 
+                        fontWeight: 600, 
+                        mb: 2, 
+                        color: '#2196f3',
+                        fontSize: '1rem'
+                      }}>
+                        Compliance Considerations
+                      </Typography>
+                      <List dense>
+                        {auditImplications.compliance_considerations.map((consideration, index) => (
+                          <ListItem key={index} sx={{ py: 0.5 }}>
+                            <ListItemIcon sx={{ minWidth: 24 }}>
+                              <InfoIcon sx={{ color: '#2196f3', fontSize: 16 }} />
+                            </ListItemIcon>
+                            <ListItemText 
+                              primary={consideration}
+                              sx={{ 
+                                '& .MuiListItemText-primary': {
+                                  fontSize: '0.875rem',
+                                  color: '#6c757d'
+                                }
+                              }}
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Box>
+                  </Grid>
+                )}
+              </Grid>
+            </Paper>
+          )}
+
+          {/* Footer */}
+          <Box sx={{ mt: 4, pt: 2, borderTop: '1px solid #e9ecef', textAlign: 'center' }}>
+            <Typography variant="body2" sx={{ color: '#6c757d' }}>
+              Report generated on {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}
+            </Typography>
+            <Typography variant="caption" sx={{ color: '#6c757d' }}>
+              Analysis Version: {analysisInfo.analysis_version || '1.0.0'}
+            </Typography>
+          </Box>
+        </Box>
+      );
+
+      setPdfContent(content);
+    }
+  }, [open, data, currency]);
 
   const getCurrentDateTime = () => {
     const now = new Date();
     return now.toLocaleString();
   };
 
-  const currentDateTime = getCurrentDateTime();
-
   const handlePrint = () => {
-    // Modify the HTML before printing
-    var htmlToPrint =
-      "" +
-      '<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@100;300;400;500;600;700&display=swap" rel="stylesheet">' +
-      '<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />' +
-      '<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-gH2yIJqKdNHPEq0n4Mqa/HGKIhSkIHeL5AyhkYV8i59U5AR6csBvApHHNl/vI1Bx" crossorigin="anonymous">' +
-      '<link rel="stylesheet" href="https://financialerp.lyca.sa/styles.8e8a51593c94db3380ac.css">' +
-      '<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-A3rJD856KowSb7dwlZdYEkO39Gagi7vIsF0jrRAoQmDKKtQBHUuLZ9AsSv4jD4Xa" crossorigin="anonymous"></script>' +
-      '<style type="text/css">' +
-      ".printpage .toppaging, .printpage .printbtns, .printpage .reportpaging, .printpage .showipad, .printpage .reporttopbutton, .printpage .pagingbottom {" +
-      "display: none" +
-      "}" +
-      "* {" +
-      "margin: 0;" +
-      "padding: 0;" +
-      "outline: none!important;" +
-      "font-family: Barlow, sans-serif;" +
-      "}" +
-      "html, body, div, span, object, iframe, h1, h2, h3, h4, h5, h6, p, blockquote, pre, abbr, address, cite, code, del, dfn, em, img, ins, kbd, q, samp, small, strong, sub, sup, var, b, i, dl, dt, dd, ol, ul, li, fieldset, form, label, legend, table, caption, tbody, tfoot, thead, tr, th, td, article, aside, canvas, details, figcaption, figure, footer, header, hgroup, menu, nav, section, summary, mark, audio, video {" +
-      "margin: 0;" +
-      "padding: 0;" +
-      "border: 0;" +
-      "outline: 0;" +
-      "font-size: 100%;" +
-      "vertical-align: baseline;" +
-      "}" +
-      ".bg-primary2 {background: #9984f1!important;}" +
-      "background:#f2f5ff !important;" +
-      "body, html{" +
-      "font-family: Barlow, sans-serif;" +
-      "line-height:1 !important;" +
-      "background:#FFF !important;" +
-      "}" +
-      "@media (min-width: 1200px) {" +
-      '#reportbody[dir="rtl"] .col-lg-1, #reportbody[dir="rtl"] .col-lg-2, #reportbody[dir="rtl"] .col-lg-3, #reportbody[dir="rtl"] .col-lg-4, #reportbody[dir="rtl"] .col-lg-5, #reportbody[dir="rtl"] .col-lg-6, #reportbody[dir="rtl"] .col-lg-7, #reportbody[dir="rtl"] .col-lg-8, #reportbody[dir="rtl"] .col-lg-9, #reportbody[dir="rtl"] .col-lg-10, #reportbody[dir="rtl"] .col-lg-11, #reportbody[dir="rtl"] .col-lg-12 {' +
-      "float: right;" +
-      "}" +
-      "}" +
-      "@media (min-width: 992px) {" +
-      '#reportbody[dir="rtl"] .col-md-1, #reportbody[dir="rtl"] .col-md-2, #reportbody[dir="rtl"] .col-md-3, #reportbody[dir="rtl"] .col-md-4, #reportbody[dir="rtl"] .col-md-5, #reportbody[dir="rtl"] .col-md-6, #reportbody[dir="rtl"] .col-md-7, #reportbody[dir="rtl"] .col-md-8, #reportbody[dir="rtl"] .col-md-9, #reportbody[dir="rtl"] .col-md-10, #reportbody[dir="rtl"] .col-md-11, #reportbody[dir="rtl"] .col-md-12 {' +
-      "float: right;" +
-      "}" +
-      "}" +
-      "@media (min-width: 768px) {" +
-      '#reportbody[dir="rtl"] .col-sm-1, #reportbody[dir="rtl"] .col-sm-2, #reportbody[dir="rtl"] .col-sm-3, #reportbody[dir="rtl"] .col-sm-4, #reportbody[dir="rtl"] .col-sm-5, #reportbody[dir="rtl"] .col-sm-6, #reportbody[dir="rtl"] .col-sm-7, #reportbody[dir="rtl"] .col-sm-8, #reportbody[dir="rtl"] .col-sm-9, #reportbody[dir="rtl"] .col-sm-10, #reportbody[dir="rtl"] .col-sm-11, #reportbody[dir="rtl"] .col-sm-12 {' +
-      "float: right;" +
-      "}" +
-      "}" +
-      "#printPDF{margin:0 auto;width:100%;background:#f2f5ff;color:#333;}" +
-      "header h2, header h3 {" +
-      "margin: 15px 0;" +
-      "text-align: left!important;" +
-      "}" +
-      ".sections tr th {" +
-      "background: #EEE;" +
-      "color: #333;" +
-      "-webkit-print-color-adjust: exact;" +
-      "print-color-adjust: exact;" +
-      "}" +
-      ".sections tr td {" +
-      "-webkit-print-color-adjust: exact;" +
-      "print-color-adjust: exact;" +
-      "}" +
-      ".sections h3 {" +
-      "font-weight: bold;" +
-      "padding: 15px 0;" +
-      "text-align: left!important;" +
-      "}" +
-      ".sections table tr td {" +
-      "padding: 5px 5px 5px 0;" +
-      "line-height: 20px;" +
-      "color: #333;" +
-      "}" +
-      ".sections table.border tr td, .sections table.border tr th {" +
-      "border: 1px solid #EEE;" +
-      "padding: 5px;" +
-      "}" +
-      'input[type = "text"], input[type = "number"], input[type = "date"], input[type = "email"], textarea, select {' +
-      "width: 100 %;" +
-      "}" +
-      "strong {" +
-      "-webkit-print-color-adjust: exact;" +
-      "print-color-adjust: exact;" +
-      "}" +
-      '.sections.form-check - input: disabled ~ .form-heck - label, .sections.form-check - input[disabled] ~ .form-check - label, .sections.form-check - input: checked[type = "radio"], .sections.form-check - input: checked[type = "checkbox"] {' +
-      "opacity: 1!important;" +
-      "}" +
-      ".bg-light {" +
-      "background: #f2f5ff !important;" +
-      "-webkit-print-color-adjust: exact;" +
-      "print-color-adjust: exact;" +
-      "}" +
-      "label{opacity:1 !important;line-height:1;}" +
-      ".form-check-input[type=radio] {border-radius:50% !important;}" +
-      ".form-check input {height: 18px!important;width: 18px!important;}" +
-      ".form-check-input.checked {background-color:#6259ca !important;border-color:#6259ca !important;-webkit-print-color-adjust: exact;print-color-adjust: exact;opacity:1;}" +
-      ".form-check-input.checked[type=radio]{background-image:url(https://financialerp.lyca.sa/assets/images/radio.png);}" +
-      ".form-check-input.checked[type=checkbox]{background-image:url(https://financialerp.lyca.sa/assets/images/checkbox.png);}" +
-      "@media print { @page {margin: 0.7in; }}" +
-      "@media print { .content-section { page-break-after: always;}}" +
-      "@media print { .time-date { display: none; }}" +
-      "#InvoiceDetailsPDF { word-wrap: break-word;  white-space: pre-wrap;}" +
-      // Chart specific styles for PDF
-      ".chart-container { page-break-inside: avoid; margin: 20px 0; }" +
-      ".chart-section { border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin: 15px 0; background: white; page-break-inside: avoid; }" +
-      ".chart-title { font-size: 16px; font-weight: bold; margin-bottom: 10px; color: #333; }" +
-      ".chart-content { min-height: 200px; display: flex; align-items: center; justify-content: center; }" +
-      ".chart-placeholder { color: #666; font-style: italic; }" +
-      ".chart-fallback { padding: 20px; text-align: center; color: #666; border: 2px dashed #ddd; border-radius: 8px; background-color: #f9f9f9; }" +
-      "</style>";
-
-    var divToPrint = document.getElementById("BackdatedAnalysisPDF");
-    htmlToPrint += divToPrint.outerHTML;
-
-    let newWin = window.open("", "_blank");
-    newWin.document.write(htmlToPrint);
-    newWin.document.title = "Backdated Analysis Report";
-    setTimeout(() => {
-      newWin.focus(); // necessary for IE >= 10
-      newWin.print(); // change window to winPrint
-      newWin.close();
-    }, 1000);
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Backdated Analysis Report</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 20px; }
+              .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #e65100; padding-bottom: 20px; }
+              .summary { background-color: #f8f9fa; padding: 20px; margin-bottom: 20px; border: 1px solid #e9ecef; }
+              .chart { margin: 20px 0; }
+              table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+              th { background-color: #f8f9fa; font-weight: bold; }
+              .footer { margin-top: 40px; text-align: center; color: #666; border-top: 1px solid #e9ecef; padding-top: 20px; }
+            </style>
+          </head>
+          <body>
+            ${pdfContent ? pdfContent.props.children.props.children.map(child => {
+              if (child.type === 'div') {
+                return child.props.children;
+              }
+              return child;
+            }).join('') : 'Loading...'}
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.print();
+    }
   };
 
   return (
     <Dialog
       open={open}
       onClose={() => setOpen(false)}
-      className='pdf-dialog'
+      maxWidth="lg"
       fullWidth
-      maxWidth='lg'>
-      <div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "start",
-            justifyContent: "space-between",
-          }}>
-          <Button
-            variant='contained'
-            style={{
-              padding: "10px 20px",
-              boxShadow: "none",
-              borderRadius: "5px",
-              marginBottom: "10px",
-            }}
-            onClick={handlePrint}>
-            Download PDF
-          </Button>
-          <CloseIcon
-            fontSize='large'
-            onClick={() => setOpen(false)}
-            style={{ cursor: "pointer" }}
-          />
-        </div>
-        <hr style={{ margin: 0 }} />
-        <div
-          className='modal fade '
-          data-bs-backdrop='static'
-          data-bs-keyboard='false'
-          tabIndex='-1'
-          aria-hidden='true'
-          ref={printRef}
-          style={{ padding: "20px 10px" }}>
-          <div className='modal-dialog modal-xl modal-dialog-centered'>
-            <div id='BackdatedAnalysisPDF' className='modal-content'>
-              <div className='modal-body bg-white text-dark'>
-                <div style={{ padding: "20px" }}>
-                  <div className='content-section'>
-                    <div className='sections'>
-                      <table
-                        width='100%'
-                        style={{ borderBottom: "4px solid #e65100" }}>
-                        <tbody>
-                          <tr>
-                            <td
-                              align='left'
-                              style={{ verticalAlign: "top", width: "33%" }}>
-                              <h2 style={{ fontWeight: "bold" }}>Backdated Analysis</h2>
-                              <b>Analysis ID:</b> {fileInfo.file_id || "N/A"}
-                              <br />
-                              <b>Status:</b> {fileInfo.status || "COMPLETED"}
-                              <br />
-                              <b>Currency:</b> {currency}
-                            </td>
-                            <td
-                              align='center'
-                              style={{ verticalAlign: "center", width: "33%" }}>
-                              <a href='javascript:;'>
-                                <img src={logoFull} width={200} />
-                              </a>
-                            </td>
-                            <td
-                              align='right'
-                              style={{ verticalAlign: "bottom", width: "33%" }}>
-                              Generated on {currentDateTime}
-                              <br />
-                              Analysis Date: {formatDate(analysisInfo.analysis_date)}
-                              <br />
-                              <b>Risk Level:</b> {riskLevel}
-                              <br />
-                              <p style={{ maxWidth: "90%" }}>
-                                Total Backdated: {totalBackdated}
-                              </p>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <div className='sections'>
-                      <h5 style={{ margin: "10px 0" }}>Backdated Analysis Overview</h5>
-                      <div style={{ 
-                        padding: "15px", 
-                        backgroundColor: "#f8f9fa", 
-                        border: "1px solid #e9ecef", 
-                        borderRadius: "8px",
-                        marginBottom: "20px"
-                      }}>
-                        <p style={{ 
-                          margin: "0 0 15px 0", 
-                          fontSize: "14px", 
-                          lineHeight: "1.5",
-                          color: "#333"
-                        }}>
-                          <strong>Test Description:</strong> This test identifies all the Journal Lines for which the Posting Date is after the Effective Date, i.e backdated entries. Both date fields are required to be present in the GL data for this test.
-                        </p>
-                        
-                        <div style={{ 
-                          padding: "10px", 
-                          backgroundColor: "#fff3e0", 
-                          border: "1px solid #ffcc02", 
-                          borderRadius: "6px",
-                          fontSize: "12px"
-                        }}>
-                          <strong style={{ color: "#e65100" }}>Key Requirements:</strong>
-                          <ul style={{ margin: "5px 0 0 20px", padding: 0 }}>
-                            <li>Both Posting Date and Effective Date must be present in GL data</li>
-                            <li>Backdated entries are identified when Posting Date &gt; Effective Date</li>
-                            <li>Risk assessment based on the number of days difference</li>
-                          </ul>
-                        </div>
-                      </div>
-
-                      <h5 style={{ margin: "20px 0 10px 0" }}>Analysis Summary</h5>
-                      <table
-                        width='100%'
-                        style={{ height: "100%" }}
-                        className='border'
-                        cellSpacing='5'>
-                        <tbody>
-                          <tr style={{ display: "flex", alignItems: "stretch" }}>
-                            {/* Overall Risk Assessment */}
-                            <td style={{ width: "25%" }}>
-                              <strong
-                                style={{
-                                  display: "block",
-                                  padding: "10px",
-                                  background: "#EEE",
-                                }}>
-                                Overall Risk Assessment
-                              </strong>
-                              <div style={{ padding: "10px" }}>
-                                <span style={{ display: "block" }}>
-                                  Risk Score
-                                  <br />
-                                  <b
-                                    style={{
-                                      color: RiskColor[riskLevelNumber],
-                                      fontSize: "18px"
-                                    }}>
-                                    {overallRiskScore}%
-                                  </b>
-                                </span>
-                                <span style={{ display: "block" }}>
-                                  Risk Level
-                                  <br />
-                                  <b
-                                    style={{
-                                      color: RiskColor[riskLevelNumber],
-                                    }}>
-                                    {riskLevel}
-                                  </b>
-                                </span>
-                              </div>
-                            </td>
-
-                            {/* Backdated Statistics */}
-                            <td style={{ width: "25%" }}>
-                              <strong
-                                style={{
-                                  display: "block",
-                                  padding: "10px",
-                                  background: "#EEE",
-                                }}>
-                                Backdated Statistics
-                              </strong>
-                              <div style={{ padding: "10px" }}>
-                                <b style={{ display: "block" }}>Total Backdated</b>
-                                {totalBackdated}
-                                <br />
-                                <b style={{ display: "block" }}>Total Transactions</b>
-                                {totalTransactions}
-                                <br />
-                                <b style={{ display: "block" }}>Total Amount</b>
-                                {formatCurrency(analysisInfo.total_amount || 0)}
-                              </div>
-                            </td>
-
-                            {/* File Information */}
-                            <td style={{ width: "25%" }}>
-                              <strong
-                                style={{
-                                  display: "block",
-                                  padding: "10px",
-                                  background: "#EEE",
-                                }}>
-                                File Information
-                              </strong>
-                              <div style={{ padding: "10px" }}>
-                                <b style={{ display: "block" }}>File ID</b>
-                                {fileInfo.file_id || "N/A"}
-                                <br />
-                                <b style={{ display: "block" }}>Status</b>
-                                {fileInfo.status || "COMPLETED"}
-                                <br />
-                                <b style={{ display: "block" }}>Currency</b>
-                                {currency}
-                              </div>
-                            </td>
-
-                            {/* Analysis Details */}
-                            <td style={{ width: "25%" }}>
-                              <strong
-                                style={{
-                                  display: "block",
-                                  padding: "10px",
-                                  background: "#EEE",
-                                }}>
-                                Analysis Details
-                              </strong>
-                              <div style={{ padding: "10px" }}>
-                                <span style={{ display: "block" }}>
-                                  Unique Users
-                                  <br />
-                                  <b>{analysisInfo.unique_users || 0}</b>
-                                </span>
-                                <span style={{ display: "block" }}>
-                                  Unique Documents
-                                  <br />
-                                  <b>{analysisInfo.unique_documents || 0}</b>
-                                </span>
-                                <span style={{ display: "block" }}>
-                                  Unique Accounts
-                                  <br />
-                                  <b>{analysisInfo.unique_accounts || 0}</b>
-                                </span>
-                              </div>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <br />
-                    <br />
-
-                    {/* Charts Section - Same as UI Dashboard */}
-                    <div className='sections'>
-                      <h5 style={{ margin: "20px 0" }}>Visual Analysis Dashboard</h5>
-                      
-                      {/* Charts Grid - 2 columns */}
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
-                        
-                        {/* Risk Distribution Chart */}
-                        <PDFChartWrapper 
-                          title="Risk Distribution"
-                          fallbackContent={
-                            <FallbackChartContent 
-                              title="Risk Distribution" 
-                              data={chartData.risk_distribution || {
-                                'High Risk': analysisInfo.high_risk_entries || 0,
-                                'Medium Risk': analysisInfo.medium_risk_entries || 0,
-                                'Low Risk': analysisInfo.low_risk_entries || 0
-                              }}
-                              currency={currency}
-                            />
-                          }
-                        >
-                          <RiskDistributionChart 
-                            data={chartData.risk_distribution || {
-                              labels: ['High Risk', 'Medium Risk', 'Low Risk'],
-                              data: [
-                                analysisInfo.high_risk_entries || 0,
-                                analysisInfo.medium_risk_entries || 0,
-                                analysisInfo.low_risk_entries || 0
-                              ]
-                            }}
-                          />
-                        </PDFChartWrapper>
-
-                        {/* Days Difference Distribution Chart */}
-                        <PDFChartWrapper 
-                          title="Days Difference Distribution"
-                          fallbackContent={
-                            <FallbackChartContent 
-                              title="Days Difference Distribution" 
-                              data={chartData.days_difference_distribution || {
-                                '1-7 days': 0,
-                                '8-30 days': 0,
-                                '31-90 days': 0,
-                                '90+ days': 0
-                              }}
-                              currency={currency}
-                            />
-                          }
-                        >
-                          <AnomaliesDistributionChart 
-                            data={chartData.days_difference_distribution || {
-                              labels: ['1-7 days', '8-30 days', '31-90 days', '90+ days'],
-                              data: [0, 0, 0, 0]
-                            }}
-                          />
-                        </PDFChartWrapper>
-
-                        {/* User Breakdown Chart */}
-                        <PDFChartWrapper 
-                          title="Backdated Entries by User"
-                          fallbackContent={
-                            <FallbackChartContent 
-                              title="Backdated Entries by User" 
-                              data={breakdowns.by_user?.reduce((acc, user) => {
-                                acc[user.user_name] = user.total_amount;
-                                return acc;
-                              }, {}) || {}}
-                              currency={currency}
-                            />
-                          }
-                        >
-                          <div style={{ padding: '15px', height: '100%' }}>
-                            {breakdowns.by_user && breakdowns.by_user.length > 0 ? (
-                              <div>
-                                {breakdowns.by_user.slice(0, 5).map((user, index) => (
-                                  <div key={index} style={{ 
-                                    marginBottom: '10px', 
-                                    padding: '10px', 
-                                    backgroundColor: '#f8f9fa', 
-                                    borderRadius: '8px',
-                                    border: '1px solid #e9ecef'
-                                  }}>
-                                    <div style={{ 
-                                      display: 'flex', 
-                                      justifyContent: 'space-between', 
-                                      alignItems: 'center', 
-                                      marginBottom: '5px' 
-                                    }}>
-                                      <span style={{ fontWeight: 'bold', fontSize: '12px' }}>
-                                        {user.user_name}
-                                      </span>
-                                      <span style={{ 
-                                        backgroundColor: RiskColor[getRiskLevelNumber(user.risk_score)],
-                                        color: 'white',
-                                        padding: '2px 8px',
-                                        borderRadius: '4px',
-                                        fontSize: '10px',
-                                        fontWeight: 'bold'
-                                      }}>
-                                        {user.risk_score}
-                                      </span>
-                                    </div>
-                                    <div style={{ 
-                                      display: 'flex', 
-                                      justifyContent: 'space-between', 
-                                      alignItems: 'center',
-                                      fontSize: '11px',
-                                      color: '#666'
-                                    }}>
-                                      <span>{user.transaction_count} entries</span>
-                                      <span style={{ fontWeight: 'bold', color: '#e65100' }}>
-                                        {formatCurrency(user.total_amount)}
-                                      </span>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div style={{ 
-                                height: '100%', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center',
-                                color: '#666',
-                                fontSize: '12px'
-                              }}>
-                                No user breakdown data available
-                              </div>
-                            )}
-                          </div>
-                        </PDFChartWrapper>
-
-                        {/* Amount Distribution Chart */}
-                        <PDFChartWrapper 
-                          title="Amount Distribution Trend"
-                          fallbackContent={
-                            <FallbackChartContent 
-                              title="Amount Distribution Trend" 
-                              data={backdatedList?.slice(0, 5).reduce((acc, entry, index) => {
-                                acc[`Entry ${index + 1}`] = entry.amount || 0;
-                                return acc;
-                              }, {}) || {}}
-                              currency={currency}
-                            />
-                          }
-                        >
-                          <div style={{ padding: '15px', height: '100%' }}>
-                            {backdatedList && backdatedList.length > 0 ? (
-                              <div>
-                                <div style={{ 
-                                  marginBottom: '10px', 
-                                  padding: '10px', 
-                                  backgroundColor: '#fff3e0', 
-                                  borderRadius: '8px', 
-                                  border: '1px solid #ffcc02' 
-                                }}>
-                                  <div style={{ fontWeight: 'bold', color: '#e65100', fontSize: '12px' }}>
-                                    Total Amount: {formatCurrency(analysisInfo.total_amount || 0)}
-                                  </div>
-                                  <div style={{ fontSize: '10px', color: '#666' }}>
-                                    Average per entry: {formatCurrency((analysisInfo.total_amount || 0) / (totalBackdated || 1))}
-                                  </div>
-                                </div>
-                                
-                                <div style={{ fontSize: '11px' }}>
-                                  {backdatedList.slice(0, 5).map((entry, index) => (
-                                    <div key={index} style={{ 
-                                      marginBottom: '8px',
-                                      padding: '8px',
-                                      backgroundColor: '#f8f9fa',
-                                      borderRadius: '4px'
-                                    }}>
-                                      <div style={{ 
-                                        display: 'flex', 
-                                        justifyContent: 'space-between',
-                                        marginBottom: '2px'
-                                      }}>
-                                        <span style={{ fontWeight: 'bold' }}>Entry {index + 1}</span>
-                                        <span style={{ color: '#e65100', fontWeight: 'bold' }}>
-                                          {formatCurrency(entry.amount || 0)}
-                                        </span>
-                                      </div>
-                                      <div style={{ 
-                                        display: 'flex', 
-                                        justifyContent: 'space-between',
-                                        fontSize: '10px',
-                                        color: '#666'
-                                      }}>
-                                        <span>Risk: {entry.risk_score || 'N/A'}</span>
-                                        <span>{entry.user_name}</span>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            ) : (
-                              <div style={{ 
-                                height: '100%', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center',
-                                color: '#666',
-                                fontSize: '12px'
-                              }}>
-                                No amount data available
-                              </div>
-                            )}
-                          </div>
-                        </PDFChartWrapper>
-
-                      </div>
-                    </div>
-
-                    {/* Detailed Backdated Entries Table */}
-                    {backdatedList && backdatedList.length > 0 && (
-                      <div className='sections'>
-                        <h5 style={{ margin: "10px 0" }}>Detailed Backdated Entries Analysis</h5>
-                        <table
-                          width='100%'
-                          border='1'
-                          className='border'
-                          cellSpacing='0'>
-                          <thead>
-                            <tr>
-                              <th>Document Number</th>
-                              <th>User</th>
-                              <th>Account</th>
-                              <th>Posting Date</th>
-                              <th>Document Date</th>
-                              <th>Days Difference</th>
-                              <th>Amount</th>
-                              <th>Risk Level</th>
-                              <th>Risk Score</th>
-                            </tr>
-                          </thead>
-                          <tbody style={{ textAlign: "center" }}>
-                            {backdatedList.map((entry, index) => (
-                              <tr key={index}>
-                                <td>{entry.document_number}</td>
-                                <td>{entry.user_name}</td>
-                                <td>{entry.gl_account} - {entry.account_name}</td>
-                                <td>{formatDate(entry.posting_date)}</td>
-                                <td>{formatDate(entry.document_date)}</td>
-                                <td>
-                                  <span
-                                    style={{
-                                      color: Math.abs(entry.days_difference) > 30 ? '#dc3545' : Math.abs(entry.days_difference) > 7 ? '#ffc107' : '#28a745',
-                                      fontWeight: "bold"
-                                    }}>
-                                    {entry.days_difference} days
-                                  </span>
-                                </td>
-                                <td>{formatCurrency(entry.amount)}</td>
-                                <td>
-                                  <span
-                                    style={{
-                                      color: RiskColor[getRiskLevelNumber(entry.risk_score || 0)],
-                                      fontWeight: "bold"
-                                    }}>
-                                    {entry.risk_level}
-                                  </span>
-                                </td>
-                                <td>
-                                  <span
-                                    style={{
-                                      color: RiskColor[getRiskLevelNumber(entry.risk_score || 0)],
-                                      fontWeight: "bold"
-                                    }}>
-                                    {entry.risk_score || 'N/A'}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-
-                    {/* User Breakdown */}
-                    {breakdowns.by_user && (
-                      <div className='sections'>
-                        <h5 style={{ margin: "10px 0" }}>User Breakdown Analysis</h5>
-                        <table
-                          width='100%'
-                          border='1'
-                          className='border'
-                          cellSpacing='0'>
-                          <thead>
-                            <tr>
-                              <th>User Name</th>
-                              <th>Backdated Entries</th>
-                              <th>Total Amount</th>
-                              <th>Risk Score</th>
-                            </tr>
-                          </thead>
-                          <tbody style={{ textAlign: "center" }}>
-                            {breakdowns.by_user.map((user, index) => (
-                              <tr key={index}>
-                                <td>{user.user_name}</td>
-                                <td>{user.transaction_count}</td>
-                                <td>{formatCurrency(user.total_amount)}</td>
-                                <td>
-                                  <span
-                                    style={{
-                                      color: RiskColor[getRiskLevelNumber(user.risk_score)],
-                                      fontWeight: "bold"
-                                    }}>
-                                    {user.risk_score}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-
-                    {/* Account Breakdown */}
-                    {breakdowns.by_account && (
-                      <div className='sections'>
-                        <h5 style={{ margin: "10px 0" }}>Account Breakdown Analysis</h5>
-                        <table
-                          width='100%'
-                          border='1'
-                          className='border'
-                          cellSpacing='0'>
-                          <thead>
-                            <tr>
-                              <th>GL Account</th>
-                              <th>Backdated Entries</th>
-                              <th>Total Amount</th>
-                              <th>Risk Score</th>
-                            </tr>
-                          </thead>
-                          <tbody style={{ textAlign: "center" }}>
-                            {breakdowns.by_account.map((account, index) => (
-                              <tr key={index}>
-                                <td>{account.account} - {account.account_name}</td>
-                                <td>{account.transaction_count}</td>
-                                <td>{formatCurrency(account.total_amount)}</td>
-                                <td>
-                                  <span
-                                    style={{
-                                      color: RiskColor[getRiskLevelNumber(account.risk_score)],
-                                      fontWeight: "bold"
-                                    }}>
-                                    {account.risk_score}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-
-                    {/* Document Breakdown */}
-                    {breakdowns.by_document && (
-                      <div className='sections'>
-                        <h5 style={{ margin: "10px 0" }}>Document Breakdown Analysis</h5>
-                        <table
-                          width='100%'
-                          border='1'
-                          className='border'
-                          cellSpacing='0'>
-                          <thead>
-                            <tr>
-                              <th>Document Number</th>
-                              <th>Backdated Entries</th>
-                              <th>Total Amount</th>
-                              <th>Risk Score</th>
-                            </tr>
-                          </thead>
-                          <tbody style={{ textAlign: "center" }}>
-                            {breakdowns.by_document.map((doc, index) => (
-                              <tr key={index}>
-                                <td>{doc.document_number}</td>
-                                <td>{doc.transaction_count}</td>
-                                <td>{formatCurrency(doc.total_amount)}</td>
-                                <td>
-                                  <span
-                                    style={{
-                                      color: RiskColor[getRiskLevelNumber(doc.risk_score)],
-                                      fontWeight: "bold"
-                                    }}>
-                                    {doc.risk_score}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-
-                    {/* Detailed Insights */}
-                    {detailedInsights && Object.keys(detailedInsights).length > 0 && (
-                      <div className='sections'>
-                        <h5 style={{ margin: "10px 0" }}>Detailed Insights & Recommendations</h5>
-                        
-                        {/* Risk Analysis */}
-                        {detailedInsights.risk_analysis && (
-                          <div style={{ marginBottom: "20px" }}>
-                            <h6 style={{ margin: "10px 0" }}>Risk Analysis</h6>
-                            <table
-                              width='100%'
-                              border='1'
-                              className='border'
-                              cellSpacing='0'>
-                              <thead>
-                                <tr>
-                                  <th>Metric</th>
-                                  <th>Value</th>
-                                </tr>
-                              </thead>
-                              <tbody style={{ textAlign: "center" }}>
-                                <tr>
-                                  <td>Overall Risk Level</td>
-                                  <td>{detailedInsights.risk_analysis?.overall_risk_level || 'N/A'}</td>
-                                </tr>
-                                <tr>
-                                  <td>High Risk Entries</td>
-                                  <td>{detailedInsights.risk_analysis?.high_risk_entries || 0}</td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-
-                        {/* Audit Implications */}
-                        {detailedInsights.audit_implications && (
-                          <div style={{ marginBottom: "20px" }}>
-                            <h6 style={{ margin: "10px 0" }}>Audit Implications</h6>
-                            <ul style={{ marginLeft: "20px" }}>
-                              {detailedInsights.audit_implications.map((implication, index) => (
-                                <li key={index}>
-                                  <strong>{implication.implication}:</strong> {implication.description}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Conclusion */}
-                    <div className='sections'>
-                      <h5 style={{ margin: "20px 0" }}>Conclusion</h5>
-                      <table
-                        width='100%'
-                        border='1'
-                        className='border'
-                        cellSpacing='0'>
-                        <thead>
-                          <tr>
-                            <th>Metric</th>
-                            <th>Value</th>
-                            <th>Risk Level</th>
-                          </tr>
-                        </thead>
-                        <tbody style={{ textAlign: "center" }}>
-                          <tr>
-                            <td>Overall Risk Score</td>
-                            <td>{overallRiskScore}%</td>
-                            <td>
-                              <span
-                                style={{
-                                  color: RiskColor[riskLevelNumber],
-                                  fontWeight: "bold"
-                                }}>
-                                {riskLevel}
-                              </span>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td>Total Backdated Found</td>
-                            <td>{totalBackdated}</td>
-                            <td>
-                              <span style={{ color: totalBackdated > 10 ? '#dc3545' : totalBackdated > 5 ? '#ffc516' : '#40b159' }}>
-                                {totalBackdated > 10 ? 'High' : totalBackdated > 5 ? 'Medium' : 'Low'}
-                              </span>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td>Total Amount Involved</td>
-                            <td>{formatCurrency(analysisInfo.total_amount || 0)}</td>
-                            <td>
-                              <span style={{ color: (analysisInfo.total_amount || 0) > 10000000 ? '#dc3545' : (analysisInfo.total_amount || 0) > 5000000 ? '#ffc516' : '#40b159' }}>
-                                {(analysisInfo.total_amount || 0) > 10000000 ? 'High' : (analysisInfo.total_amount || 0) > 5000000 ? 'Medium' : 'Low'}
-                              </span>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      PaperProps={{
+        sx: {
+          height: '90vh',
+          maxHeight: '90vh'
+        }
+      }}
+    >
+      <DialogContent sx={{ p: 0, overflow: 'hidden' }}>
+        <Box sx={{ 
+          height: '100%', 
+          overflow: 'auto',
+          bgcolor: '#f8f9fa'
+        }}>
+          {pdfContent}
+        </Box>
+      </DialogContent>
+      <DialogActions sx={{ p: 2, bgcolor: '#f8f9fa' }}>
+        <Button onClick={() => setOpen(false)}>
+          Close
+        </Button>
+        <Button 
+          onClick={handlePrint}
+          variant="contained"
+          sx={{
+            backgroundColor: '#e65100',
+            color: 'white',
+            '&:hover': {
+              backgroundColor: '#d84315'
+            }
+          }}
+        >
+          Print Report
+        </Button>
+      </DialogActions>
     </Dialog>
   );
 };

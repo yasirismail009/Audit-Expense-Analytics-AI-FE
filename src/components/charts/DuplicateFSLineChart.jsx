@@ -19,7 +19,7 @@ export default function DuplicateFSLineChart({ data, currency = 'SAR' }) {
   };
 
   // Check for new data structure first, then fallback to old structure
-  const chartData = data?.chart_data?.fs_line_chart || data?.fs_line_breakdown;
+  const chartData = data?.chart_data?.financial_statement_line_breakdown || data?.fs_line_breakdown;
 
   if (!data || !chartData || (Array.isArray(chartData) && chartData.length === 0)) {
     return (
@@ -36,8 +36,36 @@ export default function DuplicateFSLineChart({ data, currency = 'SAR' }) {
 
   // Transform data based on structure
   let transformedData;
-  if (Array.isArray(chartData) && chartData.length > 0 && chartData[0].gl_account) {
-    // New structure: chart_data.fs_line_chart is an array with gl_account property
+  if (chartData.labels && chartData.data) {
+    // New structure: chart_data.financial_statement_line_breakdown has labels and data arrays
+    transformedData = chartData.labels.map((label, index) => ({
+      glAccount: label,
+      duplicateGroups: chartData.data[index] || 0,
+      transactions: (chartData.data[index] || 0) * 2,
+      totalAmount: 0, // Will be calculated from duplicate entries
+      debitAmount: 0, // Will be calculated from duplicate entries
+      creditAmount: 0 // Will be calculated from duplicate entries
+    }));
+    
+    // Calculate amounts from duplicate entries if available
+    if (data.duplicate_entries) {
+      transformedData.forEach(item => {
+        const accountDuplicates = data.duplicate_entries.filter(entry => 
+          entry.transaction1.account === item.glAccount || entry.transaction2.account === item.glAccount
+        );
+        item.totalAmount = accountDuplicates.reduce((sum, entry) => 
+          sum + entry.transaction1.amount + entry.transaction2.amount, 0
+        );
+        item.debitAmount = accountDuplicates.reduce((sum, entry) => 
+          sum + entry.transaction1.amount, 0
+        );
+        item.creditAmount = accountDuplicates.reduce((sum, entry) => 
+          sum + entry.transaction2.amount, 0
+        );
+      });
+    }
+  } else if (Array.isArray(chartData) && chartData.length > 0 && chartData[0].gl_account) {
+    // Fallback: chart_data.fs_line_chart is an array with gl_account property
     transformedData = chartData.map((item, index) => ({
       glAccount: item.gl_account,
       duplicateGroups: item.duplicate_groups,

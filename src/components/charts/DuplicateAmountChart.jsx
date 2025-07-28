@@ -19,7 +19,7 @@ export default function DuplicateAmountChart({ data, currency = 'SAR' }) {
   };
 
   // Check for new data structure first, then fallback to old structure
-  const chartData = data?.chart_data?.amount_distribution_chart || data?.duplicates;
+  const chartData = data?.chart_data?.duplicate_amount_distribution || data?.duplicates;
 
   if (!data || !chartData || (Array.isArray(chartData) && chartData.length === 0)) {
     return (
@@ -36,8 +36,37 @@ export default function DuplicateAmountChart({ data, currency = 'SAR' }) {
 
   // Transform data based on structure
   let transformedData;
-  if (Array.isArray(chartData) && chartData.length > 0 && chartData[0].range) {
-    // New structure: chart_data.amount_distribution_chart is an array with range property
+  if (chartData.labels && chartData.data) {
+    // New structure: chart_data.duplicate_amount_distribution has labels and data arrays
+    transformedData = chartData.labels.map((label, index) => ({
+      name: label,
+      value: chartData.data[index] || 0,
+      totalAmount: 0, // Will be calculated from duplicate entries
+      totalTransactions: (chartData.data[index] || 0) * 2
+    }));
+    
+    // Calculate amounts from duplicate entries if available
+    if (data.duplicate_entries) {
+      transformedData.forEach(item => {
+        // Parse the amount range from the label (e.g., "1M-10M SAR")
+        const rangeMatch = item.name.match(/(\d+)M-(\d+)M SAR/);
+        if (rangeMatch) {
+          const minAmount = parseInt(rangeMatch[1]) * 1000000;
+          const maxAmount = parseInt(rangeMatch[2]) * 1000000;
+          
+          const rangeDuplicates = data.duplicate_entries.filter(entry => {
+            const totalAmount = entry.transaction1.amount + entry.transaction2.amount;
+            return totalAmount >= minAmount && totalAmount <= maxAmount;
+          });
+          
+          item.totalAmount = rangeDuplicates.reduce((sum, entry) => 
+            sum + entry.transaction1.amount + entry.transaction2.amount, 0
+          );
+        }
+      });
+    }
+  } else if (Array.isArray(chartData) && chartData.length > 0 && chartData[0].range) {
+    // Fallback: chart_data.amount_distribution_chart is an array with range property
     transformedData = chartData
       .filter(item => item.duplicate_groups > 0) // Only show ranges with data
       .map((item, index) => ({

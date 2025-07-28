@@ -63,7 +63,25 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
   };
 
   const handleDrawerOpen = (duplicate) => {
-    setSelectedDuplicate(duplicate);
+    // Transform the duplicate data to match the expected drawer format
+    const transformedDuplicate = {
+      type: duplicate.duplicate_type || 'Unknown Type',
+      criteria: duplicate.duplicate_type_name || 'No criteria provided',
+      risk_score: duplicate.risk_score || 0,
+      amount: duplicate.transaction1.amount + duplicate.transaction2.amount,
+      count: 2, // Always 2 transactions per duplicate
+      gl_account: duplicate.transaction1.account,
+      user_name: duplicate.transaction1.user,
+      posting_date: duplicate.transaction1.date,
+      // Add transaction details for the drawer
+      transaction1: duplicate.transaction1,
+      transaction2: duplicate.transaction2,
+      duplicate_type: duplicate.duplicate_type,
+      duplicate_type_name: duplicate.duplicate_type_name,
+      matching_fields: duplicate.matching_fields,
+      similarity_score: duplicate.similarity_score
+    };
+    setSelectedDuplicate(transformedDuplicate);
     setDrawerOpen(true);
   };
 
@@ -77,6 +95,19 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
     if (score >= 60) return 'HIGH';
     if (score >= 40) return 'MEDIUM';
     return 'LOW';
+  };
+
+  // Helper function to get duplicate type description
+  const getDuplicateTypeDescription = (type) => {
+    const typeDescriptions = {
+      'type_1': 'Account Number + Amount',
+      'type_2': 'Account Number + Source + Amount',
+      'type_3': 'Account Number + User + Amount',
+      'type_4': 'Account Number + Posted Date + Amount',
+      'type_5': 'Account Number + Effective Date + Amount',
+      'type_6': 'Account Number + Effective Date + Posted Date + User + Source + Amount'
+    };
+    return typeDescriptions[type] || 'Unknown Type';
   };
 
   // Helper function to format currency
@@ -95,18 +126,22 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
   };
 
   // Extract data from the new API structure
-  const analysisInfo = data?.analysis_info || {};
-  const duplicateList = data?.duplicate_list || [];
-  const chartData = data?.chart_data || {};
-  const breakdowns = data?.breakdowns || {};
-  const detailedInsights = data?.detailed_insights || {};
   const fileInfo = data?.file_info || {};
+  const analysisInfo = data?.analysis_info || {};
+  const summaryStats = data?.summary_statistics || {};
+  const riskAssessment = data?.risk_assessment || {};
+  const chartData = data?.chart_data || {};
+  const duplicateEntries = data?.duplicate_entries || [];
+  const duplicatePatterns = data?.duplicate_patterns || {};
+  const recommendations = data?.recommendations || [];
+  const auditImplications = data?.audit_implications || {};
+  const criticalAlerts = data?.critical_alerts || [];
 
   // Calculate overall risk score based on new data structure
-  const totalDuplicates = analysisInfo.total_duplicate_groups || 0;
-  const totalTransactions = analysisInfo.total_transactions || 0;
-  const overallRiskScore = totalTransactions > 0 ? Math.round((totalDuplicates / totalTransactions) * 100) : 0;
-  const riskLevel = getRiskLevel(overallRiskScore);
+  const totalDuplicates = summaryStats.duplicate_transactions || 0;
+  const totalTransactions = summaryStats.total_transactions || 0;
+  const overallRiskScore = summaryStats.avg_risk_score || 0;
+  const riskLevel = riskAssessment.risk_level || 'LOW';
 console.log("duplicate data",   data);
   return (
     <Box sx={{ minHeight: '100vh', background: '#f8f9fa', p: 3 }}>
@@ -118,15 +153,93 @@ console.log("duplicate data",   data);
       >
         <Typography variant="body1" sx={{ fontWeight: 600 }}>
           {totalDuplicates > 0 
-            ? `Found ${totalDuplicates} duplicate groups involving ${analysisInfo.total_duplicate_transactions || 0} transactions`
+            ? `Found ${duplicateEntries.length} duplicate groups involving ${totalDuplicates} transactions`
             : "No duplicate transactions found"
           }
         </Typography>
         {totalDuplicates > 0 && (
           <Typography variant="body2" sx={{ mt: 1 }}>
-            Total amount involved: {formatCurrency(analysisInfo.total_amount_involved || 0)}
+            Total amount involved: {formatCurrency(summaryStats.total_duplicate_amount || 0)}
           </Typography>
         )}
+      </Alert>
+
+      {/* Duplicate Type Definitions */}
+      <Alert 
+        severity="info" 
+        sx={{ mb: 3, borderRadius: 2 }}
+        icon={<InfoIcon />}
+      >
+        <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+          Duplicate Classification Types
+        </Typography>
+        <Typography variant="body2" sx={{ mb: 1 }}>
+          This test identifies Journal Lines which have identical characteristics. The classification for Duplicates are categorized as below:
+        </Typography>
+        <Box sx={{ mt: 2 }}>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <Box sx={{ p: 2, backgroundColor: 'rgba(146, 90, 155, 0.1)', borderRadius: 2, border: '1px solid rgba(146, 90, 155, 0.3)' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#925a9b', mb: 1 }}>
+                  Type 1 Duplicate
+                </Typography>
+                <Typography variant="body2" sx={{ fontSize: '0.875rem', color: '#6c757d' }}>
+                  Account Number + Amount
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Box sx={{ p: 2, backgroundColor: 'rgba(146, 90, 155, 0.1)', borderRadius: 2, border: '1px solid rgba(146, 90, 155, 0.3)' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#925a9b', mb: 1 }}>
+                  Type 2 Duplicate
+                </Typography>
+                <Typography variant="body2" sx={{ fontSize: '0.875rem', color: '#6c757d' }}>
+                  Account Number + Source + Amount
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Box sx={{ p: 2, backgroundColor: 'rgba(146, 90, 155, 0.1)', borderRadius: 2, border: '1px solid rgba(146, 90, 155, 0.3)' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#925a9b', mb: 1 }}>
+                  Type 3 Duplicate
+                </Typography>
+                <Typography variant="body2" sx={{ fontSize: '0.875rem', color: '#6c757d' }}>
+                  Account Number + User + Amount
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Box sx={{ p: 2, backgroundColor: 'rgba(146, 90, 155, 0.1)', borderRadius: 2, border: '1px solid rgba(146, 90, 155, 0.3)' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#925a9b', mb: 1 }}>
+                  Type 4 Duplicate
+                </Typography>
+                <Typography variant="body2" sx={{ fontSize: '0.875rem', color: '#6c757d' }}>
+                  Account Number + Posted Date + Amount
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Box sx={{ p: 2, backgroundColor: 'rgba(146, 90, 155, 0.1)', borderRadius: 2, border: '1px solid rgba(146, 90, 155, 0.3)' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#925a9b', mb: 1 }}>
+                  Type 5 Duplicate
+                </Typography>
+                <Typography variant="body2" sx={{ fontSize: '0.875rem', color: '#6c757d' }}>
+                  Account Number + Effective Date + Amount
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Box sx={{ p: 2, backgroundColor: 'rgba(146, 90, 155, 0.1)', borderRadius: 2, border: '1px solid rgba(146, 90, 155, 0.3)' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#925a9b', mb: 1 }}>
+                  Type 6 Duplicate
+                </Typography>
+                <Typography variant="body2" sx={{ fontSize: '0.875rem', color: '#6c757d' }}>
+                  Account Number + Effective Date + Posted Date + User + Source + Amount
+                </Typography>
+              </Box>
+            </Grid>
+          </Grid>
+        </Box>
       </Alert>
 
       {/* Open Report Button */}
@@ -180,7 +293,7 @@ console.log("duplicate data",   data);
                 Analysis Date: {new Date(analysisInfo.analysis_date || Date.now()).toLocaleDateString()}
               </Typography>
               <Typography variant="body2" sx={{ color: '#6c757d' }}>
-                Status: {fileInfo.status || 'COMPLETED'} • Duplicates: {totalDuplicates}
+                Status: {analysisInfo.status || 'COMPLETED'} • Duplicates: {duplicateEntries.length}
               </Typography>
               <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'row', width:'fit-content', marginTop: '10px', gap: '10px' }}>
                 <Box sx={{ 
@@ -199,7 +312,7 @@ console.log("duplicate data",   data);
                   <Typography variant="h2" sx={{ 
                     fontWeight: 800, 
                     color: 'white',
-                    fontSize: '2.2rem'
+                    fontSize: '1.6rem'
                   }}>
                     {overallRiskScore}%
                   </Typography>
@@ -245,7 +358,7 @@ console.log("duplicate data",   data);
                       mb: 0.5,
                       fontSize: '1.1rem'
                     }}>
-                      {totalDuplicates}
+                      {duplicateEntries.length}
                     </Typography>
                     <Typography variant="body2" sx={{ 
                       color: '#6c757d',
@@ -268,7 +381,7 @@ console.log("duplicate data",   data);
                       mb: 0.5,
                       fontSize: '1.1rem'
                     }}>
-                      {formatCurrency(analysisInfo.total_amount_involved || 0)}
+                      {formatCurrency(summaryStats.total_duplicate_amount || 0)}
                     </Typography>
                     <Typography variant="body2" sx={{ 
                       color: '#6c757d',
@@ -291,7 +404,7 @@ console.log("duplicate data",   data);
                       mb: 0.5,
                       fontSize: '1.1rem'
                     }}>
-                      {analysisInfo.total_duplicate_transactions || 0}
+                      {totalDuplicates}
                     </Typography>
                     <Typography variant="body2" sx={{ 
                       color: '#6c757d',
@@ -314,7 +427,7 @@ console.log("duplicate data",   data);
                       mb: 0.5,
                       fontSize: '1.1rem'
                     }}>
-                      {Object.keys(breakdowns.duplicate_flags || {}).length}
+                      {chartData.duplicate_types_distribution?.labels?.length || 0}
                     </Typography>
                     <Typography variant="body2" sx={{ 
                       color: '#6c757d',
@@ -337,7 +450,7 @@ console.log("duplicate data",   data);
                       mb: 0.5,
                       fontSize: '1.1rem'
                     }}>
-                      {Object.keys(breakdowns.user_breakdown || {}).length}
+                      {chartData.duplicate_activity_by_user?.labels?.length || 0}
                     </Typography>
                     <Typography variant="body2" sx={{ 
                       color: '#6c757d',
@@ -360,7 +473,7 @@ console.log("duplicate data",   data);
                       mb: 0.5,
                       fontSize: '1.1rem'
                     }}>
-                      {Object.keys(breakdowns.fs_line_breakdown || {}).length}
+                      {chartData.financial_statement_line_breakdown?.labels?.length || 0}
                     </Typography>
                     <Typography variant="body2" sx={{ 
                       color: '#6c757d',
@@ -383,7 +496,7 @@ console.log("duplicate data",   data);
                       mb: 0.5,
                       fontSize: '1.1rem'
                     }}>
-                      {formatCurrency((analysisInfo.total_amount_involved || 0) / (analysisInfo.total_duplicate_transactions || 1))}
+                      {formatCurrency(summaryStats.avg_duplicate_amount || 0)}
                     </Typography>
                     <Typography variant="body2" sx={{ 
                       color: '#6c757d',
@@ -403,7 +516,7 @@ console.log("duplicate data",   data);
       <DuplicateAnalysisDashboard data={data} />
 
       {/* Duplicate Flags Summary Cards */}
-      {breakdowns.duplicate_flags && (
+      {chartData.duplicate_types_distribution && (
         <Box sx={{ mb: 4 }}>
           <Typography variant="h5" sx={{ 
             fontWeight: 600, 
@@ -414,7 +527,15 @@ console.log("duplicate data",   data);
             Duplicate Type Summary
           </Typography>
           <Grid container spacing={3}>
-            {Object.entries(breakdowns.duplicate_flags).map(([type, details], index) => (
+            {chartData.duplicate_types_distribution.labels.map((type, index) => {
+              const count = chartData.duplicate_types_distribution.data[index] || 0;
+              const color = chartData.duplicate_types_distribution.colors[index] || '#925a9b';
+              const duplicateEntry = duplicateEntries.find(entry => entry.duplicate_type === type);
+              const amount = duplicateEntry ? 
+                (duplicateEntry.transaction1.amount + duplicateEntry.transaction2.amount) : 0;
+              const transactions = duplicateEntry ? 2 : 0;
+              
+              return (
               <Grid item size={{xs: 12, sm: 6, md: 4}} key={type}>
                 <Card sx={{ 
                   background: 'white', 
@@ -449,10 +570,10 @@ console.log("duplicate data",   data);
                           {type}
                         </Typography>
                         <Chip 
-                          label={details.amount > 10000000 ? 'HIGH' : details.amount > 5000000 ? 'MEDIUM' : 'LOW'}
+                          label={amount > 10000000 ? 'HIGH' : amount > 5000000 ? 'MEDIUM' : 'LOW'}
                           size="small"
                           sx={{ 
-                            backgroundColor: getRiskColor(details.amount > 10000000 ? 'HIGH' : details.amount > 5000000 ? 'MEDIUM' : 'LOW'),
+                            backgroundColor: getRiskColor(amount > 10000000 ? 'HIGH' : amount > 5000000 ? 'MEDIUM' : 'LOW'),
                             color: 'white',
                             fontWeight: 600,
                             fontSize: '0.7rem',
@@ -470,7 +591,7 @@ console.log("duplicate data",   data);
                             color: '#925a9b',
                             fontSize: '1.5rem'
                           }}>
-                            {details.count}
+                            {count}
                           </Typography>
                           <Typography variant="body2" sx={{ 
                             color: '#6c757d',
@@ -487,7 +608,7 @@ console.log("duplicate data",   data);
                             color: '#925a9b',
                             fontSize: '1.5rem'
                           }}>
-                            {details.transactions}
+                            {transactions}
                           </Typography>
                           <Typography variant="body2" sx={{ 
                             color: '#6c757d',
@@ -507,7 +628,7 @@ console.log("duplicate data",   data);
                         color: '#2c3e50',
                         fontSize: '1.25rem'
                       }}>
-                        {formatCurrency(details.amount)}
+                        {formatCurrency(amount)}
                       </Typography>
                       <Typography variant="body2" sx={{ 
                         color: '#6c757d',
@@ -524,7 +645,7 @@ console.log("duplicate data",   data);
                           color: '#28a745',
                           fontSize: '0.875rem'
                         }}>
-                          {formatCurrency(details.debit_amount)}
+                          {formatCurrency(amount / 2)}
                         </Typography>
                         <Typography variant="caption" sx={{ 
                           color: '#6c757d',
@@ -539,7 +660,7 @@ console.log("duplicate data",   data);
                           color: '#dc3545',
                           fontSize: '0.875rem'
                         }}>
-                          {formatCurrency(details.credit_amount)}
+                          {formatCurrency(amount / 2)}
                         </Typography>
                         <Typography variant="caption" sx={{ 
                           color: '#6c757d',
@@ -552,7 +673,7 @@ console.log("duplicate data",   data);
                   </CardContent>
                 </Card>
               </Grid>
-            ))}
+            )})}
           </Grid>
         </Box>
       )}
@@ -573,7 +694,7 @@ console.log("duplicate data",   data);
               </Typography>
 
               {/* Color-Coded Lists */}
-              {breakdowns.duplicate_flags && <Box sx={{ mb: 4 }}>
+              {duplicateEntries.length > 0 && <Box sx={{ mb: 4 }}>
                 <Typography variant="h6" sx={{ 
                   fontWeight: 600, 
                   mb: 3, 
@@ -585,17 +706,17 @@ console.log("duplicate data",   data);
                 <ColorCodedDuplicateList 
                   data={{
                     ...data,
-                    duplicates: Object.entries(breakdowns.duplicate_flags).map(([type, details], index) => ({
-                      type: type,
-                      amount: details.amount,
-                      count: details.transactions,
-                      risk_score: details.amount > 10000000 ? 80 : details.amount > 5000000 ? 60 : 40,
-                      criteria: type,
-                      gl_account: `GL Account ${index + 1}`,
-                      duplicate_type: type,
-                      transactions: details.transactions,
-                      debit_amount: details.debit_amount,
-                      credit_amount: details.credit_amount
+                    duplicates: duplicateEntries.map((entry, index) => ({
+                      type: entry.duplicate_type,
+                      amount: entry.transaction1.amount + entry.transaction2.amount,
+                      count: 2,
+                      risk_score: entry.risk_score,
+                      criteria: entry.duplicate_type_name,
+                      gl_account: entry.transaction1.account,
+                      duplicate_type: entry.duplicate_type,
+                      transactions: 2,
+                      debit_amount: entry.transaction1.amount,
+                      credit_amount: entry.transaction2.amount
                     }))
                   }} 
                   currency={currency} 
@@ -603,7 +724,7 @@ console.log("duplicate data",   data);
               </Box>}
 
               {/* Type Breakdown Table */}
-              {breakdowns.duplicate_flags && (
+              {chartData.duplicate_types_distribution && (
                 <Box sx={{ mb: 4 }}>
                   <Typography variant="h6" sx={{ 
                     fontWeight: 600, 
@@ -646,7 +767,14 @@ console.log("duplicate data",   data);
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {Object.entries(breakdowns.duplicate_flags).map(([type, details], index) => (
+                          {chartData.duplicate_types_distribution.labels.map((type, index) => {
+                            const count = chartData.duplicate_types_distribution.data[index] || 0;
+                            const duplicateEntry = duplicateEntries.find(entry => entry.duplicate_type === type);
+                            const amount = duplicateEntry ? 
+                              (duplicateEntry.transaction1.amount + duplicateEntry.transaction2.amount) : 0;
+                            const transactions = duplicateEntry ? 2 : 0;
+                            
+                            return (
                             <TableRow 
                               key={type} 
                               sx={{ 
@@ -690,7 +818,7 @@ console.log("duplicate data",   data);
                               </TableCell>
                               <TableCell align="right" sx={{ py: 2 }}>
                                 <Chip 
-                                  label={details.count}
+                                  label={count}
                                   size="small"
                                   sx={{ 
                                     backgroundColor: '#925a9b',
@@ -706,7 +834,7 @@ console.log("duplicate data",   data);
                                   fontSize: '0.875rem',
                                   fontWeight: 500
                                 }}>
-                                  {details.transactions}
+                                  {transactions}
                                 </Typography>
                               </TableCell>
                               <TableCell align="right" sx={{ py: 2 }}>
@@ -715,7 +843,7 @@ console.log("duplicate data",   data);
                                   color: '#925a9b',
                                   fontSize: '0.875rem'
                                 }}>
-                                  {formatCurrency(details.amount)}
+                                  {formatCurrency(amount)}
                                 </Typography>
                               </TableCell>
                               <TableCell align="right" sx={{ py: 2 }}>
@@ -724,7 +852,7 @@ console.log("duplicate data",   data);
                                   fontSize: '0.875rem',
                                   fontWeight: 500
                                 }}>
-                                  {formatCurrency(details.debit_amount)}
+                                  {formatCurrency(amount / 2)}
                                 </Typography>
                               </TableCell>
                               <TableCell align="right" sx={{ py: 2 }}>
@@ -733,15 +861,15 @@ console.log("duplicate data",   data);
                                   fontSize: '0.875rem',
                                   fontWeight: 500
                                 }}>
-                                  {formatCurrency(details.credit_amount)}
+                                  {formatCurrency(amount / 2)}
                                 </Typography>
                               </TableCell>
                               <TableCell align="center" sx={{ py: 2 }}>
                                 <Chip 
-                                  label={details.amount > 10000000 ? 'HIGH' : details.amount > 5000000 ? 'MEDIUM' : 'LOW'}
+                                  label={amount > 10000000 ? 'HIGH' : amount > 5000000 ? 'MEDIUM' : 'LOW'}
                                   size="small"
                                   sx={{ 
-                                    backgroundColor: getRiskColor(details.amount > 10000000 ? 'HIGH' : details.amount > 5000000 ? 'MEDIUM' : 'LOW'),
+                                    backgroundColor: getRiskColor(amount > 10000000 ? 'HIGH' : amount > 5000000 ? 'MEDIUM' : 'LOW'),
                                     color: 'white',
                                     fontWeight: 600,
                                     fontSize: '0.75rem'
@@ -749,7 +877,7 @@ console.log("duplicate data",   data);
                                 />
                               </TableCell>
                             </TableRow>
-                          ))}
+                          )})}
                         </TableBody>
                       </Table>
                     </TableContainer>
@@ -758,7 +886,7 @@ console.log("duplicate data",   data);
               )}
 
               {/* Detailed Duplicates Table */}
-              {duplicateList && duplicateList.length > 0 && (
+              {duplicateEntries && duplicateEntries.length > 0 && (
                 <Box>
                   <Typography variant="h6" sx={{ 
                     fontWeight: 600, 
@@ -801,7 +929,7 @@ console.log("duplicate data",   data);
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {duplicateList.map((duplicate, index) => (
+                          {duplicateEntries.map((duplicate, index) => (
                             <TableRow 
                               key={index}
                               sx={{ 
@@ -845,7 +973,7 @@ console.log("duplicate data",   data);
                               </TableCell>
                               <TableCell sx={{ py: 2 }}>
                                 <Chip 
-                                  label={duplicate.gl_account}
+                                  label={duplicate.transaction1.account}
                                   size="small"
                                   variant="outlined"
                                   sx={{ 
@@ -862,7 +990,7 @@ console.log("duplicate data",   data);
                                   fontSize: '0.875rem',
                                   fontWeight: 500
                                 }}>
-                                  {duplicate.user_name}
+                                  {duplicate.transaction1.user}
                                 </Typography>
                               </TableCell>
                               <TableCell sx={{ py: 2 }}>
@@ -870,7 +998,7 @@ console.log("duplicate data",   data);
                                   color: '#6c757d',
                                   fontSize: '0.875rem'
                                 }}>
-                                  {new Date(duplicate.posting_date).toLocaleDateString()}
+                                  {new Date(duplicate.transaction1.date).toLocaleDateString()}
                                 </Typography>
                               </TableCell>
                               <TableCell align="right" sx={{ py: 2 }}>
@@ -879,7 +1007,7 @@ console.log("duplicate data",   data);
                                   color: '#925a9b',
                                   fontSize: '0.875rem'
                                 }}>
-                                  {formatCurrency(duplicate.amount)}
+                                  {formatCurrency(duplicate.transaction1.amount + duplicate.transaction2.amount)}
                                 </Typography>
                               </TableCell>
                               <TableCell align="right" sx={{ py: 2 }}>
@@ -925,7 +1053,7 @@ console.log("duplicate data",   data);
         </Grid>
 
         {/* Section 2: User Analysis */}
-        {breakdowns.user_breakdown && (
+        {chartData.duplicate_activity_by_user && (
           <Grid item size={{xs: 12}}>
             <Card sx={{ 
               background: 'white', 
@@ -989,7 +1117,23 @@ console.log("duplicate data",   data);
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {Object.entries(breakdowns.user_breakdown).map(([userName, userData], index) => (
+                      {chartData.duplicate_activity_by_user.labels.map((userName, index) => {
+                        const userData = {
+                          duplicate_groups: chartData.duplicate_activity_by_user.data[index] || 0,
+                          transactions: chartData.duplicate_activity_by_user.data[index] * 2 || 0,
+                          amount: 0, // Calculate from duplicate entries
+                          unique_accounts: 1
+                        };
+                        
+                        // Calculate amount from duplicate entries
+                        const userDuplicates = duplicateEntries.filter(entry => 
+                          entry.transaction1.user === userName || entry.transaction2.user === userName
+                        );
+                        userData.amount = userDuplicates.reduce((sum, entry) => 
+                          sum + entry.transaction1.amount + entry.transaction2.amount, 0
+                        );
+                        
+                        return (
                         <TableRow key={index} sx={{ '&:hover': { backgroundColor: '#f8f9fa' } }}>
                           <TableCell sx={{ borderBottom: '1px solid #e9ecef', py: 2 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -1048,7 +1192,7 @@ console.log("duplicate data",   data);
                             </Typography>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      )})}
                     </TableBody>
                   </Table>
                 </TableContainer>
@@ -1058,7 +1202,7 @@ console.log("duplicate data",   data);
         )}
 
         {/* Section 3: GL Account Analysis */}
-        {breakdowns.fs_line_breakdown && (
+        {chartData.financial_statement_line_breakdown && (
           <Grid item size={{xs: 12}}>
             <Card sx={{ 
               background: 'white', 
@@ -1129,7 +1273,30 @@ console.log("duplicate data",   data);
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {Object.entries(breakdowns.fs_line_breakdown).map(([account, accountData], index) => (
+                      {chartData.financial_statement_line_breakdown.labels.map((account, index) => {
+                        const accountData = {
+                          duplicate_groups: chartData.financial_statement_line_breakdown.data[index] || 0,
+                          transactions: chartData.financial_statement_line_breakdown.data[index] * 2 || 0,
+                          amount: 0,
+                          debit_amount: 0,
+                          credit_amount: 0
+                        };
+                        
+                        // Calculate amounts from duplicate entries
+                        const accountDuplicates = duplicateEntries.filter(entry => 
+                          entry.transaction1.account === account || entry.transaction2.account === account
+                        );
+                        accountData.amount = accountDuplicates.reduce((sum, entry) => 
+                          sum + entry.transaction1.amount + entry.transaction2.amount, 0
+                        );
+                        accountData.debit_amount = accountDuplicates.reduce((sum, entry) => 
+                          sum + entry.transaction1.amount, 0
+                        );
+                        accountData.credit_amount = accountDuplicates.reduce((sum, entry) => 
+                          sum + entry.transaction2.amount, 0
+                        );
+                        
+                        return (
                         <TableRow key={index} sx={{ '&:hover': { backgroundColor: '#f8f9fa' } }}>
                           <TableCell sx={{ borderBottom: '1px solid #e9ecef', py: 2 }}>
                             <Typography variant="body2" sx={{ 
@@ -1184,7 +1351,7 @@ console.log("duplicate data",   data);
                             </Typography>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      )})}
                     </TableBody>
                   </Table>
                 </TableContainer>
@@ -1194,7 +1361,7 @@ console.log("duplicate data",   data);
         )}
 
         {/* Section 4: Risk Analysis */}
-        {breakdowns.risk_breakdown && (
+        {riskAssessment.risk_distribution && (
             <Grid item size={{xs: 12}}>
             <Card sx={{ 
               background: 'white', 
@@ -1251,15 +1418,33 @@ console.log("duplicate data",   data);
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {Object.entries(breakdowns.risk_breakdown).map(([riskLevel, riskData], index) => (
+                      {Object.entries(riskAssessment.risk_distribution).map(([riskLevel, count], index) => {
+                        const riskData = {
+                          groups: count,
+                          transactions: count * 2,
+                          amount: 0
+                        };
+                        
+                        // Calculate amount from duplicate entries based on risk level
+                        const riskLevelDuplicates = duplicateEntries.filter(entry => {
+                          const entryRiskLevel = getRiskLevel(entry.risk_score);
+                          // Convert risk level from API format (e.g., "low_risk") to standard format (e.g., "LOW")
+                          const apiRiskLevel = riskLevel.replace('_risk', '').toUpperCase();
+                          return entryRiskLevel === apiRiskLevel;
+                        });
+                        riskData.amount = riskLevelDuplicates.reduce((sum, entry) => 
+                          sum + entry.transaction1.amount + entry.transaction2.amount, 0
+                        );
+                        
+                        return (
                         <TableRow key={index} sx={{ '&:hover': { backgroundColor: '#f8f9fa' } }}>
                           <TableCell sx={{ borderBottom: '1px solid #e9ecef', py: 2 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                               <Chip 
-                                label={riskLevel}
+                                label={riskLevel.replace('_risk', '').toUpperCase()}
                                 size="small"
                                 sx={{ 
-                                  backgroundColor: getRiskColor(riskLevel),
+                                  backgroundColor: getRiskColor(riskLevel.replace('_risk', '').toUpperCase()),
                                   color: 'white',
                                   fontWeight: 600,
                                   fontSize: '0.75rem'
@@ -1295,7 +1480,7 @@ console.log("duplicate data",   data);
                             </Typography>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      )})}
                     </TableBody>
                   </Table>
                 </TableContainer>
@@ -1305,7 +1490,7 @@ console.log("duplicate data",   data);
         )}
 
         {/* Section 5: Detailed Insights */}
-        {detailedInsights && Object.keys(detailedInsights).length > 0 && (
+        {(recommendations.length > 0 || auditImplications.immediate_actions) && (
           <Grid item size={{xs: 12}}>
             <Card sx={{ 
               background: 'white', 
@@ -1324,8 +1509,8 @@ console.log("duplicate data",   data);
                 </Typography>
                 
                 <Grid container spacing={3}>
-                  {/* Risk Assessment */}
-                  {detailedInsights.risk_assessment && (
+                  {/* Recommendations */}
+                  {recommendations.length > 0 && (
                     <Grid item size={{xs: 12, md: 6}}>
                       <Box sx={{ p: 2, background: '#f8f9fa', borderRadius: 2, border: '1px solid #e9ecef' }}>
                         <Typography variant="h6" sx={{ 
@@ -1334,147 +1519,115 @@ console.log("duplicate data",   data);
                           color: '#2c3e50',
                           fontSize: '1.1rem'
                         }}>
-                          Risk Assessment
+                          Recommendations
                         </Typography>
-                        {detailedInsights.risk_assessment.mitigation_suggestions && (
-                          <Box sx={{ mb: 2 }}>
-                            <Typography variant="subtitle2" sx={{ 
-                              fontWeight: 600, 
-                              color: '#925a9b',
-                              mb: 1
-                            }}>
-                              Mitigation Suggestions:
-                            </Typography>
-                            <List dense>
-                              {detailedInsights.risk_assessment.mitigation_suggestions.map((suggestion, index) => (
-                                <ListItem key={index} sx={{ py: 0.5 }}>
-                                  <ListItemIcon sx={{ minWidth: 24 }}>
-                                    <InfoIcon sx={{ color: '#925a9b', fontSize: 16 }} />
-                                  </ListItemIcon>
-                                  <ListItemText 
-                                    primary={suggestion}
-                                    sx={{ 
-                                      '& .MuiListItemText-primary': {
-                                        fontSize: '0.875rem',
-                                        color: '#6c757d'
-                                      }
-                                    }}
-                                  />
-                                </ListItem>
-                              ))}
-                            </List>
-                          </Box>
-                        )}
-                      </Box>
-                    </Grid>
-                  )}
-
-                  {/* Audit Recommendations */}
-                  {detailedInsights.audit_recommendations && (
-                    <Grid item size={{xs: 12, md: 6}}>
-                      <Box sx={{ p: 2, background: '#f8f9fa', borderRadius: 2, border: '1px solid #e9ecef' }}>
-                        <Typography variant="h6" sx={{ 
-                          fontWeight: 600, 
-                          mb: 2, 
-                          color: '#2c3e50',
-                          fontSize: '1.1rem'
-                        }}>
-                          Audit Recommendations
-                        </Typography>
-                        {detailedInsights.audit_recommendations.monitoring_suggestions && (
-                          <Box sx={{ mb: 2 }}>
-                            <Typography variant="subtitle2" sx={{ 
-                              fontWeight: 600, 
-                              color: '#925a9b',
-                              mb: 1
-                            }}>
-                              Monitoring Suggestions:
-                            </Typography>
-                            <List dense>
-                              {detailedInsights.audit_recommendations.monitoring_suggestions.map((suggestion, index) => (
-                                <ListItem key={index} sx={{ py: 0.5 }}>
-                                  <ListItemIcon sx={{ minWidth: 24 }}>
-                                    <WarningIcon sx={{ color: '#925a9b', fontSize: 16 }} />
-                                  </ListItemIcon>
-                                  <ListItemText 
-                                    primary={suggestion}
-                                    sx={{ 
-                                      '& .MuiListItemText-primary': {
-                                        fontSize: '0.875rem',
-                                        color: '#6c757d'
-                                      }
-                                    }}
-                                  />
-                                </ListItem>
-                              ))}
-                            </List>
-                          </Box>
-                        )}
-                      </Box>
-                    </Grid>
-                  )}
-
-                  {/* Comparative Analysis */}
-                  {detailedInsights.comparative_analysis && (
-                    <Grid item size={{xs: 12}}>
-                      <Box sx={{ p: 2, background: '#f8f9fa', borderRadius: 2, border: '1px solid #e9ecef' }}>
-                        <Typography variant="h6" sx={{ 
-                          fontWeight: 600, 
-                          mb: 2, 
-                          color: '#2c3e50',
-                          fontSize: '1.1rem'
-                        }}>
-                          Comparative Analysis
-                        </Typography>
-                        <Grid container spacing={2}>
-                          <Grid item size={{xs: 12, md: 4}}>
-                            <Box sx={{ textAlign: 'center', p: 2, background: 'white', borderRadius: 2 }}>
-                              <Typography variant="h4" sx={{ 
-                                fontWeight: 700, 
-                                color: '#925a9b',
-                                mb: 1
-                              }}>
-                                {detailedInsights.comparative_analysis.duplicate_percentage?.transaction_count?.toFixed(1) || 0}%
-                              </Typography>
-                              <Typography variant="body2" sx={{ color: '#6c757d' }}>
-                                Duplicate Transaction Rate
-                              </Typography>
-                            </Box>
-                          </Grid>
-                          <Grid item size={{xs: 12, md: 4}}>
-                            <Box sx={{ textAlign: 'center', p: 2, background: 'white', borderRadius: 2 }}>
-                              <Typography variant="h4" sx={{ 
-                                fontWeight: 700, 
-                                color: '#925a9b',
-                                mb: 1
-                              }}>
-                                {detailedInsights.comparative_analysis.benchmark_comparison?.current_duplicate_rate?.toFixed(1) || 0}%
-                              </Typography>
-                              <Typography variant="body2" sx={{ color: '#6c757d' }}>
-                                Current Duplicate Rate
-                              </Typography>
-                            </Box>
-                          </Grid>
-                          <Grid item size={{xs: 12, md: 4}}>
-                            <Box sx={{ textAlign: 'center', p: 2, background: 'white', borderRadius: 2 }}>
-                              <Chip 
-                                label={detailedInsights.comparative_analysis.benchmark_comparison?.status || 'Unknown'}
-                                size="medium"
+                        <List dense>
+                          {recommendations.map((recommendation, index) => (
+                            <ListItem key={index} sx={{ py: 0.5 }}>
+                              <ListItemIcon sx={{ minWidth: 24 }}>
+                                <InfoIcon sx={{ color: '#925a9b', fontSize: 16 }} />
+                              </ListItemIcon>
+                              <ListItemText 
+                                primary={recommendation.action}
+                                secondary={recommendation.description}
                                 sx={{ 
-                                  backgroundColor: detailedInsights.comparative_analysis.benchmark_comparison?.status === 'Above Average' ? '#dc3545' : '#28a745',
-                                  color: 'white',
-                                  fontWeight: 600,
-                                  fontSize: '1rem',
-                                  px: 2,
-                                  py: 1
+                                  '& .MuiListItemText-primary': {
+                                    fontSize: '0.875rem',
+                                    color: '#2c3e50',
+                                    fontWeight: 600
+                                  },
+                                  '& .MuiListItemText-secondary': {
+                                    fontSize: '0.75rem',
+                                    color: '#6c757d'
+                                  }
                                 }}
                               />
-                              <Typography variant="body2" sx={{ color: '#6c757d', mt: 1 }}>
-                                vs Industry Average
-                              </Typography>
-                            </Box>
-                          </Grid>
-                        </Grid>
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Box>
+                    </Grid>
+                  )}
+
+                  {/* Audit Implications */}
+                  {auditImplications.immediate_actions && (
+                    <Grid item size={{xs: 12, md: 6}}>
+                      <Box sx={{ p: 2, background: '#f8f9fa', borderRadius: 2, border: '1px solid #e9ecef' }}>
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 600, 
+                          mb: 2, 
+                          color: '#2c3e50',
+                          fontSize: '1.1rem'
+                        }}>
+                          Audit Implications
+                        </Typography>
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="subtitle2" sx={{ 
+                            fontWeight: 600, 
+                            color: '#925a9b',
+                            mb: 1
+                          }}>
+                            Immediate Actions:
+                          </Typography>
+                          <List dense>
+                            {auditImplications.immediate_actions.map((action, index) => (
+                              <ListItem key={index} sx={{ py: 0.5 }}>
+                                <ListItemIcon sx={{ minWidth: 24 }}>
+                                  <WarningIcon sx={{ color: '#925a9b', fontSize: 16 }} />
+                                </ListItemIcon>
+                                <ListItemText 
+                                  primary={action}
+                                  sx={{ 
+                                    '& .MuiListItemText-primary': {
+                                      fontSize: '0.875rem',
+                                      color: '#6c757d'
+                                    }
+                                  }}
+                                />
+                              </ListItem>
+                            ))}
+                          </List>
+                        </Box>
+                      </Box>
+                    </Grid>
+                  )}
+
+                  {/* Critical Alerts */}
+                  {criticalAlerts.length > 0 && (
+                    <Grid item size={{xs: 12}}>
+                      <Box sx={{ p: 2, background: '#fff3cd', borderRadius: 2, border: '1px solid #ffeaa7' }}>
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 600, 
+                          mb: 2, 
+                          color: '#856404',
+                          fontSize: '1.1rem'
+                        }}>
+                          Critical Alerts
+                        </Typography>
+                        <List dense>
+                          {criticalAlerts.map((alert, index) => (
+                            <ListItem key={index} sx={{ py: 0.5 }}>
+                              <ListItemIcon sx={{ minWidth: 24 }}>
+                                <ErrorIcon sx={{ color: '#dc3545', fontSize: 16 }} />
+                              </ListItemIcon>
+                              <ListItemText 
+                                primary={alert.message}
+                                secondary={`Severity: ${alert.severity} • Action Required: ${alert.action_required}`}
+                                sx={{ 
+                                  '& .MuiListItemText-primary': {
+                                    fontSize: '0.875rem',
+                                    color: '#856404',
+                                    fontWeight: 600
+                                  },
+                                  '& .MuiListItemText-secondary': {
+                                    fontSize: '0.75rem',
+                                    color: '#856404'
+                                  }
+                                }}
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
                       </Box>
                     </Grid>
                   )}
@@ -1486,9 +1639,9 @@ console.log("duplicate data",   data);
       </Grid>
 
       {/* Show raw data for debugging if no structured data */}
-      {(!duplicateList || duplicateList.length === 0) && 
-       (!breakdowns.duplicate_flags) && 
-       (!breakdowns.user_breakdown) && (
+      {(!duplicateEntries || duplicateEntries.length === 0) && 
+       (!chartData.duplicate_types_distribution) && 
+       (!chartData.duplicate_activity_by_user) && (
         <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
           No structured duplicate data found. Raw response:
         </Alert>
@@ -1498,6 +1651,7 @@ console.log("duplicate data",   data);
         open={drawerOpen}
         onClose={handleDrawerClose}
         duplicate={selectedDuplicate}
+        type="Duplicate Analysis"
       />
 
       <DuplicateAnalysisPDF

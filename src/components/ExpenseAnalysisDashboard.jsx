@@ -48,6 +48,7 @@ import DepartmentExpensesChart from './charts/DepartmentExpensesChart';
 
 // Import analysis components
 import AnomalyAnalysisAccordion from './AnomalyAnalysisAccordion';
+import DetailedRiskAnalysis from './DetailedRiskAnalysis';
 
 export default function ExpenseAnalysisDashboard({ sheetData }) {
   console.log("Dashboard - sheetData:", sheetData)
@@ -113,10 +114,60 @@ export default function ExpenseAnalysisDashboard({ sheetData }) {
 
   // Calculate overall risk score from the actual data structure
   const overallRiskScore = Math.round(analysisSummary?.overall_fraud_score || 0);
-  const riskLevel = analysisSummary?.risk_level || 
-                   (overallRiskScore >= 80 ? 'CRITICAL' : 
-                   overallRiskScore >= 60 ? 'HIGH' : 
-                   overallRiskScore >= 40 ? 'MEDIUM' : 'LOW');
+  
+  // Get risk level from chart_data.overall_risk_gauge as primary source, then risk_distribution_chart
+  const getRiskLevelFromDistribution = () => {
+    // First try to get from overall_risk_gauge which has the most accurate risk level
+    const overallRiskGauge = sheetData?.chart_data?.overall_risk_gauge;
+    if (overallRiskGauge?.risk_level) {
+      return overallRiskGauge.risk_level;
+    }
+    
+    // Fallback to risk_distribution_chart
+    const riskDistribution = sheetData?.chart_data?.risk_distribution_chart;
+    if (riskDistribution && riskDistribution.labels && riskDistribution.data) {
+      // Find the risk level with the highest count
+      let maxCount = 0;
+      let dominantRiskLevel = 'LOW';
+      
+      riskDistribution.labels.forEach((label, index) => {
+        const count = riskDistribution.data[index] || 0;
+        if (count > maxCount) {
+          maxCount = count;
+          // Map the label to the expected risk level format
+          const normalizedLabel = label.toUpperCase().replace(/\s+/g, '');
+          if (normalizedLabel.includes('CRITICAL RISK')) {
+            dominantRiskLevel = 'CRITICAL RISK';
+          } else if (normalizedLabel.includes('HIGH RISK')) {
+            dominantRiskLevel = 'HIGH RISK';
+          } else if (normalizedLabel.includes('MEDIUM RISK')) {
+            dominantRiskLevel = 'MEDIUM RISK';
+          } else if (normalizedLabel.includes('LOW RISK')) {
+            dominantRiskLevel = 'LOW RISK';
+          }
+        }
+      });
+      
+      return dominantRiskLevel;
+    }
+    
+    // Fallback to analysis summary or calculated risk level
+    return analysisSummary?.risk_level || 
+           (overallRiskScore >= 80 ? 'CRITICAL' : 
+           overallRiskScore >= 60 ? 'HIGH' : 
+           overallRiskScore >= 40 ? 'MEDIUM' : 'LOW');
+  };
+  
+  const riskLevel = getRiskLevelFromDistribution();
+  
+  // Debug risk level calculation
+  console.log("Risk level calculation debug:", {
+    chartDataRiskDistribution: sheetData?.chart_data?.risk_distribution_chart,
+    overallRiskGauge: sheetData?.chart_data?.overall_risk_gauge,
+    analysisSummaryRiskLevel: analysisSummary?.risk_level,
+    overallRiskScore,
+    calculatedRiskLevel: riskLevel
+  });
 
   // Extract anomaly data from the actual structure
   const anomalyData = {
@@ -795,36 +846,47 @@ console.log("sheetData:", sheetData)
                 Risk Distribution
               </Typography>
               <Box sx={{ mb: 3 }}>
-                {/* Generate risk distribution based on current risk level */}
+                {/* Generate risk distribution based on actual chart data */}
                 {(() => {
-                  const riskLevels = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-                  const currentRiskLevel = riskLevel;
-                  const currentRiskIndex = riskLevels.indexOf(currentRiskLevel);
+                  const riskDistributionData = sheetData?.chartsData?.riskDistribution;
+                  const labels = riskDistributionData?.labels || ['Low Risk', 'Medium Risk', 'High Risk', 'Critical Risk'];
+                  const data = riskDistributionData?.data || [0, 0, 0, 0];
+                  const percentages = riskDistributionData?.percentages || [0, 0, 0, 0];
                   
-                  return riskLevels.map((level, index) => {
-                    const isCurrentLevel = level === currentRiskLevel;
-                    const count = isCurrentLevel ? 1 : 0;
-                    const percentage = isCurrentLevel ? 100 : 0;
+                  // Debug risk distribution data
+                  console.log("Risk Distribution Card Data:", {
+                    riskDistributionData,
+                    labels,
+                    data,
+                    percentages,
+                    currentRiskLevel: riskLevel
+                  });
+                  
+                  return labels.map((label, index) => {
+                    const count = data[index] || 0;
+                    const percentage = percentages[index] || 0;
+                    const hasData = count > 0; // Highlight any risk level that has data
+                    const isCurrentLevel = label.toUpperCase().includes(riskLevel);
                     
                     return (
                       <Box key={index} sx={{ mb: 2.5 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                           <Warning sx={{ 
-                            color: isCurrentLevel ? "#925A9B" : "#ccc", 
+                            color: hasData ? "#925A9B" : "#ccc", 
                             fontSize: 20,
                             mr: 1.5 
                           }} />
                           <Typography variant="body1" sx={{ 
                             flex: 1, 
                             fontWeight: 600,
-                            color: isCurrentLevel ? colorScheme.textPrimary : colorScheme.textSecondary,
+                            color: hasData ? colorScheme.textPrimary : colorScheme.textSecondary,
                             fontSize: '0.9rem'
                           }}>
-                            {level}
+                            {label}
                           </Typography>
                           <Typography variant="body1" sx={{ 
                             fontWeight: 600, 
-                            color: isCurrentLevel ? "#925A9B" : colorScheme.textSecondary,
+                            color: hasData ? "#925A9B" : colorScheme.textSecondary,
                             fontSize: '0.9rem'
                           }}>
                             {count} ({percentage.toFixed(1)}%)
@@ -838,7 +900,7 @@ console.log("sheetData:", sheetData)
                             borderRadius: 3,
                             backgroundColor: '#f0f0f0',
                             '& .MuiLinearProgress-bar': {
-                              backgroundColor: isCurrentLevel ? "#b18db7" : "#e0e0e0",
+                              backgroundColor: hasData ? "#b18db7" : "#e0e0e0",
                               borderRadius: 3
                             }
                           }} 
@@ -858,14 +920,16 @@ console.log("sheetData:", sheetData)
                 marginTop: '20px' 
               }}>
                 <RiskDistributionChart data={{
-                  labels: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
-                  data: [0, 0, 0, 0].map((_, index) => 
-                    ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'][index] === riskLevel ? 1 : 0
-                  ),
-                  percentages: [0, 0, 0, 0].map((_, index) => 
-                    ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'][index] === riskLevel ? 100 : 0
-                  )
+                  labels: sheetData?.chartsData?.riskDistribution?.labels || ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+                  data: sheetData?.chartsData?.riskDistribution?.data || [0, 0, 0, 0],
+                  percentages: sheetData?.chartsData?.riskDistribution?.percentages || [0, 0, 0, 0]
                 }} />
+                {/* Debug chart data */}
+                {console.log("Risk Distribution Chart Data:", {
+                  chartLabels: sheetData?.chartsData?.riskDistribution?.labels,
+                  chartData: sheetData?.chartsData?.riskDistribution?.data,
+                  chartPercentages: sheetData?.chartsData?.riskDistribution?.percentages
+                })}
               </Box>
             </CardContent>
           </Card>
@@ -973,8 +1037,8 @@ console.log("sheetData:", sheetData)
                 justifyContent: 'center' 
               }}>
                 <AnomaliesDistributionChart data={{
-                  labels: ['Duplicate Entries', 'User Anomalies', 'Backdated Entries', 'Closing Entries', 'Unusual Days', 'Holiday Entries'],
-                  data: [
+                  labels: sheetData?.chartsData?.anomalyBreakdown?.labels || ['Duplicate Entries', 'User Anomalies', 'Backdated Entries', 'Closing Entries', 'Unusual Days', 'Holiday Entries'],
+                  data: sheetData?.chartsData?.anomalyBreakdown?.data || [
                     anomalyData.duplicateEntries,
                     anomalyData.userAnomalies,
                     anomalyData.backdatedEntries,
@@ -1214,7 +1278,14 @@ console.log("sheetData:", sheetData)
         )}
 
         {/* Top GL Accounts */}
-        {(glChartsData?.topAccountsByAmount && glChartsData.topAccountsByAmount.length > 0) && (
+        {(() => {
+          console.log("GL Accounts Data Debug:", {
+            glChartsData: glChartsData,
+            topAccountsByAmount: glChartsData?.topAccountsByAmount,
+            accountCount: glChartsData?.topAccountsByAmount?.length || 0
+          });
+          return (glChartsData?.topAccountsByAmount && glChartsData.topAccountsByAmount.length > 0);
+        })() && (
           <Grid item size={{xs: 12, md: 12}}>
             <Card sx={{ 
               borderRadius: 3, 
@@ -1228,54 +1299,249 @@ console.log("sheetData:", sheetData)
                   color: colorScheme.textPrimary,
                   fontSize: '1.1rem'
                 }}>
-                  Top GL Accounts
+                  GL Accounts
                 </Typography>
                 
                 {/* GL Account Summary */}
-                {glSummary?.summaryStatistics && (
+                {(() => {
+                  console.log("GL Summary Statistics Debug:", {
+                    glSummary: glSummary,
+                    summaryStatistics: glSummary?.summaryStatistics,
+                    totalAccounts: glSummary?.summaryStatistics?.totalAccounts,
+                    totalTrialBalance: glSummary?.summaryStatistics?.totalTrialBalance
+                  });
+                  return glSummary?.summaryStatistics;
+                })() && (
                 <Box sx={{ 
-                  mb: 3, 
-                  p: 3, 
-                  background: '#f8f9fa', 
+                  mb: 4, 
+                  p: 4, 
+                  background: 'linear-gradient(135deg, #925A9B 0%, #7B4B8A 100%)',
                   borderRadius: 3,
-                  border: `1px solid ${colorScheme.border}`
+                  boxShadow: '0 8px 32px rgba(146, 90, 155, 0.3)',
+                  position: 'relative',
+                  overflow: 'hidden'
                 }}>
-                  <Typography variant="subtitle1" sx={{ 
+                  {/* Decorative background element */}
+                  <Box sx={{ 
+                    position: 'absolute', 
+                    top: -20, 
+                    right: -20, 
+                    width: 100, 
+                    height: 100, 
+                    background: 'rgba(255,255,255,0.1)', 
+                    borderRadius: '50%' 
+                  }} />
+                  
+                  <Typography variant="h6" sx={{ 
                     fontWeight: 600, 
-                    mb: 2, 
-                    color: colorScheme.textPrimary,
-                    fontSize: '1rem'
+                    mb: 3, 
+                    color: 'white',
+                    fontSize: '1.2rem',
+                    position: 'relative',
+                    zIndex: 1
                   }}>
-                      GL Account Summary Statistics
-                    </Typography>
-                  <Grid container spacing={3}>
-                      <Grid item size={{xs: 12, md: 6}}>
-                      <Typography variant="body2" sx={{ color: colorScheme.textSecondary, mb: 1, fontSize: '0.875rem' }}>
-                          <strong>Total Accounts:</strong> {glSummary.summaryStatistics.totalAccounts}
+                    GL Account Summary Statistics
+                  </Typography>
+                  
+                  <Grid container spacing={3} sx={{ position: 'relative', zIndex: 1 }}>
+                    {/* Basic Account Stats */}
+                    <Grid item size={{xs: 12, md: 3}}>
+                      <Box sx={{ textAlign: 'center', p: 2, background: 'rgba(255,255,255,0.1)', borderRadius: 2 }}>
+                        <AccountBalance sx={{ color: 'white', fontSize: 28, mb: 1 }} />
+                        <Typography variant="h5" sx={{ 
+                          fontWeight: 700, 
+                          color: 'white',
+                          mb: 0.5,
+                          fontSize: '1.5rem'
+                        }}>
+                          {glSummary.summaryStatistics.totalAccounts}
                         </Typography>
-                      <Typography variant="body2" sx={{ color: colorScheme.textSecondary, mb: 1, fontSize: '0.875rem' }}>
-                          <strong>Total Trial Balance:</strong> {formatCurrency(glSummary.summaryStatistics.totalTrialBalance)}
+                        <Typography variant="body2" sx={{ 
+                          color: 'rgba(255,255,255,0.8)',
+                          fontSize: '0.875rem'
+                        }}>
+                          Total Accounts
                         </Typography>
-                      <Typography variant="body2" sx={{ color: colorScheme.textSecondary, mb: 1, fontSize: '0.875rem' }}>
-                          <strong>Total Trading Equity:</strong> {formatCurrency(glSummary.summaryStatistics.totalTradingEquity)}
-                        </Typography>
-                      </Grid>
-                      <Grid item size={{xs: 12, md: 6}}>
-                      <Typography variant="body2" sx={{ color: colorScheme.textSecondary, mb: 1, fontSize: '0.875rem' }}>
-                          <strong>Total Debits:</strong> {formatCurrency(glSummary.summaryStatistics.totalDebits)}
-                        </Typography>
-                      <Typography variant="body2" sx={{ color: colorScheme.textSecondary, mb: 1, fontSize: '0.875rem' }}>
-                          <strong>Total Credits:</strong> {formatCurrency(glSummary.summaryStatistics.totalCredits)}
-                        </Typography>
-                      <Typography variant="body2" sx={{ color: colorScheme.textSecondary, mb: 1, fontSize: '0.875rem' }}>
-                          <strong>Currency:</strong> {glSummary.summaryStatistics.currency}
-                        </Typography>
-                      </Grid>
+                      </Box>
                     </Grid>
-                  </Box>
+                    
+                    {/* Financial Stats */}
+                    <Grid item size={{xs: 12, md: 3}}>
+                      <Box sx={{ textAlign: 'center', p: 2, background: 'rgba(255,255,255,0.1)', borderRadius: 2 }}>
+                        <AttachMoney sx={{ color: 'white', fontSize: 28, mb: 1 }} />
+                        <Typography variant="h5" sx={{ 
+                          fontWeight: 700, 
+                          color: 'white',
+                          mb: 0.5,
+                          fontSize: '1.5rem'
+                        }}>
+                          {formatCurrency(glSummary.summaryStatistics.totalTrialBalance)}
+                        </Typography>
+                        <Typography variant="body2" sx={{ 
+                          color: 'rgba(255,255,255,0.8)',
+                          fontSize: '0.875rem'
+                        }}>
+                          Total Trial Balance
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    
+                    {/* Risk Stats */}
+                    <Grid item size={{xs: 12, md: 3}}>
+                      <Box sx={{ textAlign: 'center', p: 2, background: 'rgba(255,255,255,0.1)', borderRadius: 2 }}>
+                        <Security sx={{ color: 'white', fontSize: 28, mb: 1 }} />
+                        <Typography variant="h5" sx={{ 
+                          fontWeight: 700, 
+                          color: 'white',
+                          mb: 0.5,
+                          fontSize: '1.5rem'
+                        }}>
+                          {glSummary.summaryStatistics.avgRiskScore?.toFixed(1) || '0.0'}
+                        </Typography>
+                        <Typography variant="body2" sx={{ 
+                          color: 'rgba(255,255,255,0.8)',
+                          fontSize: '0.875rem'
+                        }}>
+                          Avg Risk Score
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    
+                    {/* Anomaly Stats */}
+                    <Grid item size={{xs: 12, md: 3}}>
+                      <Box sx={{ textAlign: 'center', p: 2, background: 'rgba(255,255,255,0.1)', borderRadius: 2 }}>
+                        <Warning sx={{ color: 'white', fontSize: 28, mb: 1 }} />
+                        <Typography variant="h5" sx={{ 
+                          fontWeight: 700, 
+                          color: 'white',
+                          mb: 0.5,
+                          fontSize: '1.5rem'
+                        }}>
+                          {glSummary.summaryStatistics.accountsWithAnomalies || 0}
+                        </Typography>
+                        <Typography variant="body2" sx={{ 
+                          color: 'rgba(255,255,255,0.8)',
+                          fontSize: '0.875rem'
+                        }}>
+                          Accounts with Anomalies
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                  
+                  {/* Detailed Stats Grid */}
+                  <Grid container spacing={2} sx={{ mt: 3, position: 'relative', zIndex: 1 }}>
+                    <Grid item size={{xs: 12, md: 6}}>
+                      <Box sx={{ 
+                        p: 2, 
+                        background: 'rgba(255,255,255,0.05)', 
+                        borderRadius: 2,
+                        border: '1px solid rgba(255,255,255,0.1)'
+                      }}>
+                        <Typography variant="subtitle2" sx={{ 
+                          color: 'rgba(255,255,255,0.9)', 
+                          mb: 1.5,
+                          fontWeight: 600,
+                          fontSize: '0.9rem'
+                        }}>
+                          Financial Overview
+                        </Typography>
+                        <Box sx={{ display: 'grid', gap: 1 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.8rem' }}>
+                              Total Debits
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem' }}>
+                              {formatCurrency(glSummary.summaryStatistics.totalDebits)}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.8rem' }}>
+                              Total Credits
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem' }}>
+                              {formatCurrency(glSummary.summaryStatistics.totalCredits)}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.8rem' }}>
+                              Trading Equity
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem' }}>
+                              {formatCurrency(glSummary.summaryStatistics.totalTradingEquity)}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.8rem' }}>
+                              Currency
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem' }}>
+                              {glSummary.summaryStatistics.currency}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Box>
+                    </Grid>
+                    
+                    <Grid item size={{xs: 12, md: 6}}>
+                      <Box sx={{ 
+                        p: 2, 
+                        background: 'rgba(255,255,255,0.05)', 
+                        borderRadius: 2,
+                        border: '1px solid rgba(255,255,255,0.1)'
+                      }}>
+                        <Typography variant="subtitle2" sx={{ 
+                          color: 'rgba(255,255,255,0.9)', 
+                          mb: 1.5,
+                          fontWeight: 600,
+                          fontSize: '0.9rem'
+                        }}>
+                          Risk & Security Metrics
+                        </Typography>
+                        <Box sx={{ display: 'grid', gap: 1 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.8rem' }}>
+                              High Risk Accounts
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem' }}>
+                              {glSummary.summaryStatistics.highRiskAccounts || 0}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.8rem' }}>
+                              Total Transactions
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem' }}>
+                              {glSummary.summaryStatistics.totalTransactions || 0}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.8rem' }}>
+                              Anomaly Rate
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem' }}>
+                              {glSummary.summaryStatistics.totalAccounts ? 
+                                ((glSummary.summaryStatistics.accountsWithAnomalies / glSummary.summaryStatistics.totalAccounts) * 100).toFixed(1) : 0}%
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.8rem' }}>
+                              Avg Amount per Account
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem' }}>
+                              {glSummary.summaryStatistics.totalAccounts ? 
+                                formatCurrency(glSummary.summaryStatistics.totalTrialBalance / glSummary.summaryStatistics.totalAccounts) : 
+                                formatCurrency(0)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </Box>
                 )}
                 
-              <TableContainer component={Paper} sx={{ 
+                              <TableContainer component={Paper} sx={{ 
                 boxShadow: 'none', 
                 mb: 3,
                 background: 'transparent'
@@ -1313,12 +1579,28 @@ console.log("sheetData:", sheetData)
                         border: 'none',
                         pb: 1
                       }} align="right">
+                        Risk Level
+                      </TableCell>
+                      <TableCell sx={{ 
+                        fontWeight: 600, 
+                        color: colorScheme.textPrimary,
+                        border: 'none',
+                        pb: 1
+                      }} align="right">
+                        Anomalies
+                      </TableCell>
+                      <TableCell sx={{ 
+                        fontWeight: 600, 
+                        color: colorScheme.textPrimary,
+                        border: 'none',
+                        pb: 1
+                      }} align="right">
                         Trial Balance
                       </TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {(glChartsData?.topAccountsByAmount || []).slice(0, 5).map((account, index) => (
+                      {(glChartsData?.topAccountsByAmount || []).map((account, index) => (
                       <TableRow key={index} sx={{ '&:last-child td': { border: 0 } }}>
                         <TableCell sx={{ border: 'none', py: 1 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -1367,6 +1649,38 @@ console.log("sheetData:", sheetData)
                             </Typography>
                           </TableCell>
                         <TableCell align="right" sx={{ border: 'none', py: 1 }}>
+                          <Chip 
+                            label={account.riskLevel || 'LOW'} 
+                            size="small"
+                            sx={{ 
+                              backgroundColor: account.riskColor || '#4BC0C0',
+                              color: 'white',
+                              fontWeight: 600,
+                              fontSize: '0.7rem',
+                              px: 1,
+                              py: 0.2,
+                              border: '1px solid rgba(255,255,255,0.3)'
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell align="right" sx={{ border: 'none', py: 1 }}>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                            <Typography variant="body2" sx={{ 
+                              color: colorScheme.textSecondary,
+                              fontSize: '0.75rem',
+                              fontWeight: 600
+                            }}>
+                              {account.anomalyCounts?.total_anomalies || 0}
+                            </Typography>
+                            <Typography variant="caption" sx={{ 
+                              color: colorScheme.textSecondary,
+                              fontSize: '0.65rem'
+                            }}>
+                              D: {account.anomalyCounts?.duplicate || 0} | B: {account.anomalyCounts?.backdated || 0} | H: {account.anomalyCounts?.high_value || 0}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell align="right" sx={{ border: 'none', py: 1 }}>
                           <Typography variant="body2" sx={{ 
                             color: colorScheme.primary, 
                             fontWeight: 600,
@@ -1384,51 +1698,41 @@ console.log("sheetData:", sheetData)
               {/* Chart component */}
               <Box sx={{ 
                 width: '100%', 
-                background: '#f8f9fa', 
+                background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)', 
                 borderRadius: 3, 
                 display: 'flex', 
                 alignItems: 'center', 
                 justifyContent: 'center',
-                border: `1px solid ${colorScheme.border}`
+                border: `1px solid ${colorScheme.border}`,
+                p: 2
               }}>
-                <CategoryExpensesChart data={{
-                  labels: (glChartsData?.topAccountsByAmount || []).slice(0, 5).map(account => `Account ${account.accountId}`),
-                  data: (glChartsData?.topAccountsByAmount || []).slice(0, 5).map(account => account.totalAmount || 0)
-                }} />
+                <Box sx={{width: '100%' }}>
+                  <Typography variant="h6" sx={{ 
+                    fontWeight: 600, 
+                    mb: 2, 
+                    color: colorScheme.textPrimary,
+                    fontSize: '1rem',
+                    textAlign: 'center'
+                  }}>
+                    Account Distribution by Amount
+                  </Typography>
+                  <DepartmentExpensesChart data={{
+                    labels: (glChartsData?.topAccountsByAmount || []).map(account => `Account ${account.accountId}`),
+                    data: (glChartsData?.topAccountsByAmount || []).map(account => account.totalAmount || 0)
+                  }} />
+                </Box>
               </Box>
             </CardContent>
           </Card>
         </Grid>
         )}
 
-        {/* Chart Cards */}
-
-        {(glChartsData?.topAccountsByAmount && glChartsData.topAccountsByAmount.length > 0) && (
-          <Grid item size={{xs: 12, md: 12}}>
-            <Card sx={{ 
-              borderRadius: 3, 
-              boxShadow: '0 4px 20px rgba(0,0,0,0.08)', 
-              background: colorScheme.cardBackground
-            }}>
-              <CardContent sx={{ p: 3 }}>
-                <Typography variant="h6" sx={{ 
-                  fontWeight: 600, 
-                  mb: 3, 
-                  color: colorScheme.textPrimary,
-                  fontSize: '1.1rem'
-                }}>
-                  Department Expenses
-                </Typography>
-              <Box sx={{width: '100%' }}>
-                <DepartmentExpensesChart data={{
-                  labels: (glChartsData?.topAccountsByAmount || []).slice(0, 5).map(account => `Account ${account.accountId}`),
-                  data: (glChartsData?.topAccountsByAmount || []).slice(0, 5).map(account => account.totalAmount || 0)
-                }} />
-              </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        )}
+          {/* Detailed Risk Analysis */}
+          {sheetData?.detailed_risk_analysis && (
+            <Grid item size={{xs: 12, md: 12}}>
+              <DetailedRiskAnalysis riskAnalysis={sheetData.detailed_risk_analysis} />
+            </Grid>
+          )}
 
           {/* Anomaly Analysis Accordion */}
         <Grid item size={{xs: 12, md: 12}}>
