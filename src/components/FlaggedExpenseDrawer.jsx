@@ -37,19 +37,12 @@ import {
   ExpandMore as ExpandMoreIcon,
   Visibility as VisibilityIcon
 } from '@mui/icons-material';
-import { colorScheme, getRiskColor } from '../utils/colorScheme';
+import { colorScheme, getRiskColor, formatCurrency } from '../utils/colorScheme';
 
 export default function DuplicateDetailDrawer({ open, onClose, duplicate, type }) {
   if (!duplicate) return null;
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'SAR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -90,7 +83,28 @@ export default function DuplicateDetailDrawer({ open, onClose, duplicate, type }
     }
   };
 
-  const duplicateType = duplicate.type || 'Unknown Duplicate Type';
+  // Handle both duplicate and backdated data types
+  const isBackdated = type === 'Backdated Analysis';
+  
+  const getEntryType = () => {
+    if (isBackdated) {
+      return 'Backdated Entry';
+    }
+    return duplicate.type || 'Unknown Duplicate Type';
+  };
+
+  const getEntryDescription = () => {
+    if (isBackdated) {
+      return `Posting Date: ${formatDate(duplicate.posting_date)} | Document Date: ${formatDate(duplicate.document_date)} | Days Difference: ${duplicate.days_difference}`;
+    }
+    return duplicate.criteria || 'No specific criteria provided';
+  };
+
+  const entryType = getEntryType();
+  const entryDescription = getEntryDescription();
+  
+  // Define missing variables
+  const duplicateType = duplicate.type || 'Unknown Type';
   const duplicateDescription = duplicate.criteria || 'No specific criteria provided';
 
   return (
@@ -129,7 +143,7 @@ export default function DuplicateDetailDrawer({ open, onClose, duplicate, type }
             <Grid container spacing={2} alignItems="center">
               <Grid item>
                 <Typography variant="h5" sx={{ fontWeight: 'bold', color: colorScheme.textPrimary }}>
-                  {duplicateType}
+                  {entryType}
                 </Typography>
               </Grid>
               <Grid item>
@@ -156,19 +170,19 @@ export default function DuplicateDetailDrawer({ open, onClose, duplicate, type }
               Risk Score: {duplicate.risk_score || 0}
             </Typography>
             <Typography variant="body2">
-              {duplicateDescription}
+              {entryDescription}
             </Typography>
           </Alert>
 
           {/* Basic Duplicate Information */}
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: colorScheme.primary }}>
-              Duplicate Information
+              {isBackdated ? 'Backdated Entry Information' : 'Duplicate Information'}
             </Typography>
             <Grid container spacing={2}>
               <Grid item xs={12}>
                 <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>
-                  {duplicateDescription}
+                  {entryDescription}
                 </Typography>
               </Grid>
               <Grid item xs={6} sm={3}>
@@ -184,10 +198,10 @@ export default function DuplicateDetailDrawer({ open, onClose, duplicate, type }
               <Grid item xs={6} sm={3}>
                 <Box sx={{ textAlign: 'center', p: 2, backgroundColor: colorScheme.background, borderRadius: 2 }}>
                   <Typography variant="caption" color="text.secondary" display="block">
-                    Count
+                    {isBackdated ? 'Days Difference' : 'Count'}
                   </Typography>
                   <Typography variant="h6" sx={{ fontWeight: 'bold', color: colorScheme.primary }}>
-                    {duplicate.count}
+                    {isBackdated ? (duplicate.days_difference || 0) : duplicate.count}
                   </Typography>
                 </Box>
               </Grid>
@@ -204,10 +218,10 @@ export default function DuplicateDetailDrawer({ open, onClose, duplicate, type }
               <Grid item xs={6} sm={3}>
                 <Box sx={{ textAlign: 'center', p: 2, backgroundColor: colorScheme.background, borderRadius: 2 }}>
                   <Typography variant="caption" color="text.secondary" display="block">
-                    Type
+                    {isBackdated ? 'Transaction Type' : 'Type'}
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                    {duplicate.type}
+                    {isBackdated ? (duplicate.transaction_type || 'N/A') : duplicate.type}
                   </Typography>
                 </Box>
               </Grid>

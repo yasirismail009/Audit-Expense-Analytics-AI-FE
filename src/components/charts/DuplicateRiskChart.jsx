@@ -26,10 +26,14 @@ export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
     }
   };
 
-  // Check for new data structure first, then fallback to old structure
-  const chartData = data?.chart_data?.risk_level_distribution || data?.duplicates;
+  // Check for new API response structure first, then fallback to old structure
+  const chartData = data?.summary?.risk_distribution || 
+                   data?.chart_data?.risk_level_distribution || 
+                   data?.duplicates;
+  
 
-  if (!data || !chartData || (Array.isArray(chartData) && chartData.length === 0)) {
+
+  if (!data || !chartData || (Array.isArray(chartData) && chartData.length === 0) || (typeof chartData === 'object' && !Array.isArray(chartData) && Object.keys(chartData).length === 0)) {
     return (
       <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2 }}>
         <CardContent>
@@ -54,9 +58,10 @@ export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
     }));
     
     // Calculate amounts from duplicate entries if available
-    if (data.duplicate_entries) {
+    const duplicateEntries = data?.detailed_results?.duplicate_entries || data?.duplicate_entries;
+    if (duplicateEntries) {
       transformedData.forEach(item => {
-        const matchingEntries = data.duplicate_entries.filter(entry => {
+        const matchingEntries = duplicateEntries.filter(entry => {
           const entryRiskLevel = getRiskLevel(entry.risk_score);
           return entryRiskLevel === item.riskLevel;
         });
@@ -75,7 +80,31 @@ export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
         amount: item.total_amount,
         transactions: item.transactions
       }));
-  } else {
+  } else if (typeof chartData === 'object' && !Array.isArray(chartData)) {
+    // New API structure: risk_distribution is an object like {"Critical": 1, "High": 1}
+    transformedData = Object.entries(chartData)
+      .filter(([riskLevel, count]) => count > 0) // Only show risk levels with data
+      .map(([riskLevel, count]) => ({
+        riskLevel: riskLevel.toUpperCase(),
+        count: count,
+        amount: 0, // Will be calculated from duplicate entries
+        transactions: count * 2
+      }));
+    
+    // Calculate amounts from duplicate entries if available
+    const duplicateEntries = data?.detailed_results?.duplicate_entries || data?.duplicate_entries;
+    if (duplicateEntries) {
+      transformedData.forEach(item => {
+        const matchingEntries = duplicateEntries.filter(entry => {
+          const entryRiskLevel = getRiskLevel(entry.risk_score);
+          return entryRiskLevel === item.riskLevel;
+        });
+        item.amount = matchingEntries.reduce((sum, entry) => 
+          sum + entry.transaction1.amount + entry.transaction2.amount, 0
+        );
+      });
+    }
+  } else if (Array.isArray(chartData)) {
     // Old structure: duplicates array - group by risk level
     const riskGroups = chartData.reduce((acc, duplicate) => {
       const riskScore = duplicate.risk_score || 0;
@@ -107,6 +136,9 @@ export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
       amount: details.totalAmount,
       transactions: details.totalTransactions
     }));
+  } else {
+    // Fallback: empty array if no valid data structure found
+    transformedData = [];
   }
 
   const CustomTooltip = ({ active, payload, label }) => {

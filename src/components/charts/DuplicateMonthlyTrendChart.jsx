@@ -19,8 +19,24 @@ export default function DuplicateMonthlyTrendChart({ data, currency = 'SAR' }) {
     }
   };
 
-  // Check for new data structure first, then fallback to old structure
-  const chartData = data?.chart_data?.monthly_duplicate_trend || data?.monthly_trend;
+  // Check for new API response structure first, then fallback to old structure
+  const chartData = data?.detailed_results?.duplicate_entries ? {
+    // Generate monthly trend from duplicate entries
+    labels: Array.from(new Set(
+      (data.detailed_results.duplicate_entries || []).map(entry => 
+        new Date(entry.transaction1.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+      )
+    )).sort(),
+    data: Array.from(new Set(
+      (data.detailed_results.duplicate_entries || []).map(entry => 
+        new Date(entry.transaction1.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+      )
+    )).sort().map(month => 
+      (data.detailed_results.duplicate_entries || []).filter(entry => 
+        new Date(entry.transaction1.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) === month
+      ).length
+    )
+  } : data?.chart_data?.monthly_duplicate_trend || data?.monthly_trend;
 
   if (!data || !chartData || (Array.isArray(chartData) && chartData.length === 0)) {
     return (
@@ -49,10 +65,11 @@ export default function DuplicateMonthlyTrendChart({ data, currency = 'SAR' }) {
     }));
     
     // Calculate amounts from duplicate entries if available
-    if (data.duplicate_entries) {
+    const duplicateEntries = data?.detailed_results?.duplicate_entries || data?.duplicate_entries;
+    if (duplicateEntries) {
       transformedData.forEach(item => {
-        const monthDuplicates = data.duplicate_entries.filter(entry => {
-          const entryMonth = new Date(entry.transaction1.date).toLocaleDateString('en-US', { month: 'short' });
+        const monthDuplicates = duplicateEntries.filter(entry => {
+          const entryMonth = new Date(entry.transaction1.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
           return entryMonth === item.month;
         });
         item.totalAmount = monthDuplicates.reduce((sum, entry) => 

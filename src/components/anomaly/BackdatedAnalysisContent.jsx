@@ -107,6 +107,7 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
   const recommendations = data?.recommendations || [];
   const auditImplications = data?.audit_implications || {};
   const criticalAlerts = data?.critical_alerts || [];
+  const backdatedPatterns = data?.backdated_patterns || {};
 
   // Calculate overall risk score and level from new data structure
   const totalBackdated = summaryStats.backdated_transactions || 0;
@@ -116,35 +117,14 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
 
   return (
     <Box sx={{ minHeight: '100vh', background: '#f8f9fa', p: 3 }}>
-      {/* Analysis Status */}
-      <Alert 
-        severity={
-          totalBackdated === 0 ? "success" : 
-          riskLevel === 'CRITICAL' ? "error" :
-          riskLevel === 'HIGH' ? "warning" : 
-          "info"
-        } 
-        sx={{ mb: 3, borderRadius: 2 }}
-        icon={
-          totalBackdated === 0 ? <InfoIcon /> :
-          riskLevel === 'CRITICAL' ? <ErrorIcon /> :
-          riskLevel === 'HIGH' ? <WarningIcon /> :
-          <InfoIcon />
-        }
-      >
-        <Typography variant="body1" sx={{ fontWeight: 600 }}>
-          {totalBackdated > 0 
-            ? `Found ${totalBackdated} backdated entries (${riskLevel} Risk) involving ${totalBackdated} transactions`
-            : "No backdated entries found"
-          }
-        </Typography>
-        {totalBackdated > 0 && (
-          <Typography variant="body2" sx={{ mt: 1 }}>
-            Total amount involved: {formatCurrency(summaryStats.total_backdated_amount || 0)} • Risk Level: {riskLevel}
-          </Typography>
-        )}
-      </Alert>
-
+      <Typography variant="h4" sx={{ 
+                fontWeight: 700, 
+                color: '#2c3e50', 
+                mb: 2,
+                fontSize: '1.75rem'
+              }}>
+                Backdated Analysis Report
+              </Typography>
       {/* Backdated Definition */}
       <Alert 
         severity="info" 
@@ -202,6 +182,80 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
           </Grid>
         </Box>
       </Alert>
+      {/* Analysis Status */}
+      <Alert 
+        severity={
+          totalBackdated === 0 ? "success" : 
+          riskLevel === 'CRITICAL' ? "error" :
+          riskLevel === 'HIGH' ? "warning" : 
+          "info"
+        } 
+        sx={{ mb: 3, borderRadius: 2 }}
+        icon={
+          totalBackdated === 0 ? <InfoIcon /> :
+          riskLevel === 'CRITICAL' ? <ErrorIcon /> :
+          riskLevel === 'HIGH' ? <WarningIcon /> :
+          <InfoIcon />
+        }
+      >
+        <Typography variant="body1" sx={{ fontWeight: 600 }}>
+          {totalBackdated > 0 
+            ? `Found ${totalBackdated} backdated entries (${riskLevel} Risk) involving ${totalBackdated} transactions`
+            : "No backdated entries found"
+          }
+        </Typography>
+        {totalBackdated > 0 && (
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            Total amount involved: {formatCurrency(summaryStats.total_backdated_amount || 0)} • Risk Level: {riskLevel}
+          </Typography>
+        )}
+      </Alert>
+
+      {/* Backdated Patterns Summary */}
+      {backdatedPatterns && Object.keys(backdatedPatterns).length > 0 && (
+        <Alert 
+          severity="info" 
+          sx={{ mb: 3, borderRadius: 2 }}
+          icon={<InfoIcon />}
+        >
+          <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+            Backdated Patterns Analysis
+          </Typography>
+          <Grid container spacing={2} sx={{ mt: 2 }}>
+            <Grid item size={{xs: 12, sm: 4}}>
+              <Box sx={{ p: 2, backgroundColor: 'rgba(230, 81, 0, 0.1)', borderRadius: 2, border: '1px solid rgba(230, 81, 0, 0.3)' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#e65100', mb: 1 }}>
+                  Total Transactions
+                </Typography>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: '#2c3e50' }}>
+                  {backdatedPatterns.total_transactions || 0}
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item size={{xs: 12, sm: 4}}>
+              <Box sx={{ p: 2, backgroundColor: 'rgba(230, 81, 0, 0.1)', borderRadius: 2, border: '1px solid rgba(230, 81, 0, 0.3)' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#e65100', mb: 1 }}>
+                  Backdated Percentage
+                </Typography>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: '#2c3e50' }}>
+                  {(backdatedPatterns.backdated_percentage || 0).toFixed(2)}%
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item size={{xs: 12, sm: 4}}>
+              <Box sx={{ p: 2, backgroundColor: 'rgba(230, 81, 0, 0.1)', borderRadius: 2, border: '1px solid rgba(230, 81, 0, 0.3)' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#e65100', mb: 1 }}>
+                  Backdated Entries Found
+                </Typography>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: '#2c3e50' }}>
+                  {backdatedPatterns.backdated_entries_found || 0}
+                </Typography>
+              </Box>
+            </Grid>
+          </Grid>
+        </Alert>
+      )}
+
 
       {/* Critical Alerts */}
       {criticalAlerts && criticalAlerts.length > 0 && (
@@ -223,6 +277,72 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
         </Box>
       )}
 
+      {/* High Risk Backdated Transactions */}
+      {riskAssessment.high_risk_backdated && riskAssessment.high_risk_backdated.length > 0 && (
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h6" sx={{ 
+            fontWeight: 600, 
+            mb: 2, 
+            color: '#2c3e50',
+            fontSize: '1.1rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1
+          }}>
+            <ErrorIcon sx={{ color: '#dc3545', fontSize: 20 }} />
+            High Risk Backdated Transactions
+          </Typography>
+          <Grid container spacing={2}>
+            {riskAssessment.high_risk_backdated.map((transaction, index) => (
+              <Grid item size={{xs: 12, md: 6}} key={index}>
+                <Card sx={{ 
+                  background: '#fff5f5', 
+                  borderRadius: 2,
+                  border: '1px solid #fecaca',
+                  boxShadow: '0 2px 8px rgba(220, 53, 69, 0.1)'
+                }}>
+                  <CardContent sx={{ p: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                      <Typography variant="body1" sx={{ 
+                        fontWeight: 600, 
+                        color: '#dc3545',
+                        fontSize: '0.9rem'
+                      }}>
+                        {transaction.user_name}
+                      </Typography>
+                      <Chip 
+                        label={`${transaction.overall_risk_score}%`} 
+                        size="small"
+                        sx={{ 
+                          backgroundColor: '#dc3545',
+                          color: 'white',
+                          fontWeight: 600,
+                          fontSize: '0.7rem'
+                        }}
+                      />
+                    </Box>
+                    <Typography variant="body2" sx={{ 
+                      color: '#6c757d',
+                      fontSize: '0.8rem',
+                      mb: 1
+                    }}>
+                      Account: {transaction.gl_account} • Amount: {formatCurrency(transaction.amount_local_currency)}
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: '#6c757d',
+                      fontSize: '0.8rem'
+                    }}>
+                      Posting Date: {new Date(transaction.posting_date).toLocaleDateString()} • 
+                      Backdated Days: {transaction.backdated_days}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+      )}
+
       {/* Open Report Button */}
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
         <Button
@@ -239,7 +359,7 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
             fontSize: '0.9rem',
             boxShadow: '0 2px 8px rgba(230, 81, 0, 0.3)',
             '&:hover': {
-              backgroLLyux7a9bl_5&[98NhUPRt+y5undColor: '#d84315',
+              backgroundColor: '#d84315',
               boxShadow: '0 4px 12px rgba(230, 81, 0, 0.4)',
               transform: 'translateY(-1px)'
             },
@@ -268,7 +388,7 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
                 mb: 1,
                 fontSize: '1.75rem'
               }}>
-                Backdated Analysis
+                Summary Backdated Analysis
               </Typography>
               <Typography variant="body1" sx={{ color: '#6c757d', mb: 0.5 }}>
                 Analysis Date: {new Date(analysisInfo.analysis_date || Date.now()).toLocaleDateString()}
@@ -455,15 +575,61 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
                       fontSize: '1.1rem'
                     }}>
                       {summaryStats.avg_risk_score?.toFixed(1) || 0}
-              </Typography>
+                    </Typography>
                     <Typography variant="body2" sx={{ 
                       color: '#6c757d',
                       fontSize: '0.8rem'
                     }}>
                       Avg Risk Score
-              </Typography>
+                    </Typography>
                   </Box>
-          </Grid>
+                </Grid>
+                <Grid item size={{xs: 6, md: 3}}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <TrendingUpIcon sx={{ 
+                      color: '#e65100', 
+                      fontSize: 24, 
+                      mb: 0.5 
+                    }} />
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: 700, 
+                      color: '#2c3e50',
+                      mb: 0.5,
+                      fontSize: '1.1rem'
+                    }}>
+                      {summaryStats.max_risk_score || 0}
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: '#6c757d',
+                      fontSize: '0.8rem'
+                    }}>
+                      Max Risk Score
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item size={{xs: 6, md: 3}}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <TrendingUpIcon sx={{ 
+                      color: '#e65100', 
+                      fontSize: 24, 
+                      mb: 0.5 
+                    }} />
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: 700, 
+                      color: '#2c3e50',
+                      mb: 0.5,
+                      fontSize: '1.1rem'
+                    }}>
+                      {summaryStats.max_backdated_days || 0}
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: '#6c757d',
+                      fontSize: '0.8rem'
+                    }}>
+                      Max Days Diff
+                    </Typography>
+                  </Box>
+                </Grid>
               </Grid>
             </Grid>
           </Grid>
@@ -484,16 +650,43 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
                 riskAssessment.risk_distribution?.critical_risk || 0
               ]
             }}
+            title="Risk Level Distribution"
+            subtitle="Distribution of backdated entries by risk level"
           />
         </Grid>
         
         {/* Days Difference Distribution Chart */}
         <Grid item size={{xs: 12, md: 6}}>
           <AnomaliesDistributionChart 
-            data={chartData.backdated_days_distribution || {
-              labels: ['1-7 days', '8-30 days', '31-90 days', '91-365 days', '365+ days'],
-              data: [0, 0, 0, 0, 0]
-            }}
+            data={(() => {
+              // Calculate distribution from actual backdated entries
+              const distribution = {
+                '1-7 days': 0,
+                '8-30 days': 0,
+                '31-90 days': 0,
+                '91-365 days': 0,
+                '365+ days': 0
+              };
+              
+              if (backdatedEntries && backdatedEntries.length > 0) {
+                backdatedEntries.forEach(entry => {
+                  const days = Math.abs(entry.days_difference || 0);
+                  if (days <= 7) distribution['1-7 days']++;
+                  else if (days <= 30) distribution['8-30 days']++;
+                  else if (days <= 90) distribution['31-90 days']++;
+                  else if (days <= 365) distribution['91-365 days']++;
+                  else distribution['365+ days']++;
+                });
+              }
+              
+              return {
+                labels: Object.keys(distribution),
+                data: Object.values(distribution),
+                colors: ['#4BC0C0', '#FFCE56', '#FF9F40', '#FF6384', '#36A2EB']
+              };
+            })()}
+            title="Backdated Days Distribution"
+            subtitle="Distribution of backdated entries by days difference"
           />
         </Grid>
         
@@ -501,35 +694,72 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
         <Grid item size={{xs: 12, md: 6}}>
           <Card sx={{ borderRadius: 3, boxShadow: 2, height: '100%' }}>
             <CardContent>
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: '#2c3e50' }}>
+              <Typography variant="h6" sx={{ mb: 1, fontWeight: 600, color: '#2c3e50' }}>
                 Backdated Entries by User
               </Typography>
+              <Typography variant="body2" sx={{ mb: 2, color: '#6c757d', fontSize: '0.875rem' }}>
+                Distribution of backdated entries by user
+              </Typography>
               {chartData.backdated_activity_by_user && chartData.backdated_activity_by_user.labels.length > 0 ? (
-                <Box>
-                  {chartData.backdated_activity_by_user.labels.map((user, index) => (
-                    <Box key={index} sx={{ mb: 2, p: 2, bgcolor: '#f8f9fa', borderRadius: 2 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#2c3e50' }}>
-                          {user}
-                        </Typography>
-                        <Chip 
-                          label={chartData.backdated_activity_by_user.data[index]} 
-                          size="small"
-                          sx={{ 
-                            backgroundColor: '#e65100',
-                            color: 'white',
-                            fontWeight: 600,
-                            fontSize: '0.75rem'
-                          }}
-                        />
-                      </Box>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography variant="caption" color="text.secondary">
-                          {chartData.backdated_activity_by_user.data[index]} entries
-                        </Typography>
-                      </Box>
-                    </Box>
-                  ))}
+                <Box sx={{ height: 200, width: '100%' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData.backdated_activity_by_user.labels.map((user, index) => ({
+                      name: user,
+                      entries: chartData.backdated_activity_by_user.data[index] || 0
+                    }))}>
+                      <defs>
+                        <linearGradient id="userGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#e65100" stopOpacity={0.8}/>
+                          <stop offset="95%" stopColor="#e65100" stopOpacity={0.1}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis 
+                        dataKey="name" 
+                        tick={{ fontSize: 10 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 10 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip 
+                        content={({ active, payload, label }) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <Box sx={{ 
+                                backgroundColor: 'white', 
+                                border: '1px solid #ccc', 
+                                borderRadius: 2, 
+                                p: 2,
+                                boxShadow: 2
+                              }}>
+                                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                                  {label}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  Entries: {payload[0]?.value || 0}
+                                </Typography>
+                              </Box>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="entries" 
+                        stroke="#e65100"
+                        strokeWidth={2}
+                        fill="url(#userGradient)"
+                        dot={{ fill: '#e65100', strokeWidth: 1, r: 3 }}
+                        activeDot={{ r: 5, stroke: '#e65100', strokeWidth: 2, fill: '#e65100' }}
+                        name="Entries"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </Box>
               ) : (
                 <Box sx={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -542,40 +772,189 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
           </Card>
         </Grid>
         
-        {/* Amount Distribution Chart with Gradient */}
+        {/* Amount Distribution Chart */}
+        <Grid item size={{xs: 12, md: 6}}>
+          <Card sx={{ borderRadius: 3, boxShadow: 2, height: '100%' }}>
+            <CardContent>
+              <Typography variant="h6" sx={{ mb: 1, fontWeight: 600, color: '#2c3e50' }}>
+                Amount Distribution by Range
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 2, color: '#6c757d', fontSize: '0.875rem' }}>
+                Distribution of backdated entries by amount range
+              </Typography>
+              {chartData.backdated_amount_distribution && chartData.backdated_amount_distribution.labels.length > 0 ? (
+                <Box sx={{ height: 200, width: '100%' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData.backdated_amount_distribution.labels.map((range, index) => ({
+                      name: range,
+                      transactions: chartData.backdated_amount_distribution.data[index] || 0
+                    }))}>
+                      <defs>
+                        <linearGradient id="amountGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#e65100" stopOpacity={0.8}/>
+                          <stop offset="95%" stopColor="#e65100" stopOpacity={0.1}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis 
+                        dataKey="name" 
+                        tick={{ fontSize: 10 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 10 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip 
+                        content={({ active, payload, label }) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <Box sx={{ 
+                                backgroundColor: 'white', 
+                                border: '1px solid #ccc', 
+                                borderRadius: 2, 
+                                p: 2,
+                                boxShadow: 2
+                              }}>
+                                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                                  {label}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  Transactions: {payload[0]?.value || 0}
+                                </Typography>
+                              </Box>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="transactions" 
+                        stroke="#e65100"
+                        strokeWidth={2}
+                        fill="url(#amountGradient)"
+                        dot={{ fill: '#e65100', strokeWidth: 1, r: 3 }}
+                        activeDot={{ r: 5, stroke: '#e65100', strokeWidth: 2, fill: '#e65100' }}
+                        name="Transactions"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </Box>
+              ) : (
+                <Box sx={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Typography variant="body2" color="text.secondary">
+                    No amount distribution data available
+                  </Typography>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Financial Statement Line Breakdown */}
+        <Grid item size={{xs: 12, md: 6}}>
+          <Card sx={{ borderRadius: 3, boxShadow: 2, height: '100%' }}>
+            <CardContent>
+              <Typography variant="h6" sx={{ mb: 1, fontWeight: 600, color: '#2c3e50' }}>
+                GL Account Breakdown
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 2, color: '#6c757d', fontSize: '0.875rem' }}>
+                Distribution of backdated entries by GL account
+              </Typography>
+              {chartData.financial_statement_line_breakdown && chartData.financial_statement_line_breakdown.labels.length > 0 ? (
+                <Box sx={{ height: 200, width: '100%' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData.financial_statement_line_breakdown.labels.map((account, index) => ({
+                      name: account,
+                      entries: chartData.financial_statement_line_breakdown.data[index] || 0
+                    }))}>
+                      <defs>
+                        <linearGradient id="accountGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#e65100" stopOpacity={0.8}/>
+                          <stop offset="95%" stopColor="#e65100" stopOpacity={0.1}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis 
+                        dataKey="name" 
+                        tick={{ fontSize: 10 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 10 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip 
+                        content={({ active, payload, label }) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <Box sx={{ 
+                                backgroundColor: 'white', 
+                                border: '1px solid #ccc', 
+                                borderRadius: 2, 
+                                p: 2,
+                                boxShadow: 2
+                              }}>
+                                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                                  {label}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  Backdated Entries: {payload[0]?.value || 0}
+                                </Typography>
+                              </Box>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="entries" 
+                        stroke="#e65100"
+                        strokeWidth={2}
+                        fill="url(#accountGradient)"
+                        dot={{ fill: '#e65100', strokeWidth: 1, r: 3 }}
+                        activeDot={{ r: 5, stroke: '#e65100', strokeWidth: 2, fill: '#e65100' }}
+                        name="Backdated Entries"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </Box>
+              ) : (
+                <Box sx={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Typography variant="body2" color="text.secondary">
+                    No GL account breakdown data available
+                  </Typography>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Monthly Backdated Trend Chart */}
         <Grid item size={{xs: 12, md: 6}}>
           <Card sx={{ borderRadius: 3, boxShadow: 2, height: '100%' }}>
             <CardContent>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: '#2c3e50' }}>
-                Amount Distribution Trend
+                Monthly Backdated Trend
               </Typography>
-              {backdatedEntries && backdatedEntries.length > 0 ? (
+              {chartData.monthly_backdated_trend && chartData.monthly_backdated_trend.labels.length > 0 ? (
                 <Box>
-                  <Box sx={{ mb: 2, p: 2, bgcolor: '#fff3e0', borderRadius: 2, border: '1px solid #ffcc02' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#e65100' }}>
-                      Total Amount: {formatCurrency(summaryStats.total_backdated_amount || 0)}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Average per entry: {formatCurrency(summaryStats.avg_backdated_amount || 0)}
-                    </Typography>
-                  </Box>
-                  
-                  {/* Gradient Line Chart */}
                   <Box sx={{ height: 200, width: '100%' }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={backdatedEntries.slice(0, 10).map((entry, index) => ({
-                        name: `Entry ${index + 1}`,
-                        amount: entry.amount || 0,
-                        risk: entry.risk_score || 0
+                      <AreaChart data={chartData.monthly_backdated_trend.labels.map((month, index) => ({
+                        name: month,
+                        backdated: chartData.monthly_backdated_trend.data[index] || 0
                       }))}>
                         <defs>
-                          <linearGradient id="amountGradient" x1="0" y1="0" x2="0" y2="1">
+                          <linearGradient id="monthlyGradient" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#e65100" stopOpacity={0.8}/>
                             <stop offset="95%" stopColor="#e65100" stopOpacity={0.1}/>
-                          </linearGradient>
-                          <linearGradient id="riskGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#925A9B" stopOpacity={0.8}/>
-                            <stop offset="95%" stopColor="#925A9B" stopOpacity={0.1}/>
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -605,39 +984,23 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
                                     {label}
                                   </Typography>
                                   <Typography variant="body2" color="text.secondary">
-                                    Amount: {formatCurrency(payload[0]?.value || 0)}
+                                    Backdated Entries: {payload[0]?.value || 0}
                                   </Typography>
-                                  {payload[1] && (
-                                    <Typography variant="body2" color="text.secondary">
-                                      Risk: {payload[1]?.value || 0}
-                                    </Typography>
-                                  )}
                                 </Box>
                               );
                             }
                             return null;
                           }}
                         />
-                        <Legend wrapperStyle={{ fontSize: '10px' }} />
                         <Area 
                           type="monotone" 
-                          dataKey="amount" 
+                          dataKey="backdated" 
                           stroke="#e65100"
                           strokeWidth={2}
-                          fill="url(#amountGradient)"
+                          fill="url(#monthlyGradient)"
                           dot={{ fill: '#e65100', strokeWidth: 1, r: 3 }}
                           activeDot={{ r: 5, stroke: '#e65100', strokeWidth: 2, fill: '#e65100' }}
-                          name="Amount"
-                        />
-                        <Area 
-                          type="monotone" 
-                          dataKey="risk" 
-                          stroke="#925A9B"
-                          strokeWidth={2}
-                          fill="url(#riskGradient)"
-                          dot={{ fill: '#925A9B', strokeWidth: 1, r: 3 }}
-                          activeDot={{ r: 5, stroke: '#925A9B', strokeWidth: 2, fill: '#925A9B' }}
-                          name="Risk Score"
+                          name="Backdated Entries"
                         />
                       </AreaChart>
                     </ResponsiveContainer>
@@ -646,7 +1009,7 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
               ) : (
                 <Box sx={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Typography variant="body2" color="text.secondary">
-                    No amount data available
+                    No monthly trend data available
                   </Typography>
                 </Box>
               )}
@@ -654,6 +1017,133 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
           </Card>
         </Grid>
       </Grid>
+
+      {/* Backdated Summary Cards */}
+      {backdatedEntries && backdatedEntries.length > 0 && (
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h5" sx={{ 
+            fontWeight: 600, 
+            mb: 3, 
+            color: '#2c3e50',
+            fontSize: '1.25rem'
+          }}>
+            Backdated Entry Summary
+          </Typography>
+          <Grid container spacing={3}>
+            {backdatedEntries.map((entry, index) => (
+              <Grid item size={{xs: 12, sm: 6, md: 4}} key={index}>
+                <Card sx={{ 
+                  background: 'white', 
+                  borderRadius: 2,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                  border: '1px solid #e9ecef',
+                  height: '100%',
+                  transition: 'transform 0.2s ease-in-out',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.1)'
+                  }
+                }}>
+                  <CardContent sx={{ p: 3 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                      <Avatar sx={{ 
+                        width: 40, 
+                        height: 40, 
+                        backgroundColor: '#e65100',
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                        mr: 2
+                      }}>
+                        {entry.user?.charAt(0) || 'U'}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 600, 
+                          color: '#2c3e50',
+                          fontSize: '1rem'
+                        }}>
+                          {entry.user}
+                        </Typography>
+                        <Chip 
+                          label={entry.risk_level?.toUpperCase() || 'UNKNOWN'}
+                          size="small"
+                          sx={{ 
+                            backgroundColor: getRiskColor(entry.risk_level?.toUpperCase()),
+                            color: 'white',
+                            fontWeight: 600,
+                            fontSize: '0.7rem',
+                            mt: 0.5
+                          }}
+                        />
+                      </Box>
+                    </Box>
+                    
+                    <Grid container spacing={2}>
+                      <Grid item size={{xs: 6}}>
+                        <Box sx={{ textAlign: 'center' }}>
+                          <Typography variant="h4" sx={{ 
+                            fontWeight: 700, 
+                            color: '#e65100',
+                            fontSize: '1.5rem'
+                          }}>
+                            {formatCurrency(entry.amount)}
+                          </Typography>
+                          <Typography variant="body2" sx={{ 
+                            color: '#6c757d',
+                            fontSize: '0.75rem'
+                          }}>
+                            Amount
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item size={{xs: 6}}>
+                        <Box sx={{ textAlign: 'center' }}>
+                          <Typography variant="h4" sx={{ 
+                            fontWeight: 700, 
+                            color: '#e65100',
+                            fontSize: '1.5rem'
+                          }}>
+                            {entry.days_difference}
+                          </Typography>
+                          <Typography variant="body2" sx={{ 
+                            color: '#6c757d',
+                            fontSize: '0.75rem'
+                          }}>
+                            Days Diff
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    </Grid>
+                    
+                    <Box sx={{ mt: 2, p: 2, bgcolor: '#f8f9fa', borderRadius: 2 }}>
+                      <Typography variant="body2" sx={{ 
+                        color: '#6c757d',
+                        fontSize: '0.875rem',
+                        mb: 1
+                      }}>
+                        <strong>Account:</strong> {entry.account}
+                      </Typography>
+                      <Typography variant="body2" sx={{ 
+                        color: '#6c757d',
+                        fontSize: '0.875rem',
+                        mb: 1
+                      }}>
+                        <strong>Risk Score:</strong> {entry.risk_score || 'N/A'}
+                      </Typography>
+                      <Typography variant="body2" sx={{ 
+                        color: '#6c757d',
+                        fontSize: '0.875rem'
+                      }}>
+                        <strong>Type:</strong> {entry.transaction_type || 'N/A'}
+                      </Typography>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+      )}
 
       {/* All Content in One View */}
       <Grid container spacing={3} sx={{ mt: 3 }}>
@@ -705,14 +1195,16 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
                           }
                         }}>
                           <TableCell>Transaction ID</TableCell>
-                <TableCell>User</TableCell>
+                          <TableCell>User</TableCell>
                           <TableCell>Account</TableCell>
-                <TableCell>Posting Date</TableCell>
-                <TableCell>Document Date</TableCell>
-                <TableCell>Days Difference</TableCell>
+                          <TableCell>Posting Date</TableCell>
+                          <TableCell>Document Date</TableCell>
+                          <TableCell>Days Difference</TableCell>
                           <TableCell align="right">Amount</TableCell>
                           <TableCell align="center">Risk Level</TableCell>
                           <TableCell align="right">Risk Score</TableCell>
+                          <TableCell>Transaction Type</TableCell>
+                          <TableCell>Document Number</TableCell>
                           <TableCell align="center">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -841,6 +1333,27 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
                                   fontSize: '0.75rem'
                                 }}
                               />
+                            </TableCell>
+                            <TableCell sx={{ py: 2 }}>
+                              <Chip 
+                                label={entry.transaction_type || 'N/A'} 
+                                size="small"
+                                variant="outlined"
+                                sx={{ 
+                                  borderColor: entry.transaction_type === 'DEBIT' ? '#dc3545' : '#28a745',
+                                  color: entry.transaction_type === 'DEBIT' ? '#dc3545' : '#28a745',
+                                  fontWeight: 600,
+                                  fontSize: '0.75rem'
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell sx={{ py: 2 }}>
+                              <Typography variant="body2" sx={{ 
+                                color: '#6c757d',
+                                fontSize: '0.875rem'
+                              }}>
+                                {entry.document_number || 'N/A'}
+                              </Typography>
                             </TableCell>
                             <TableCell align="center" sx={{ py: 2 }}>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

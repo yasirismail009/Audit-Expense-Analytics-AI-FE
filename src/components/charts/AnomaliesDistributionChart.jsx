@@ -14,14 +14,14 @@ const anomalyTypes = [
   { key: 'holiday_entries', label: 'Holiday', color: '#FF9F40' }
 ];
 
-export default function AnomaliesDistributionChart({ data }) {
+export default function AnomaliesDistributionChart({ data, title = "Anomalies Distribution", subtitle }) {
   console.log(data)
   if (!data) {
     return (
-      <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2 }}>
+      <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2, width: '100%' }}>
         <CardContent>
           <Typography variant="subtitle2" sx={{ mb: 2 }}>Anomalies Distribution</Typography>
-          <Box sx={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Box sx={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Typography variant="body2" color="text.secondary">
               No anomaly data available
             </Typography>
@@ -86,10 +86,17 @@ export default function AnomaliesDistributionChart({ data }) {
   };
 
   return (
-    <Card sx={{  borderRadius: 3, boxShadow: 2, width: '100%', }}>
+    <Card sx={{ borderRadius: 3, boxShadow: 2, width: '100%', height: '100%' }}>
       <CardContent>
-        <Typography variant="subtitle2" sx={{ mb: 2 }}>Anomalies Distribution</Typography>
-        <Box sx={{ height: 120, width: '100%', minWidth: '100%' }}>
+        <Typography variant="h6" sx={{ mb: 1, fontWeight: 600, color: '#2c3e50' }}>
+          {title}
+        </Typography>
+        {subtitle && (
+          <Typography variant="body2" sx={{ mb: 2, color: '#6c757d', fontSize: '0.875rem' }}>
+            {subtitle}
+          </Typography>
+        )}
+        <Box sx={{ height: 200, width: '100%', minWidth: '100%' }}>
         <ResponsiveContainer width="100%" height="100%">
             {chartData.length > 0 ? (
               <AreaChart data={chartData}>

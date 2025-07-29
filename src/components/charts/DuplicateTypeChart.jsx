@@ -19,8 +19,10 @@ export default function DuplicateTypeChart({ data, currency = 'SAR' }) {
     }
   };
 
-  // Check for new data structure first, then fallback to old structure
-  const chartData = data?.chart_data?.duplicate_types_distribution || data?.type_breakdown;
+  // Check for new API response structure first, then fallback to old structure
+  const chartData = data?.visualizations?.chart_data?.duplicate_distribution || 
+                   data?.chart_data?.duplicate_types_distribution || 
+                   data?.type_breakdown;
 
   if (!data || !chartData || (Array.isArray(chartData) && chartData.length === 0) || (typeof chartData === 'object' && Object.keys(chartData).length === 0)) {
     return (
@@ -48,9 +50,10 @@ export default function DuplicateTypeChart({ data, currency = 'SAR' }) {
     }));
     
     // Calculate amounts from duplicate entries if available
-    if (data.duplicate_entries) {
+    const duplicateEntries = data?.detailed_results?.duplicate_entries || data?.duplicate_entries;
+    if (duplicateEntries) {
       transformedData.forEach(item => {
-        const matchingEntries = data.duplicate_entries.filter(entry => 
+        const matchingEntries = duplicateEntries.filter(entry => 
           entry.duplicate_type === item.type
         );
         item.amount = matchingEntries.reduce((sum, entry) => 

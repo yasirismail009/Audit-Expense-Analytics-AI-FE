@@ -18,8 +18,22 @@ export default function DuplicateAmountChart({ data, currency = 'SAR' }) {
     }
   };
 
-  // Check for new data structure first, then fallback to old structure
-  const chartData = data?.chart_data?.duplicate_amount_distribution || data?.duplicates;
+  // Check for new API response structure first, then fallback to old structure
+  const chartData = data?.visualizations?.slicer_filters?.amount_ranges ? {
+    labels: data.visualizations.slicer_filters.amount_ranges,
+    data: data.visualizations.slicer_filters.amount_ranges.map(range => {
+      const duplicateEntries = data?.detailed_results?.duplicate_entries || data?.duplicate_entries;
+      if (duplicateEntries) {
+        // Parse the amount range (e.g., "0-1000", "1000-10000")
+        const [min, max] = range.split('-').map(Number);
+        return duplicateEntries.filter(entry => {
+          const totalAmount = entry.transaction1.amount + entry.transaction2.amount;
+          return totalAmount >= min && (max ? totalAmount < max : true);
+        }).length;
+      }
+      return 0;
+    })
+  } : data?.chart_data?.duplicate_amount_distribution || data?.duplicates;
 
   if (!data || !chartData || (Array.isArray(chartData) && chartData.length === 0)) {
     return (
@@ -46,7 +60,8 @@ export default function DuplicateAmountChart({ data, currency = 'SAR' }) {
     }));
     
     // Calculate amounts from duplicate entries if available
-    if (data.duplicate_entries) {
+    const duplicateEntries = data?.detailed_results?.duplicate_entries || data?.duplicate_entries;
+    if (duplicateEntries) {
       transformedData.forEach(item => {
         // Parse the amount range from the label (e.g., "1M-10M SAR")
         const rangeMatch = item.name.match(/(\d+)M-(\d+)M SAR/);
@@ -54,7 +69,7 @@ export default function DuplicateAmountChart({ data, currency = 'SAR' }) {
           const minAmount = parseInt(rangeMatch[1]) * 1000000;
           const maxAmount = parseInt(rangeMatch[2]) * 1000000;
           
-          const rangeDuplicates = data.duplicate_entries.filter(entry => {
+          const rangeDuplicates = duplicateEntries.filter(entry => {
             const totalAmount = entry.transaction1.amount + entry.transaction2.amount;
             return totalAmount >= minAmount && totalAmount <= maxAmount;
           });

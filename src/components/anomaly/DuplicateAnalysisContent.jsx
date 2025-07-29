@@ -128,19 +128,72 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
   // Extract data from the new API structure
   const fileInfo = data?.file_info || {};
   const analysisInfo = data?.analysis_info || {};
-  const summaryStats = data?.summary_statistics || {};
-  const riskAssessment = data?.risk_assessment || {};
-  const chartData = data?.chart_data || {};
-  const duplicateEntries = data?.duplicate_entries || [];
-  const duplicatePatterns = data?.duplicate_patterns || {};
-  const recommendations = data?.recommendations || [];
-  const auditImplications = data?.audit_implications || {};
-  const criticalAlerts = data?.critical_alerts || [];
+  const summary = data?.summary || {};
+  const detailedResults = data?.detailed_results || {};
+  const visualizations = data?.visualizations || {};
+  const exportData = data?.export_data || {};
+  
+  // Map new structure to component expectations
+  const summaryStats = {
+    duplicate_transactions: summary.total_duplicates || 0,
+    total_transactions: summary.total_duplicates * 2 || 0, // Each duplicate has 2 transactions
+    total_duplicate_amount: summary.total_amount || 0,
+    avg_duplicate_amount: summary.total_amount ? summary.total_amount / summary.total_duplicates : 0,
+    avg_risk_score: 0 // Calculate from detailed results
+  };
+  
+  const riskAssessment = {
+    risk_level: Object.keys(summary.risk_distribution || {}).length > 0 ? 
+      Object.keys(summary.risk_distribution).find(level => summary.risk_distribution[level] > 0)?.toUpperCase() || 'LOW' : 'LOW',
+    risk_distribution: summary.risk_distribution || {}
+  };
+  
+  const chartData = {
+    duplicate_types_distribution: {
+      labels: Object.keys(visualizations.chart_data?.duplicate_distribution || {}).filter(type => 
+        visualizations.chart_data.duplicate_distribution[type] > 0
+      ),
+      data: Object.keys(visualizations.chart_data?.duplicate_distribution || {}).filter(type => 
+        visualizations.chart_data.duplicate_distribution[type] > 0
+      ).map(type => visualizations.chart_data.duplicate_distribution[type]),
+      colors: ['#925a9b', '#e74c3c', '#f39c12', '#27ae60', '#3498db', '#9b59b6']
+    },
+    duplicate_activity_by_user: {
+      labels: visualizations.slicer_filters?.users || [],
+      data: visualizations.slicer_filters?.users?.map(user => {
+        const userDuplicates = detailedResults.duplicate_entries?.filter(entry => 
+          entry.transaction1.user === user || entry.transaction2.user === user
+        ) || [];
+        return userDuplicates.length;
+      }) || []
+    },
+    financial_statement_line_breakdown: {
+      labels: visualizations.slicer_filters?.accounts || [],
+      data: visualizations.slicer_filters?.accounts?.map(account => {
+        const accountDuplicates = detailedResults.duplicate_entries?.filter(entry => 
+          entry.transaction1.account === account || entry.transaction2.account === account
+        ) || [];
+        return accountDuplicates.length;
+      }) || []
+    }
+  };
+  
+  const duplicateEntries = detailedResults.duplicate_entries || [];
+  const duplicatePatterns = detailedResults.duplicate_patterns || {};
+  const recommendations = summary.high_priority_recommendations || [];
+  const auditImplications = {
+    immediate_actions: summary.compliance_issues?.map(issue => issue.description) || []
+  };
+  const criticalAlerts = summary.compliance_issues?.filter(issue => issue.severity === 'HIGH') || [];
 
   // Calculate overall risk score based on new data structure
   const totalDuplicates = summaryStats.duplicate_transactions || 0;
   const totalTransactions = summaryStats.total_transactions || 0;
-  const overallRiskScore = summaryStats.avg_risk_score || 0;
+  
+  // Calculate average risk score from duplicate entries
+  const overallRiskScore = duplicateEntries.length > 0 ? 
+    duplicateEntries.reduce((sum, entry) => sum + (entry.risk_score || 0), 0) / duplicateEntries.length : 0;
+  
   const riskLevel = riskAssessment.risk_level || 'LOW';
 console.log("duplicate data",   data);
   return (
@@ -516,7 +569,7 @@ console.log("duplicate data",   data);
       <DuplicateAnalysisDashboard data={data} />
 
       {/* Duplicate Flags Summary Cards */}
-      {chartData.duplicate_types_distribution && (
+      {chartData.duplicate_types_distribution && chartData.duplicate_types_distribution.labels.length > 0 && (
         <Box sx={{ mb: 4 }}>
           <Typography variant="h5" sx={{ 
             fontWeight: 600, 
@@ -724,7 +777,7 @@ console.log("duplicate data",   data);
               </Box>}
 
               {/* Type Breakdown Table */}
-              {chartData.duplicate_types_distribution && (
+              {chartData.duplicate_types_distribution && chartData.duplicate_types_distribution.labels.length > 0 && (
                 <Box sx={{ mb: 4 }}>
                   <Typography variant="h6" sx={{ 
                     fontWeight: 600, 
@@ -1053,7 +1106,7 @@ console.log("duplicate data",   data);
         </Grid>
 
         {/* Section 2: User Analysis */}
-        {chartData.duplicate_activity_by_user && (
+        {chartData.duplicate_activity_by_user && chartData.duplicate_activity_by_user.labels.length > 0 && (
           <Grid item size={{xs: 12}}>
             <Card sx={{ 
               background: 'white', 
@@ -1202,7 +1255,7 @@ console.log("duplicate data",   data);
         )}
 
         {/* Section 3: GL Account Analysis */}
-        {chartData.financial_statement_line_breakdown && (
+        {chartData.financial_statement_line_breakdown && chartData.financial_statement_line_breakdown.labels.length > 0 && (
           <Grid item size={{xs: 12}}>
             <Card sx={{ 
               background: 'white', 
@@ -1361,7 +1414,7 @@ console.log("duplicate data",   data);
         )}
 
         {/* Section 4: Risk Analysis */}
-        {riskAssessment.risk_distribution && (
+        {riskAssessment.risk_distribution && Object.keys(riskAssessment.risk_distribution).length > 0 && (
             <Grid item size={{xs: 12}}>
             <Card sx={{ 
               background: 'white', 
@@ -1490,7 +1543,7 @@ console.log("duplicate data",   data);
         )}
 
         {/* Section 5: Detailed Insights */}
-        {(recommendations.length > 0 || auditImplications.immediate_actions) && (
+        {(recommendations.length > 0 || (auditImplications.immediate_actions && auditImplications.immediate_actions.length > 0)) && (
           <Grid item size={{xs: 12}}>
             <Card sx={{ 
               background: 'white', 
@@ -1529,7 +1582,7 @@ console.log("duplicate data",   data);
                               </ListItemIcon>
                               <ListItemText 
                                 primary={recommendation.action}
-                                secondary={recommendation.description}
+                                secondary={recommendation.recommendation || recommendation.description}
                                 sx={{ 
                                   '& .MuiListItemText-primary': {
                                     fontSize: '0.875rem',
@@ -1611,8 +1664,8 @@ console.log("duplicate data",   data);
                                 <ErrorIcon sx={{ color: '#dc3545', fontSize: 16 }} />
                               </ListItemIcon>
                               <ListItemText 
-                                primary={alert.message}
-                                secondary={`Severity: ${alert.severity} • Action Required: ${alert.action_required}`}
+                                primary={alert.description}
+                                secondary={`Severity: ${alert.severity} • Count: ${alert.count} • Amount: ${formatCurrency(alert.total_amount)}`}
                                 sx={{ 
                                   '& .MuiListItemText-primary': {
                                     fontSize: '0.875rem',
@@ -1640,8 +1693,8 @@ console.log("duplicate data",   data);
 
       {/* Show raw data for debugging if no structured data */}
       {(!duplicateEntries || duplicateEntries.length === 0) && 
-       (!chartData.duplicate_types_distribution) && 
-       (!chartData.duplicate_activity_by_user) && (
+       (!chartData.duplicate_types_distribution || chartData.duplicate_types_distribution.labels.length === 0) && 
+       (!chartData.duplicate_activity_by_user || chartData.duplicate_activity_by_user.labels.length === 0) && (
         <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
           No structured duplicate data found. Raw response:
         </Alert>

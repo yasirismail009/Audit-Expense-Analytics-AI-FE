@@ -18,8 +18,19 @@ export default function DuplicateFSLineChart({ data, currency = 'SAR' }) {
     }
   };
 
-  // Check for new data structure first, then fallback to old structure
-  const chartData = data?.chart_data?.financial_statement_line_breakdown || data?.fs_line_breakdown;
+  // Check for new API response structure first, then fallback to old structure
+  const chartData = data?.visualizations?.slicer_filters?.accounts ? {
+    labels: data.visualizations.slicer_filters.accounts,
+    data: data.visualizations.slicer_filters.accounts.map(account => {
+      const duplicateEntries = data?.detailed_results?.duplicate_entries || data?.duplicate_entries;
+      if (duplicateEntries) {
+        return duplicateEntries.filter(entry => 
+          entry.transaction1.account === account || entry.transaction2.account === account
+        ).length;
+      }
+      return 0;
+    })
+  } : data?.chart_data?.financial_statement_line_breakdown || data?.fs_line_breakdown;
 
   if (!data || !chartData || (Array.isArray(chartData) && chartData.length === 0)) {
     return (
@@ -48,9 +59,10 @@ export default function DuplicateFSLineChart({ data, currency = 'SAR' }) {
     }));
     
     // Calculate amounts from duplicate entries if available
-    if (data.duplicate_entries) {
+    const duplicateEntries = data?.detailed_results?.duplicate_entries || data?.duplicate_entries;
+    if (duplicateEntries) {
       transformedData.forEach(item => {
-        const accountDuplicates = data.duplicate_entries.filter(entry => 
+        const accountDuplicates = duplicateEntries.filter(entry => 
           entry.transaction1.account === item.glAccount || entry.transaction2.account === item.glAccount
         );
         item.totalAmount = accountDuplicates.reduce((sum, entry) => 

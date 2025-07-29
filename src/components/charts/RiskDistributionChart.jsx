@@ -3,13 +3,20 @@ import { Card, CardContent, Typography, Box } from '@mui/material';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Legend, Area, AreaChart } from 'recharts';
 import { colorScheme, getColorByIndex } from '../../utils/colorScheme';
 
-export default function RiskDistributionChart({ data }) {
+export default function RiskDistributionChart({ data, title = "Risk Distribution", subtitle }) {
   console.log(data)
   if (!data || !data.labels || !data.data) {
     return (
-      <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2 }}>
+      <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2, width: '100%' }}>
         <CardContent>
-          <Typography variant="subtitle2" sx={{ mb: 2 }}>Risk Distribution</Typography>
+          <Typography variant="h6" sx={{ mb: 1, fontWeight: 600, color: '#2c3e50' }}>
+          {title}
+        </Typography>
+        {subtitle && (
+          <Typography variant="body2" sx={{ mb: 2, color: '#6c757d', fontSize: '0.875rem' }}>
+            {subtitle}
+          </Typography>
+        )}
           <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Typography variant="body2" color="text.secondary">No data available</Typography>
           </Box>
@@ -48,9 +55,16 @@ export default function RiskDistributionChart({ data }) {
   };
 
   return (
-    <Card sx={{  borderRadius: 3, boxShadow: 2, width: '100%', }}>
+    <Card sx={{ borderRadius: 3, boxShadow: 2, width: '100%', height: '100%' }}>
       <CardContent>
-        <Typography variant="subtitle2" sx={{ mb: 2 }}>Risk Distribution</Typography>
+        <Typography variant="h6" sx={{ mb: 1, fontWeight: 600, color: '#2c3e50' }}>
+          {title}
+        </Typography>
+        {subtitle && (
+          <Typography variant="body2" sx={{ mb: 2, color: '#6c757d', fontSize: '0.875rem' }}>
+            {subtitle}
+          </Typography>
+        )}
                 <Box sx={{ height: 200, width: '100%', minWidth: '100%' }}>
           <ResponsiveContainer width="100%" height="100%">
             {chartData.length > 0 ? (

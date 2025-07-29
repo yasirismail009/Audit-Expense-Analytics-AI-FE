@@ -53,4 +53,19 @@ export const getColorByIndex = (index) => {
 // Get risk color
 export const getRiskColor = (riskLevel) => {
   return colorScheme.riskColors[riskLevel?.toUpperCase()] || colorScheme.riskColors.LOW;
+};
+
+// Shared currency formatting function
+export const formatCurrency = (amount) => {
+  const num = parseFloat(amount || 0);
+  
+  if (num >= 1000000000000) {
+    return `${(num / 1000000000000).toFixed(1)}T SAR`;
+  } else if (num >= 1000000) {
+    return `${(num / 1000000).toFixed(1)}M SAR`;
+  } else if (num >= 1000) {
+    return `${(num / 1000).toFixed(1)}K SAR`;
+  } else {
+    return `${num.toFixed(0)} SAR`;
+  }
 }; 

@@ -18,8 +18,19 @@ export default function DuplicateUserChart({ data, currency = 'SAR' }) {
     }
   };
 
-  // Check for new data structure first, then fallback to old structure
-  const chartData = data?.chart_data?.duplicate_activity_by_user || data?.charts_data?.user_breakdown;
+  // Check for new API response structure first, then fallback to old structure
+  const chartData = data?.visualizations?.slicer_filters?.users ? {
+    labels: data.visualizations.slicer_filters.users,
+    data: data.visualizations.slicer_filters.users.map(user => {
+      const duplicateEntries = data?.detailed_results?.duplicate_entries || data?.duplicate_entries;
+      if (duplicateEntries) {
+        return duplicateEntries.filter(entry => 
+          entry.transaction1.user === user || entry.transaction2.user === user
+        ).length;
+      }
+      return 0;
+    })
+  } : data?.chart_data?.duplicate_activity_by_user || data?.charts_data?.user_breakdown;
 
   if (!data || !chartData || (Array.isArray(chartData) && chartData.length === 0)) {
     return (
@@ -46,9 +57,10 @@ export default function DuplicateUserChart({ data, currency = 'SAR' }) {
     }));
     
     // Calculate amounts and types from duplicate entries if available
-    if (data.duplicate_entries) {
+    const duplicateEntries = data?.detailed_results?.duplicate_entries || data?.duplicate_entries;
+    if (duplicateEntries) {
       transformedData.forEach(item => {
-        const userDuplicates = data.duplicate_entries.filter(entry => 
+        const userDuplicates = duplicateEntries.filter(entry => 
           entry.transaction1.user === item.user || entry.transaction2.user === item.user
         );
         item.totalAmount = userDuplicates.reduce((sum, entry) => 

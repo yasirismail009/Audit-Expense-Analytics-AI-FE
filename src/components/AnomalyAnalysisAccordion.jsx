@@ -46,7 +46,7 @@ const anomalyTypes = [
     title: 'User Analysis',
     icon: <PersonIcon />,
     description: 'User behavior and transaction patterns',
-    apiEndpoint: '/api/db-comprehensive-user-analysis/file/',
+    apiEndpoint: '/api/user-analysis/',
     color: '#36A2EB'
   },
   {
