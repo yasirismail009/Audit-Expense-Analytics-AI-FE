@@ -5,8 +5,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
   // Helper function to get risk level from score
   const getRiskLevel = (score) => {
-    if (score >= 80) return 'CRITICAL';
-    if (score >= 60) return 'HIGH';
+    if (score >= 90) return 'CRITICAL';
+    if (score >= 70) return 'HIGH';
     if (score >= 40) return 'MEDIUM';
     return 'LOW';
   };
@@ -63,7 +63,8 @@ export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
       transformedData.forEach(item => {
         const matchingEntries = duplicateEntries.filter(entry => {
           const entryRiskLevel = getRiskLevel(entry.risk_score);
-          return entryRiskLevel === item.riskLevel;
+          // Handle both formats: "CRITICAL" vs "Critical", "HIGH" vs "High"
+          return entryRiskLevel.toUpperCase() === item.riskLevel.toUpperCase();
         });
         item.amount = matchingEntries.reduce((sum, entry) => 
           sum + entry.transaction1.amount + entry.transaction2.amount, 0
@@ -81,28 +82,107 @@ export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
         transactions: item.transactions
       }));
   } else if (typeof chartData === 'object' && !Array.isArray(chartData)) {
-    // New API structure: risk_distribution is an object like {"Critical": 1, "High": 1}
-    transformedData = Object.entries(chartData)
-      .filter(([riskLevel, count]) => count > 0) // Only show risk levels with data
-      .map(([riskLevel, count]) => ({
-        riskLevel: riskLevel.toUpperCase(),
-        count: count,
-        amount: 0, // Will be calculated from duplicate entries
-        transactions: count * 2
-      }));
-    
-    // Calculate amounts from duplicate entries if available
+    // New API structure: Create chart data based on amount categorization
     const duplicateEntries = data?.detailed_results?.duplicate_entries || data?.duplicate_entries;
+    
     if (duplicateEntries) {
-      transformedData.forEach(item => {
-        const matchingEntries = duplicateEntries.filter(entry => {
-          const entryRiskLevel = getRiskLevel(entry.risk_score);
-          return entryRiskLevel === item.riskLevel;
-        });
-        item.amount = matchingEntries.reduce((sum, entry) => 
-          sum + entry.transaction1.amount + entry.transaction2.amount, 0
-        );
+      console.log('DuplicateRiskChart - duplicateEntries:', duplicateEntries);
+      
+      // Initialize risk level categories
+      const riskCategories = {
+        CRITICAL: { count: 0, amount: 0, transactions: 0 },
+        HIGH: { count: 0, amount: 0, transactions: 0 },
+        MEDIUM: { count: 0, amount: 0, transactions: 0 },
+        LOW: { count: 0, amount: 0, transactions: 0 }
+      };
+      
+      // Process each duplicate entry and categorize by amount
+      duplicateEntries.forEach(entry => {
+        // Process transaction1
+        const amount1 = entry.transaction1?.amount || 0;
+        console.log(`Processing transaction1 with amount: ${amount1}`);
+        
+        // Categorize transaction1 based on amount ranges
+        if (amount1 > 2000000) {
+          // Above 2 million = CRITICAL
+          riskCategories.CRITICAL.count += 1;
+          riskCategories.CRITICAL.amount += amount1;
+          riskCategories.CRITICAL.transactions += 1;
+          console.log(`CRITICAL: Added transaction1 amount ${amount1}, count now ${riskCategories.CRITICAL.count}`);
+        } else if (amount1 >= 1000000 && amount1 <= 2000000) {
+          // 1-2 million = HIGH
+          riskCategories.HIGH.count += 1;
+          riskCategories.HIGH.amount += amount1;
+          riskCategories.HIGH.transactions += 1;
+          console.log(`HIGH: Added transaction1 amount ${amount1}, count now ${riskCategories.HIGH.count}`);
+        } else if (amount1 >= 500000 && amount1 < 1000000) {
+          // 500K to 1 million = MEDIUM
+          riskCategories.MEDIUM.count += 1;
+          riskCategories.MEDIUM.amount += amount1;
+          riskCategories.MEDIUM.transactions += 1;
+          console.log(`MEDIUM: Added transaction1 amount ${amount1}, count now ${riskCategories.MEDIUM.count}`);
+        } else {
+          // Below 500K = LOW
+          riskCategories.LOW.count += 1;
+          riskCategories.LOW.amount += amount1;
+          riskCategories.LOW.transactions += 1;
+          console.log(`LOW: Added transaction1 amount ${amount1}, count now ${riskCategories.LOW.count}`);
+        }
+        
+        // Process transaction2
+        const amount2 = entry.transaction2?.amount || 0;
+        console.log(`Processing transaction2 with amount: ${amount2}`);
+        
+        // Categorize transaction2 based on amount ranges
+        if (amount2 > 2000000) {
+          // Above 2 million = CRITICAL
+          riskCategories.CRITICAL.count += 1;
+          riskCategories.CRITICAL.amount += amount2;
+          riskCategories.CRITICAL.transactions += 1;
+          console.log(`CRITICAL: Added transaction2 amount ${amount2}, count now ${riskCategories.CRITICAL.count}`);
+        } else if (amount2 >= 1000000 && amount2 <= 2000000) {
+          // 1-2 million = HIGH
+          riskCategories.HIGH.count += 1;
+          riskCategories.HIGH.amount += amount2;
+          riskCategories.HIGH.transactions += 1;
+          console.log(`HIGH: Added transaction2 amount ${amount2}, count now ${riskCategories.HIGH.count}`);
+        } else if (amount2 >= 500000 && amount2 < 1000000) {
+          // 500K to 1 million = MEDIUM
+          riskCategories.MEDIUM.count += 1;
+          riskCategories.MEDIUM.amount += amount2;
+          riskCategories.MEDIUM.transactions += 1;
+          console.log(`MEDIUM: Added transaction2 amount ${amount2}, count now ${riskCategories.MEDIUM.count}`);
+        } else {
+          // Below 500K = LOW
+          riskCategories.LOW.count += 1;
+          riskCategories.LOW.amount += amount2;
+          riskCategories.LOW.transactions += 1;
+          console.log(`LOW: Added transaction2 amount ${amount2}, count now ${riskCategories.LOW.count}`);
+        }
       });
+      
+      // Create transformed data only for categories with data
+      transformedData = Object.entries(riskCategories)
+        .filter(([riskLevel, data]) => data.count > 0) // Only show risk levels with data
+        .map(([riskLevel, data]) => ({
+          riskLevel: riskLevel,
+          count: data.count,
+          amount: data.amount,
+          transactions: data.transactions
+        }));
+      
+      console.log('Risk categories:', riskCategories);
+      console.log('Transformed data:', transformedData);
+    } else {
+      // Fallback to original API structure if no duplicate entries
+      transformedData = Object.entries(chartData)
+        .filter(([riskLevel, count]) => count > 0)
+        .map(([riskLevel, count]) => ({
+          riskLevel: riskLevel.toUpperCase(),
+          count: count,
+          amount: 0,
+          transactions: count * 2
+        }));
     }
   } else if (Array.isArray(chartData)) {
     // Old structure: duplicates array - group by risk level

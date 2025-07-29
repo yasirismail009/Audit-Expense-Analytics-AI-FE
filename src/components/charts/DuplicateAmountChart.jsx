@@ -20,20 +20,40 @@ export default function DuplicateAmountChart({ data, currency = 'SAR' }) {
 
   // Check for new API response structure first, then fallback to old structure
   const chartData = data?.visualizations?.slicer_filters?.amount_ranges ? {
-    labels: data.visualizations.slicer_filters.amount_ranges,
+    labels: data.visualizations.slicer_filters.amount_ranges.map(range => {
+      // Convert range format to display format (e.g., "0-1000" -> "0-1K SAR")
+      if (range === "100000+") return "100K+ SAR";
+      const [min, max] = range.split('-').map(Number);
+      if (max >= 1000000) {
+        return `${(min/1000000).toFixed(0)}M-${(max/1000000).toFixed(0)}M SAR`;
+      } else if (max >= 1000) {
+        return `${(min/1000).toFixed(0)}K-${(max/1000).toFixed(0)}K SAR`;
+      } else {
+        return `${min}-${max} SAR`;
+      }
+    }),
     data: data.visualizations.slicer_filters.amount_ranges.map(range => {
       const duplicateEntries = data?.detailed_results?.duplicate_entries || data?.duplicate_entries;
       if (duplicateEntries) {
-        // Parse the amount range (e.g., "0-1000", "1000-10000")
-        const [min, max] = range.split('-').map(Number);
-        return duplicateEntries.filter(entry => {
-          const totalAmount = entry.transaction1.amount + entry.transaction2.amount;
-          return totalAmount >= min && (max ? totalAmount < max : true);
-        }).length;
+        // Parse the amount range (e.g., "0-1000", "1000-10000", "100000+")
+        if (range === "100000+") {
+          return duplicateEntries.filter(entry => {
+            const totalAmount = entry.transaction1.amount + entry.transaction2.amount;
+            return totalAmount >= 100000;
+          }).length;
+        } else {
+          const [min, max] = range.split('-').map(Number);
+          return duplicateEntries.filter(entry => {
+            const totalAmount = entry.transaction1.amount + entry.transaction2.amount;
+            return totalAmount >= min && totalAmount < max;
+          }).length;
+        }
       }
       return 0;
     })
   } : data?.chart_data?.duplicate_amount_distribution || data?.duplicates;
+  
+
 
   if (!data || !chartData || (Array.isArray(chartData) && chartData.length === 0)) {
     return (
