@@ -250,8 +250,7 @@ export default function ColorCodedDuplicateList({ data, currency = 'SAR' }) {
         {Object.entries(groupedData).map(([groupName, groupData]) => {
           const chartData = generateChartData(groupData.items, groupData.color);
           
-          // Debug: Log color information
-          console.log(`Group: ${groupName}, Color: ${groupData.color}`);
+
           
           return (
             <Grid item size={{xs: 12, md: 6}} key={groupName}>
@@ -264,7 +263,7 @@ export default function ColorCodedDuplicateList({ data, currency = 'SAR' }) {
               >
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <Box sx={{ 
+                    {/* <Box sx={{ 
                       width: 36, 
                       height: 36, 
                       borderRadius: '50%', 
@@ -275,7 +274,7 @@ export default function ColorCodedDuplicateList({ data, currency = 'SAR' }) {
                       mr: 2
                     }}>
                       {getGroupIcon(groupName)}
-                    </Box>
+                    </Box> */}
                     <Typography variant="h6" sx={{ fontWeight: 'bold', color: groupData.color || '#925a9b', flexGrow: 1 }}>
                       {groupName}
                     </Typography>

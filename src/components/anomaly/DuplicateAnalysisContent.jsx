@@ -195,7 +195,6 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
     duplicateEntries.reduce((sum, entry) => sum + (entry.risk_score || 0), 0) / duplicateEntries.length : 0;
   
   const riskLevel = riskAssessment.risk_level || 'LOW';
-console.log("duplicate data",   data);
   return (
     <Box sx={{ minHeight: '100vh', background: '#f8f9fa', p: 3 }}>
       {/* Analysis Status */}

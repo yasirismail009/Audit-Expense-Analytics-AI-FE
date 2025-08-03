@@ -199,9 +199,9 @@ export default function UserAnalysisDashboard({ data }) {
               <ResponsiveContainer width="100%" height={300}>
                 <AreaChart data={riskDistributionData}>
                   <defs>
-                    <linearGradient id="riskGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#e91e63" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#e91e63" stopOpacity={0.1}/>
+                    <linearGradient id="amountGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#925a9b" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#925a9b" stopOpacity={0.1}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" />
@@ -216,9 +216,9 @@ export default function UserAnalysisDashboard({ data }) {
                   <Area 
                     type="monotone" 
                     dataKey="count" 
-                    stroke="#e91e63" 
+                    stroke="#925a9b" 
                     strokeWidth={3}
-                    fill="url(#riskGradient)"
+                    fill="url(#amountGradient)"
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -249,9 +249,9 @@ export default function UserAnalysisDashboard({ data }) {
               <ResponsiveContainer width="100%" height={300}>
                 <AreaChart data={userActivityData}>
                   <defs>
-                    <linearGradient id="activityGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2196f3" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#2196f3" stopOpacity={0.1}/>
+                    <linearGradient id="amountGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#925a9b" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#925a9b" stopOpacity={0.1}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" />
@@ -270,9 +270,9 @@ export default function UserAnalysisDashboard({ data }) {
                   <Area 
                     type="monotone" 
                     dataKey="activity" 
-                    stroke="#2196f3" 
+                    stroke="#925a9b" 
                     strokeWidth={3}
-                    fill="url(#activityGradient)"
+                    fill="url(#amountGradient)"
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -303,9 +303,9 @@ export default function UserAnalysisDashboard({ data }) {
               <ResponsiveContainer width="100%" height={300}>
                 <AreaChart data={anomalyDistributionData}>
                   <defs>
-                    <linearGradient id="anomalyGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ff9800" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#ff9800" stopOpacity={0.1}/>
+                    <linearGradient id="amountGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#925a9b" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#925a9b" stopOpacity={0.1}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" />
@@ -324,9 +324,9 @@ export default function UserAnalysisDashboard({ data }) {
                   <Area 
                     type="monotone" 
                     dataKey="count" 
-                    stroke="#ff9800" 
+                    stroke="#925a9b" 
                     strokeWidth={3}
-                    fill="url(#anomalyGradient)"
+                    fill="url(#amountGradient)"
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -357,9 +357,9 @@ export default function UserAnalysisDashboard({ data }) {
               <ResponsiveContainer width="100%" height={300}>
                 <AreaChart data={userRiskTrendData}>
                   <defs>
-                    <linearGradient id="riskTrendGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#d32f2f" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#d32f2f" stopOpacity={0.1}/>
+                    <linearGradient id="amountGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#925a9b" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#925a9b" stopOpacity={0.1}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" />
@@ -378,9 +378,9 @@ export default function UserAnalysisDashboard({ data }) {
                   <Area 
                     type="monotone" 
                     dataKey="riskScore" 
-                    stroke="#d32f2f" 
+                    stroke="#925a9b" 
                     strokeWidth={3}
-                    fill="url(#riskTrendGradient)"
+                    fill="url(#amountGradient)"
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -412,13 +412,13 @@ export default function UserAnalysisDashboard({ data }) {
                 <AreaChart data={userAccountDiversityData}>
                   <defs>
                     <linearGradient id="accountsGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#4caf50" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#4caf50" stopOpacity={0.1}/>
+                      <stop offset="5%" stopColor="#925a9b" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#925a9b" stopOpacity={0.1}/>
                     </linearGradient>
-                    <linearGradient id="transactionsGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2196f3" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#2196f3" stopOpacity={0.1}/>
-                    </linearGradient>
+                    {/* <linearGradient id="transactionsGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#925a9b" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#925a9b" stopOpacity={0.1}/>
+                    </linearGradient> */}
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" />
                   <XAxis 
@@ -436,17 +436,17 @@ export default function UserAnalysisDashboard({ data }) {
                   <Area 
                     type="monotone" 
                     dataKey="accounts" 
-                    stroke="#4caf50" 
+                    stroke="#925a9b" 
                     strokeWidth={3}
                     fill="url(#accountsGradient)"
                   />
-                  <Area 
+                  {/* <Area 
                     type="monotone" 
                     dataKey="transactions" 
-                    stroke="#2196f3" 
+                    stroke="#925a9b" 
                     strokeWidth={3}
                     fill="url(#transactionsGradient)"
-                  />
+                  /> */}
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>

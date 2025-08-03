@@ -15,7 +15,6 @@ const anomalyTypes = [
 ];
 
 export default function AnomaliesDistributionChart({ data, title = "Anomalies Distribution", subtitle }) {
-  console.log(data)
   if (!data) {
     return (
       <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2, width: '100%' }}>
@@ -61,7 +60,6 @@ export default function AnomaliesDistributionChart({ data, title = "Anomalies Di
   };
 
   const chartData = prepareChartData();
-  console.log(chartData)
   // Custom tooltip
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {

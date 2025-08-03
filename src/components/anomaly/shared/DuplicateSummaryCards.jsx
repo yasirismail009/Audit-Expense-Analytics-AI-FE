@@ -304,7 +304,7 @@ export default function DuplicateSummaryCards({ data, distributionData, anomalyS
             <Grid item xs={12} md={3}>
               <Box sx={{ textAlign: 'center' }}>
                 <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1565c0' }}>
-                  {anomalySummary?.total_anomalies || 0}
+                  {anomalySummary?.totalAnomalies || 0}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Total Anomalies
@@ -315,7 +315,7 @@ export default function DuplicateSummaryCards({ data, distributionData, anomalyS
               <Box sx={{ textAlign: 'center' }}>
                 <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#c2185b' }}>
                   {anomalySummary ? Object.keys(anomalySummary).filter(key => 
-                    key !== 'total_anomalies' && (anomalySummary[key] || 0) > 0
+                    key !== 'totalAnomalies' && (anomalySummary[key] || 0) > 0
                   ).length : 0}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">

@@ -14,6 +14,9 @@ import DuplicateAmountChart from "../charts/DuplicateAmountChart";
 import DuplicateMonthlyTrendChart from "../charts/DuplicateMonthlyTrendChart";
 import DuplicateFSLineChart from "../charts/DuplicateFSLineChart";
 
+// Import ColorCodedDuplicateList component
+import ColorCodedDuplicateList from "./shared/ColorCodedDuplicateList";
+
 const RiskValue = {
   1: "Low",
   2: "Medium", 
@@ -43,7 +46,7 @@ const PDFChartWrapper = ({ title, children, fallbackContent }) => {
 
   return (
     <div className='chart-section'>
-      <div className='chart-title'>{title}</div>
+      {/* <div className='chart-title'>{title}</div> */}
       <div className='chart-content'>
         {!hasError ? (
           <React.Suspense fallback={<div>Loading chart...</div>}>
@@ -221,19 +224,76 @@ const DuplicateAnalysisPDF = ({
   // Extract data from the new API structure
   const fileInfo = data?.file_info || {};
   const analysisInfo = data?.analysis_info || {};
-  const summaryStats = data?.summary_statistics || {};
-  const riskAssessment = data?.risk_assessment || {};
-  const chartData = data?.chart_data || {};
-  const duplicateEntries = data?.duplicate_entries || [];
+  
+  // Map data structure to match DuplicateAnalysisContent.jsx
+  const summary = data?.summary || {};
+  const detailedResults = data?.detailed_results || {};
+  const visualizations = data?.visualizations || {};
+  
+  // Map chart data to match DuplicateAnalysisContent.jsx structure
+  const chartData = {
+    duplicate_types_distribution: {
+      labels: Object.keys(visualizations.chart_data?.duplicate_distribution || {}).filter(type => 
+        visualizations.chart_data.duplicate_distribution[type] > 0
+      ),
+      data: Object.keys(visualizations.chart_data?.duplicate_distribution || {}).filter(type => 
+        visualizations.chart_data.duplicate_distribution[type] > 0
+      ).map(type => visualizations.chart_data.duplicate_distribution[type]),
+      colors: ['#925a9b', '#e74c3c', '#f39c12', '#27ae60', '#3498db', '#9b59b6']
+    },
+    duplicate_activity_by_user: {
+      labels: visualizations.slicer_filters?.users || [],
+      data: visualizations.slicer_filters?.users?.map(user => {
+        const userDuplicates = detailedResults.duplicate_entries?.filter(entry => 
+          entry.transaction1.user === user || entry.transaction2.user === user
+        ) || [];
+        return userDuplicates.length;
+      }) || []
+    },
+    financial_statement_line_breakdown: {
+      labels: visualizations.slicer_filters?.accounts || [],
+      data: visualizations.slicer_filters?.accounts?.map(account => {
+        const accountDuplicates = detailedResults.duplicate_entries?.filter(entry => 
+          entry.transaction1.account === account || entry.transaction2.account === account
+        ) || [];
+        return accountDuplicates.length;
+      }) || []
+    }
+  };
+  
+  const duplicateEntries = detailedResults.duplicate_entries || [];
   const duplicatePatterns = data?.duplicate_patterns || {};
-  const recommendations = data?.recommendations || [];
-  const auditImplications = data?.audit_implications || {};
-  const criticalAlerts = data?.critical_alerts || {};
+  
+  // Extract recommendations from the correct path
+  const recommendations = summary.high_priority_recommendations || [];
+  const auditImplications = {
+    immediate_actions: summary.compliance_issues?.map(issue => issue.description) || []
+  };
+  const criticalAlerts = summary.compliance_issues?.filter(issue => issue.severity === 'HIGH') || [];
 
+  // Map summary statistics to match DuplicateAnalysisContent.jsx structure
+  const summaryStats = {
+    duplicate_transactions: summary.total_duplicates || 0,
+    total_transactions: summary.total_duplicates * 2 || 0, // Each duplicate has 2 transactions
+    total_duplicate_amount: summary.total_amount || 0,
+    avg_duplicate_amount: summary.total_amount ? summary.total_amount / summary.total_duplicates : 0,
+    avg_risk_score: 0 // Calculate from detailed results
+  };
+  
+  const riskAssessment = {
+    risk_level: Object.keys(summary.risk_distribution || {}).length > 0 ? 
+      Object.keys(summary.risk_distribution).find(level => summary.risk_distribution[level] > 0)?.toUpperCase() || 'LOW' : 'LOW',
+    risk_distribution: summary.risk_distribution || {}
+  };
+  
   // Calculate overall risk score based on new data structure
   const totalDuplicates = summaryStats.duplicate_transactions || 0;
   const totalTransactions = summaryStats.total_transactions || 0;
-  const overallRiskScore = summaryStats.avg_risk_score || 0;
+  
+  // Calculate average risk score from duplicate entries
+  const overallRiskScore = duplicateEntries.length > 0 ? 
+    duplicateEntries.reduce((sum, entry) => sum + (entry.risk_score || 0), 0) / duplicateEntries.length : 0;
+  
   const riskLevel = riskAssessment.risk_level || 'LOW';
 
   const getRiskLevel = (score) => {
@@ -557,6 +617,8 @@ const DuplicateAnalysisPDF = ({
                         </div>
                       </div>
 
+
+
                       <h5 style={{ margin: "20px 0 10px 0" }}>Analysis Summary</h5>
                       <table
                         width='100%'
@@ -684,6 +746,27 @@ const DuplicateAnalysisPDF = ({
                     <div className='sections'>
                       <h5 style={{ margin: "20px 0" }}>Visual Analysis Dashboard</h5>
                       
+                      {/* Duplicate Analysis Dashboard Overview */}
+                      <div style={{ 
+                        padding: "15px", 
+                        backgroundColor: "#f8f9fa", 
+                        border: "1px solid #e9ecef", 
+                        borderRadius: "8px",
+                        marginBottom: "20px"
+                      }}>
+                        <h6 style={{ margin: "10px 0", color: "#925a9b", fontWeight: "bold" }}>
+                          Duplicate Analysis Dashboard Overview
+                        </h6>
+                        <p style={{ 
+                          margin: "0 0 15px 0", 
+                          fontSize: "14px", 
+                          lineHeight: "1.5",
+                          color: "#333"
+                        }}>
+                          This dashboard provides comprehensive visual analysis of duplicate transactions, including type distribution, risk assessment, user activity, amount distribution, financial statement line breakdown, and monthly trends.
+                        </p>
+                      </div>
+                      
                       {/* Charts Grid - 2 columns */}
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
                         
@@ -774,6 +857,65 @@ const DuplicateAnalysisPDF = ({
                       </div>
                     </div>
 
+                    {/* Duplicate Analysis Dashboard */}
+                    <div className='sections'>
+                      <h5 style={{ margin: "20px 0" }}>Duplicate Analysis Dashboard</h5>
+                      <div style={{ 
+                        padding: "15px", 
+                        backgroundColor: "#f8f9fa", 
+                        border: "1px solid #e9ecef", 
+                        borderRadius: "8px",
+                        marginBottom: "20px"
+                      }}>
+                        <h6 style={{ margin: "10px 0", color: "#925a9b", fontWeight: "bold" }}>
+                          Comprehensive Dashboard Overview
+                        </h6>
+                        <p style={{ 
+                          margin: "0 0 15px 0", 
+                          fontSize: "14px", 
+                          lineHeight: "1.5",
+                          color: "#333"
+                        }}>
+                          The Duplicate Analysis Dashboard provides a comprehensive view of all duplicate transactions, including type distribution, risk assessment, user activity, amount distribution, financial statement line breakdown, and monthly trends. This dashboard is the same as the one used in the main application interface.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Color-Coded Duplicate Lists */}
+                    {duplicateEntries && duplicateEntries.length > 0 && (
+                      <div className='sections'>
+                        <h5 style={{ margin: "20px 0" }}>Color-Coded Duplicate Analysis</h5>
+                        <div style={{ 
+                          padding: "20px", 
+                          backgroundColor: "#f8f9fa", 
+                          border: "1px solid #e9ecef", 
+                          borderRadius: "8px",
+                          marginBottom: "20px"
+                        }}>
+                          <ColorCodedDuplicateList 
+                            data={{
+                              ...data,
+                              duplicates: duplicateEntries.map((entry, index) => ({
+                                type: entry.duplicate_type,
+                                amount: entry.transaction1.amount + entry.transaction2.amount,
+                                count: 2,
+                                risk_score: entry.risk_score,
+                                criteria: entry.duplicate_type_name || entry.duplicate_type,
+                                gl_account: entry.transaction1.account,
+                                duplicate_type: entry.duplicate_type,
+                                transactions: 2,
+                                debit_amount: entry.transaction1.amount,
+                                credit_amount: entry.transaction2.amount
+                              }))
+                            }} 
+                            currency={currency} 
+                          />
+                        </div>
+                      </div>
+                    )}
+
+
+
                     {/* Duplicate Type Breakdown */}
                     {chartData.duplicate_types_distribution && (
                       <div className='sections'>
@@ -818,6 +960,8 @@ const DuplicateAnalysisPDF = ({
                         </table>
                       </div>
                     )}
+
+
 
                     {/* User Breakdown */}
                     {chartData.duplicate_activity_by_user && (
@@ -868,6 +1012,8 @@ const DuplicateAnalysisPDF = ({
                         </table>
                       </div>
                     )}
+
+
 
                     {/* GL Account Breakdown */}
                     {chartData.financial_statement_line_breakdown && (
@@ -927,6 +1073,8 @@ const DuplicateAnalysisPDF = ({
                         </table>
                       </div>
                     )}
+
+
 
                     {/* Risk Breakdown */}
                     {riskAssessment.risk_distribution && (
@@ -1029,6 +1177,606 @@ const DuplicateAnalysisPDF = ({
                       </div>
                     )}
 
+                    {/* Duplicate Items Listing */}
+                    {duplicateEntries && duplicateEntries.length > 0 && (
+                      <div className='sections'>
+                        <h5 style={{ margin: "20px 0" }}>Duplicate Items Listing</h5>
+                        
+                        {/* Duplicate Items Overview */}
+                        <div style={{ 
+                          padding: "15px", 
+                          backgroundColor: "#f8f9fa", 
+                          border: "1px solid #e9ecef", 
+                          borderRadius: "8px",
+                          marginBottom: "20px"
+                        }}>
+                          <h6 style={{ margin: "10px 0", color: "#925a9b", fontWeight: "bold" }}>
+                            Complete Duplicate Items Analysis
+                          </h6>
+                          <p style={{ 
+                            margin: "0 0 15px 0", 
+                            fontSize: "14px", 
+                            lineHeight: "1.5",
+                            color: "#333"
+                          }}>
+                            This section provides a comprehensive listing of all duplicate items found in the analysis, including detailed information about each duplicate pair, their characteristics, and risk assessment.
+                          </p>
+                          <div style={{ 
+                            display: "grid", 
+                            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
+                            gap: "15px",
+                            fontSize: "12px"
+                          }}>
+                            <div style={{ 
+                              padding: "10px", 
+                              backgroundColor: "white", 
+                              border: "1px solid #dee2e6", 
+                              borderRadius: "6px",
+                              textAlign: "center"
+                            }}>
+                              <strong style={{ color: "#925a9b" }}>Total Duplicates</strong><br/>
+                              {duplicateEntries.length}
+                            </div>
+                            <div style={{ 
+                              padding: "10px", 
+                              backgroundColor: "white", 
+                              border: "1px solid #dee2e6", 
+                              borderRadius: "6px",
+                              textAlign: "center"
+                            }}>
+                              <strong style={{ color: "#925a9b" }}>Total Transactions</strong><br/>
+                              {duplicateEntries.length * 2}
+                            </div>
+                            <div style={{ 
+                              padding: "10px", 
+                              backgroundColor: "white", 
+                              border: "1px solid #dee2e6", 
+                              borderRadius: "6px",
+                              textAlign: "center"
+                            }}>
+                              <strong style={{ color: "#925a9b" }}>Total Amount</strong><br/>
+                              {formatCurrency(duplicateEntries.reduce((sum, entry) => 
+                                sum + (entry.transaction1.amount + entry.transaction2.amount), 0
+                              ))}
+                            </div>
+                            <div style={{ 
+                              padding: "10px", 
+                              backgroundColor: "white", 
+                              border: "1px solid #dee2e6", 
+                              borderRadius: "6px",
+                              textAlign: "center"
+                            }}>
+                              <strong style={{ color: "#925a9b" }}>Average Risk Score</strong><br/>
+                              {duplicateEntries.length > 0 ? 
+                                (duplicateEntries.reduce((sum, entry) => sum + (entry.risk_score || 0), 0) / duplicateEntries.length).toFixed(1) : 0
+                              }
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Detailed Duplicate Items Table */}
+                        <div style={{ marginBottom: "20px" }}>
+                          <h6 style={{ margin: "10px 0", color: "#925a9b", fontWeight: "bold" }}>
+                            Detailed Duplicate Items Listing
+                          </h6>
+                          <table
+                            width='100%'
+                            border='1'
+                            className='border'
+                            cellSpacing='0'>
+                            <thead>
+                              <tr>
+                                <th>#</th>
+                                <th>Duplicate Type</th>
+                                <th>GL Account</th>
+                                <th>User</th>
+                                <th>Posting Date</th>
+                                <th>Transaction 1 Amount</th>
+                                <th>Transaction 2 Amount</th>
+                                <th>Total Amount</th>
+                                <th>Risk Score</th>
+                                <th>Risk Level</th>
+                              </tr>
+                            </thead>
+                            <tbody style={{ textAlign: "center" }}>
+                              {duplicateEntries.map((duplicate, index) => (
+                                <tr key={index} style={{ 
+                                  backgroundColor: index % 2 === 0 ? "#f8f9fa" : "white"
+                                }}>
+                                  <td style={{ fontWeight: "bold" }}>{index + 1}</td>
+                                  <td>
+                                    <span style={{ 
+                                      padding: "2px 8px", 
+                                      backgroundColor: "#925a9b", 
+                                      color: "white", 
+                                      borderRadius: "12px", 
+                                      fontSize: "10px", 
+                                      fontWeight: "bold" 
+                                    }}>
+                                      {duplicate.duplicate_type}
+                                    </span>
+                                  </td>
+                                  <td>{duplicate.transaction1.account}</td>
+                                  <td>{duplicate.transaction1.user}</td>
+                                  <td>{formatDate(duplicate.transaction1.date)}</td>
+                                  <td style={{ color: "#28a745", fontWeight: "bold" }}>
+                                    {formatCurrency(duplicate.transaction1.amount)}
+                                  </td>
+                                  <td style={{ color: "#dc3545", fontWeight: "bold" }}>
+                                    {formatCurrency(duplicate.transaction2.amount)}
+                                  </td>
+                                  <td style={{ color: "#925a9b", fontWeight: "bold" }}>
+                                    {formatCurrency(duplicate.transaction1.amount + duplicate.transaction2.amount)}
+                                  </td>
+                                  <td>
+                                    <span style={{ 
+                                      padding: "2px 6px", 
+                                      backgroundColor: RiskColor[getRiskLevelNumber(duplicate.risk_score || 0)], 
+                                      color: "white", 
+                                      borderRadius: "8px", 
+                                      fontSize: "10px", 
+                                      fontWeight: "bold" 
+                                    }}>
+                                      {duplicate.risk_score || 'N/A'}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    <span style={{ 
+                                      padding: "2px 6px", 
+                                      backgroundColor: RiskColor[getRiskLevelNumber(duplicate.risk_score || 0)], 
+                                      color: "white", 
+                                      borderRadius: "8px", 
+                                      fontSize: "10px", 
+                                      fontWeight: "bold" 
+                                    }}>
+                                      {getRiskLevel(duplicate.risk_score || 0)}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Duplicate Items by Type */}
+                        <div style={{ marginBottom: "20px" }}>
+                          <h6 style={{ margin: "10px 0", color: "#925a9b", fontWeight: "bold" }}>
+                            Duplicate Items Grouped by Type
+                          </h6>
+                          {Object.entries(
+                            duplicateEntries.reduce((groups, entry) => {
+                              const type = entry.duplicate_type || 'Unknown';
+                              if (!groups[type]) {
+                                groups[type] = [];
+                              }
+                              groups[type].push(entry);
+                              return groups;
+                            }, {})
+                          ).map(([type, items]) => (
+                            <div key={type} style={{ 
+                              marginBottom: "15px", 
+                              border: "1px solid #e9ecef", 
+                              borderRadius: "8px",
+                              overflow: "hidden"
+                            }}>
+                              <div style={{ 
+                                padding: "10px", 
+                                backgroundColor: "#925a9b", 
+                                color: "white", 
+                                fontWeight: "bold",
+                                fontSize: "14px"
+                              }}>
+                                {type} - {items.length} items
+                              </div>
+                              <table
+                                width='100%'
+                                border='1'
+                                className='border'
+                                cellSpacing='0'>
+                                <thead>
+                                  <tr>
+                                    <th>#</th>
+                                    <th>GL Account</th>
+                                    <th>User</th>
+                                    <th>Posting Date</th>
+                                    <th>Amount</th>
+                                    <th>Risk Score</th>
+                                  </tr>
+                                </thead>
+                                <tbody style={{ textAlign: "center" }}>
+                                  {items.map((item, index) => (
+                                    <tr key={index} style={{ 
+                                      backgroundColor: index % 2 === 0 ? "#f8f9fa" : "white"
+                                    }}>
+                                      <td style={{ fontWeight: "bold" }}>{index + 1}</td>
+                                      <td>{item.transaction1.account}</td>
+                                      <td>{item.transaction1.user}</td>
+                                      <td>{formatDate(item.transaction1.date)}</td>
+                                      <td style={{ color: "#925a9b", fontWeight: "bold" }}>
+                                        {formatCurrency(item.transaction1.amount + item.transaction2.amount)}
+                                      </td>
+                                      <td>
+                                        <span style={{ 
+                                          padding: "2px 6px", 
+                                          backgroundColor: RiskColor[getRiskLevelNumber(item.risk_score || 0)], 
+                                          color: "white", 
+                                          borderRadius: "8px", 
+                                          fontSize: "10px", 
+                                          fontWeight: "bold" 
+                                        }}>
+                                          {item.risk_score || 'N/A'}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Duplicate Items by Risk Level */}
+                        <div style={{ marginBottom: "20px" }}>
+                          <h6 style={{ margin: "10px 0", color: "#925a9b", fontWeight: "bold" }}>
+                            Duplicate Items Grouped by Risk Level
+                          </h6>
+                          {Object.entries(
+                            duplicateEntries.reduce((groups, entry) => {
+                              const riskLevel = getRiskLevel(entry.risk_score || 0);
+                              if (!groups[riskLevel]) {
+                                groups[riskLevel] = [];
+                              }
+                              groups[riskLevel].push(entry);
+                              return groups;
+                            }, {})
+                          ).map(([riskLevel, items]) => (
+                            <div key={riskLevel} style={{ 
+                              marginBottom: "15px", 
+                              border: "1px solid #e9ecef", 
+                              borderRadius: "8px",
+                              overflow: "hidden"
+                            }}>
+                              <div style={{ 
+                                padding: "10px", 
+                                backgroundColor: RiskColor[getRiskLevelNumber(items[0]?.risk_score || 0)], 
+                                color: "white", 
+                                fontWeight: "bold",
+                                fontSize: "14px"
+                              }}>
+                                {riskLevel} Risk - {items.length} items
+                              </div>
+                              <table
+                                width='100%'
+                                border='1'
+                                className='border'
+                                cellSpacing='0'>
+                                <thead>
+                                  <tr>
+                                    <th>#</th>
+                                    <th>Type</th>
+                                    <th>GL Account</th>
+                                    <th>User</th>
+                                    <th>Amount</th>
+                                    <th>Risk Score</th>
+                                  </tr>
+                                </thead>
+                                <tbody style={{ textAlign: "center" }}>
+                                  {items.map((item, index) => (
+                                    <tr key={index} style={{ 
+                                      backgroundColor: index % 2 === 0 ? "#f8f9fa" : "white"
+                                    }}>
+                                      <td style={{ fontWeight: "bold" }}>{index + 1}</td>
+                                      <td>{item.duplicate_type}</td>
+                                      <td>{item.transaction1.account}</td>
+                                      <td>{item.transaction1.user}</td>
+                                      <td style={{ color: "#925a9b", fontWeight: "bold" }}>
+                                        {formatCurrency(item.transaction1.amount + item.transaction2.amount)}
+                                      </td>
+                                      <td>
+                                        <span style={{ 
+                                          padding: "2px 6px", 
+                                          backgroundColor: RiskColor[getRiskLevelNumber(item.risk_score || 0)], 
+                                          color: "white", 
+                                          borderRadius: "8px", 
+                                          fontSize: "10px", 
+                                          fontWeight: "bold" 
+                                        }}>
+                                          {item.risk_score || 'N/A'}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Additional Duplicate Items Analysis */}
+                    {duplicateEntries && duplicateEntries.length > 0 && (
+                      <div className='sections'>
+                        <h5 style={{ margin: "20px 0" }}>Additional Duplicate Items Analysis</h5>
+                        
+                        {/* Duplicate Items by User */}
+                        <div style={{ marginBottom: "20px" }}>
+                          <h6 style={{ margin: "10px 0", color: "#925a9b", fontWeight: "bold" }}>
+                            Duplicate Items Grouped by User
+                          </h6>
+                          {Object.entries(
+                            duplicateEntries.reduce((groups, entry) => {
+                              const user = entry.transaction1.user || 'Unknown User';
+                              if (!groups[user]) {
+                                groups[user] = [];
+                              }
+                              groups[user].push(entry);
+                              return groups;
+                            }, {})
+                          ).map(([user, items]) => (
+                            <div key={user} style={{ 
+                              marginBottom: "15px", 
+                              border: "1px solid #e9ecef", 
+                              borderRadius: "8px",
+                              overflow: "hidden"
+                            }}>
+                              <div style={{ 
+                                padding: "10px", 
+                                backgroundColor: "#6c757d", 
+                                color: "white", 
+                                fontWeight: "bold",
+                                fontSize: "14px"
+                              }}>
+                                {user} - {items.length} items - Total: {formatCurrency(items.reduce((sum, item) => 
+                                  sum + (item.transaction1.amount + item.transaction2.amount), 0
+                                ))}
+                              </div>
+                              <table
+                                width='100%'
+                                border='1'
+                                className='border'
+                                cellSpacing='0'>
+                                <thead>
+                                  <tr>
+                                    <th>#</th>
+                                    <th>Type</th>
+                                    <th>GL Account</th>
+                                    <th>Posting Date</th>
+                                    <th>Amount</th>
+                                    <th>Risk Score</th>
+                                  </tr>
+                                </thead>
+                                <tbody style={{ textAlign: "center" }}>
+                                  {items.map((item, index) => (
+                                    <tr key={index} style={{ 
+                                      backgroundColor: index % 2 === 0 ? "#f8f9fa" : "white"
+                                    }}>
+                                      <td style={{ fontWeight: "bold" }}>{index + 1}</td>
+                                      <td>{item.duplicate_type}</td>
+                                      <td>{item.transaction1.account}</td>
+                                      <td>{formatDate(item.transaction1.date)}</td>
+                                      <td style={{ color: "#925a9b", fontWeight: "bold" }}>
+                                        {formatCurrency(item.transaction1.amount + item.transaction2.amount)}
+                                      </td>
+                                      <td>
+                                        <span style={{ 
+                                          padding: "2px 6px", 
+                                          backgroundColor: RiskColor[getRiskLevelNumber(item.risk_score || 0)], 
+                                          color: "white", 
+                                          borderRadius: "8px", 
+                                          fontSize: "10px", 
+                                          fontWeight: "bold" 
+                                        }}>
+                                          {item.risk_score || 'N/A'}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Duplicate Items by GL Account */}
+                        <div style={{ marginBottom: "20px" }}>
+                          <h6 style={{ margin: "10px 0", color: "#925a9b", fontWeight: "bold" }}>
+                            Duplicate Items Grouped by GL Account
+                          </h6>
+                          {Object.entries(
+                            duplicateEntries.reduce((groups, entry) => {
+                              const account = entry.transaction1.account || 'Unknown Account';
+                              if (!groups[account]) {
+                                groups[account] = [];
+                              }
+                              groups[account].push(entry);
+                              return groups;
+                            }, {})
+                          ).map(([account, items]) => (
+                            <div key={account} style={{ 
+                              marginBottom: "15px", 
+                              border: "1px solid #e9ecef", 
+                              borderRadius: "8px",
+                              overflow: "hidden"
+                            }}>
+                              <div style={{ 
+                                padding: "10px", 
+                                backgroundColor: "#17a2b8", 
+                                color: "white", 
+                                fontWeight: "bold",
+                                fontSize: "14px"
+                              }}>
+                                {account} - {items.length} items - Total: {formatCurrency(items.reduce((sum, item) => 
+                                  sum + (item.transaction1.amount + item.transaction2.amount), 0
+                                ))}
+                              </div>
+                              <table
+                                width='100%'
+                                border='1'
+                                className='border'
+                                cellSpacing='0'>
+                                <thead>
+                                  <tr>
+                                    <th>#</th>
+                                    <th>Type</th>
+                                    <th>User</th>
+                                    <th>Posting Date</th>
+                                    <th>Amount</th>
+                                    <th>Risk Score</th>
+                                  </tr>
+                                </thead>
+                                <tbody style={{ textAlign: "center" }}>
+                                  {items.map((item, index) => (
+                                    <tr key={index} style={{ 
+                                      backgroundColor: index % 2 === 0 ? "#f8f9fa" : "white"
+                                    }}>
+                                      <td style={{ fontWeight: "bold" }}>{index + 1}</td>
+                                      <td>{item.duplicate_type}</td>
+                                      <td>{item.transaction1.user}</td>
+                                      <td>{formatDate(item.transaction1.date)}</td>
+                                      <td style={{ color: "#925a9b", fontWeight: "bold" }}>
+                                        {formatCurrency(item.transaction1.amount + item.transaction2.amount)}
+                                      </td>
+                                      <td>
+                                        <span style={{ 
+                                          padding: "2px 6px", 
+                                          backgroundColor: RiskColor[getRiskLevelNumber(item.risk_score || 0)], 
+                                          color: "white", 
+                                          borderRadius: "8px", 
+                                          fontSize: "10px", 
+                                          fontWeight: "bold" 
+                                        }}>
+                                          {item.risk_score || 'N/A'}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Duplicate Items Summary Statistics */}
+                        <div style={{ marginBottom: "20px" }}>
+                          <h6 style={{ margin: "10px 0", color: "#925a9b", fontWeight: "bold" }}>
+                            Duplicate Items Summary Statistics
+                          </h6>
+                          <div style={{ 
+                            display: "grid", 
+                            gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", 
+                            gap: "15px"
+                          }}>
+                            {/* By Type Statistics */}
+                            <div style={{ 
+                              padding: "15px", 
+                              backgroundColor: "white", 
+                              border: "1px solid #e9ecef", 
+                              borderRadius: "8px"
+                            }}>
+                              <h6 style={{ margin: "0 0 10px 0", color: "#925a9b", fontWeight: "bold" }}>
+                                By Duplicate Type
+                              </h6>
+                              {Object.entries(
+                                duplicateEntries.reduce((groups, entry) => {
+                                  const type = entry.duplicate_type || 'Unknown';
+                                  if (!groups[type]) {
+                                    groups[type] = { count: 0, totalAmount: 0, avgRisk: 0 };
+                                  }
+                                  groups[type].count++;
+                                  groups[type].totalAmount += entry.transaction1.amount + entry.transaction2.amount;
+                                  groups[type].avgRisk += entry.risk_score || 0;
+                                  return groups;
+                                }, {})
+                              ).map(([type, stats]) => (
+                                <div key={type} style={{ 
+                                  marginBottom: "8px", 
+                                  padding: "8px", 
+                                  backgroundColor: "#f8f9fa", 
+                                  borderRadius: "4px",
+                                  fontSize: "12px"
+                                }}>
+                                  <strong>{type}:</strong> {stats.count} items, {formatCurrency(stats.totalAmount)}, Avg Risk: {(stats.avgRisk / stats.count).toFixed(1)}
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* By Risk Level Statistics */}
+                            <div style={{ 
+                              padding: "15px", 
+                              backgroundColor: "white", 
+                              border: "1px solid #e9ecef", 
+                              borderRadius: "8px"
+                            }}>
+                              <h6 style={{ margin: "0 0 10px 0", color: "#925a9b", fontWeight: "bold" }}>
+                                By Risk Level
+                              </h6>
+                              {Object.entries(
+                                duplicateEntries.reduce((groups, entry) => {
+                                  const riskLevel = getRiskLevel(entry.risk_score || 0);
+                                  if (!groups[riskLevel]) {
+                                    groups[riskLevel] = { count: 0, totalAmount: 0, avgRisk: 0 };
+                                  }
+                                  groups[riskLevel].count++;
+                                  groups[riskLevel].totalAmount += entry.transaction1.amount + entry.transaction2.amount;
+                                  groups[riskLevel].avgRisk += entry.risk_score || 0;
+                                  return groups;
+                                }, {})
+                              ).map(([riskLevel, stats]) => (
+                                <div key={riskLevel} style={{ 
+                                  marginBottom: "8px", 
+                                  padding: "8px", 
+                                  backgroundColor: "#f8f9fa", 
+                                  borderRadius: "4px",
+                                  fontSize: "12px"
+                                }}>
+                                  <strong>{riskLevel}:</strong> {stats.count} items, {formatCurrency(stats.totalAmount)}, Avg Risk: {(stats.avgRisk / stats.count).toFixed(1)}
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* By User Statistics */}
+                            <div style={{ 
+                              padding: "15px", 
+                              backgroundColor: "white", 
+                              border: "1px solid #e9ecef", 
+                              borderRadius: "8px"
+                            }}>
+                              <h6 style={{ margin: "0 0 10px 0", color: "#925a9b", fontWeight: "bold" }}>
+                                By User
+                              </h6>
+                              {Object.entries(
+                                duplicateEntries.reduce((groups, entry) => {
+                                  const user = entry.transaction1.user || 'Unknown';
+                                  if (!groups[user]) {
+                                    groups[user] = { count: 0, totalAmount: 0, avgRisk: 0 };
+                                  }
+                                  groups[user].count++;
+                                  groups[user].totalAmount += entry.transaction1.amount + entry.transaction2.amount;
+                                  groups[user].avgRisk += entry.risk_score || 0;
+                                  return groups;
+                                }, {})
+                              ).map(([user, stats]) => (
+                                <div key={user} style={{ 
+                                  marginBottom: "8px", 
+                                  padding: "8px", 
+                                  backgroundColor: "#f8f9fa", 
+                                  borderRadius: "4px",
+                                  fontSize: "12px"
+                                }}>
+                                  <strong>{user}:</strong> {stats.count} items, {formatCurrency(stats.totalAmount)}, Avg Risk: {(stats.avgRisk / stats.count).toFixed(1)}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+
+
+
+
                     {/* Detailed Insights */}
                     {(recommendations.length > 0 || auditImplications.immediate_actions) && (
                       <div className='sections'>
@@ -1041,7 +1789,7 @@ const DuplicateAnalysisPDF = ({
                             <ul style={{ marginLeft: "20px" }}>
                               {recommendations.map((recommendation, index) => (
                                 <li key={index}>
-                                  <strong>{recommendation.action}:</strong> {recommendation.description}
+                                  <strong>{recommendation.action || recommendation.title || `Recommendation ${index + 1}`}:</strong> {recommendation.description || recommendation.recommendation || recommendation.message || 'No description available'}
                                 </li>
                               ))}
                             </ul>
@@ -1063,21 +1811,48 @@ const DuplicateAnalysisPDF = ({
                           </div>
                         )}
 
-                        {/* Critical Alerts */}
-                        {criticalAlerts.length > 0 && (
+                        {/* Fallback Recommendations - Check other possible data paths */}
+                        {recommendations.length === 0 && data?.recommendations && data.recommendations.length > 0 && (
                           <div style={{ marginBottom: "20px" }}>
-                            <h6 style={{ margin: "10px 0" }}>Critical Alerts</h6>
+                            <h6 style={{ margin: "10px 0" }}>Recommendations (Alternative Source)</h6>
                             <ul style={{ marginLeft: "20px" }}>
-                              {criticalAlerts.map((alert, index) => (
+                              {data.recommendations.map((recommendation, index) => (
                                 <li key={index}>
-                                  <strong>{alert.severity}:</strong> {alert.message} - Action Required: {alert.action_required}
+                                  <strong>{recommendation.action || recommendation.title || `Recommendation ${index + 1}`}:</strong> {recommendation.description || recommendation.recommendation || recommendation.message || 'No description available'}
                                 </li>
                               ))}
                             </ul>
                           </div>
                         )}
+
+                        {/* Critical Alerts */}
+                        {criticalAlerts.length > 0 && (
+                          <div style={{ marginBottom: "20px" }}>
+                            <h6 style={{ margin: "10px 0", color: "#dc3545", fontWeight: "bold" }}>
+                              Critical Alerts
+                            </h6>
+                            <div style={{ 
+                              padding: "15px", 
+                              backgroundColor: "#fff3cd", 
+                              border: "1px solid #ffeaa7", 
+                              borderRadius: "8px"
+                            }}>
+                              <ul style={{ marginLeft: "20px" }}>
+                                {criticalAlerts.map((alert, index) => (
+                                  <li key={index} style={{ marginBottom: "5px" }}>
+                                    <strong style={{ color: "#856404" }}>{alert.severity || 'HIGH'}:</strong> {alert.message || alert.description || alert.issue || 'No message available'} - Action Required: {alert.action_required || 'Review and investigate'}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        )}
+
+
                       </div>
                     )}
+
+
 
                     {/* Conclusion */}
                     <div className='sections'>

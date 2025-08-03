@@ -151,7 +151,7 @@ export default function DetailedRiskAnalysis({ riskAnalysis }) {
     audit_implications,
     overall_risk_gauge
   } = riskAnalysis;
-
+console.log("riskAnalysis", riskAnalysis);
   return (
     <Card sx={{ 
       mb: 4, 
@@ -187,7 +187,7 @@ export default function DetailedRiskAnalysis({ riskAnalysis }) {
 
         {/* Summary Statistics */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} md={4}>
+          <Grid item size={{xs: 12, md: 4}}>
             <Box sx={{ textAlign: 'center', p: 3, background: '#f8f9fa', borderRadius: 2 }}>
               <Typography variant="h6" sx={{ 
                 fontWeight: 700, 
@@ -201,7 +201,7 @@ export default function DetailedRiskAnalysis({ riskAnalysis }) {
               </Typography>
             </Box>
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid item size={{xs: 12, md: 4}}>
             <Box sx={{ textAlign: 'center', p: 3, background: '#f8f9fa', borderRadius: 2 }}>
               <Typography variant="h6" sx={{ 
                 fontWeight: 700, 
@@ -215,7 +215,7 @@ export default function DetailedRiskAnalysis({ riskAnalysis }) {
               </Typography>
             </Box>
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid item size={{xs: 12, md: 4}}>
             <Box sx={{ textAlign: 'center', p: 3, background: '#f8f9fa', borderRadius: 2 }}>
               <RiskLevelChip 
                 level={overall_risk_gauge?.risk_level || 'LOW'} 
@@ -270,7 +270,7 @@ export default function DetailedRiskAnalysis({ riskAnalysis }) {
 
         <Grid container spacing={3}>
           {/* Risk Factors */}
-          <Grid item xs={12} md={6}>
+          <Grid item size={{xs: 12, md: 6}}>
             <Box sx={{ p: 3, background: '#f8f9fa', borderRadius: 2, height: '100%' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                 <TrendingUpIcon sx={{ 
@@ -298,7 +298,7 @@ export default function DetailedRiskAnalysis({ riskAnalysis }) {
                             fontWeight: 500,
                             textTransform: 'capitalize'
                           }}>
-                            {key.replace('_', ' ')}
+                            {key.replace(/_/g, ' ')}
                           </Typography>
                           <Chip
                             label={`${factor.count} (${factor.percentage?.toFixed(1)}%)`}
@@ -328,7 +328,7 @@ export default function DetailedRiskAnalysis({ riskAnalysis }) {
           </Grid>
 
           {/* Risk Distribution */}
-          <Grid item xs={12} md={6}>
+          <Grid item size={{xs: 12, md: 6}}>
             <Box sx={{ p: 3, background: '#f8f9fa', borderRadius: 2, height: '100%' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                 <TimelineIcon sx={{ 
@@ -356,7 +356,7 @@ export default function DetailedRiskAnalysis({ riskAnalysis }) {
                             fontWeight: 500,
                             textTransform: 'capitalize'
                           }}>
-                            {key.replace('_', ' ')}
+                            {key.replace(/_/g, ' ')}
                           </Typography>
                           <Chip
                             label={count}
@@ -378,7 +378,7 @@ export default function DetailedRiskAnalysis({ riskAnalysis }) {
           </Grid>
 
           {/* Recommendations */}
-          <Grid item xs={12}>
+          <Grid item size={{xs: 12}}>
             <Box sx={{ p: 3, background: '#f8f9fa', borderRadius: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                 <AnalyticsIcon sx={{ 
@@ -437,7 +437,7 @@ export default function DetailedRiskAnalysis({ riskAnalysis }) {
           </Grid>
 
           {/* Audit Implications */}
-          <Grid item xs={12}>
+          <Grid item size={{xs: 12}}>
             <Accordion sx={{ 
               borderRadius: 2,
               boxShadow: 'none',
@@ -461,7 +461,7 @@ export default function DetailedRiskAnalysis({ riskAnalysis }) {
               </AccordionSummary>
               <AccordionDetails sx={{ p: 3 }}>
                 <Grid container spacing={3}>
-                  <Grid item xs={12} md={4}>
+                  <Grid item size={{xs: 12, md: 4}}>
                     <Box sx={{ p: 3, background: 'white', borderRadius: 2, border: '1px solid #ffcdd2' }}>
                       <Typography variant="subtitle1" gutterBottom sx={{ 
                         color: '#d32f2f', 
@@ -490,7 +490,7 @@ export default function DetailedRiskAnalysis({ riskAnalysis }) {
                     </Box>
                   </Grid>
                   
-                  <Grid item xs={12} md={4}>
+                  <Grid item size={{xs: 12, md: 4}}>
                     <Box sx={{ p: 3, background: 'white', borderRadius: 2, border: '1px solid #ffe0b2' }}>
                       <Typography variant="subtitle1" gutterBottom sx={{ 
                         color: '#f57c00', 
@@ -519,7 +519,7 @@ export default function DetailedRiskAnalysis({ riskAnalysis }) {
                     </Box>
                   </Grid>
                   
-                  <Grid item xs={12} md={4}>
+                  <Grid item size={{xs: 12, md: 4}}>
                     <Box sx={{ p: 3, background: 'white', borderRadius: 2, border: '1px solid #c8e6c9' }}>
                       <Typography variant="subtitle1" gutterBottom sx={{ 
                         color: '#388e3c', 
@@ -554,7 +554,7 @@ export default function DetailedRiskAnalysis({ riskAnalysis }) {
 
           {/* Business Impact */}
           {overall_risk_gauge?.business_impact && (
-            <Grid item xs={12}>
+            <Grid item size={{xs: 12}}>
               <Box sx={{ p: 3, background: '#f8f9fa', borderRadius: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                   <BusinessIcon sx={{ 
@@ -573,7 +573,7 @@ export default function DetailedRiskAnalysis({ riskAnalysis }) {
                 
                 <Grid container spacing={2}>
                   {Object.entries(overall_risk_gauge.business_impact).map(([key, impact]) => (
-                    <Grid item xs={12} sm={6} md={3} key={key}>
+                    <Grid item size={{xs: 12, sm: 6, md: 3}} key={key}>
                       <Box sx={{ 
                         p: 3, 
                         background: 'white', 

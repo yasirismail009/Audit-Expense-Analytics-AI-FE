@@ -4,9 +4,6 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { colorScheme, getColorByIndex } from '../../utils/colorScheme';
 
 export default function EmployeeExpensesChart({ data }) {
-  // Debug logging to check data structure
-  console.log('EmployeeExpensesChart - Received data:', data);
-
   // Create fallback data if no data is provided
   const fallbackData = {
     labels: [],
@@ -15,7 +12,6 @@ export default function EmployeeExpensesChart({ data }) {
   };
 
   const chartData = data || fallbackData;
-  console.log('EmployeeExpensesChart - Processed chartData:', chartData);
 
   if (!chartData.labels || !chartData.data || !Array.isArray(chartData.labels) || !Array.isArray(chartData.data)) {
     return (

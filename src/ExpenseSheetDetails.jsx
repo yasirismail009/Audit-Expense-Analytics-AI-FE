@@ -78,12 +78,25 @@ export default function ExpenseSheetDetails() {
     }
   }, [sheetId]);
 
-  // Transform API response to match frontend expectations
+  /**
+   * Transform API response to match frontend expectations
+   * 
+   * New API Structure (2025):
+   * {
+   *   file_info: { file_id, file_name, file_status, uploaded_at, processed_at, total_records, processed_records, failed_records, client_name, company_name, fiscal_year, engagement_id, processing_success_rate },
+   *   overall_analysis: { analysis_id, analysis_date, transaction_summary, flag_summary, expense_analysis, risk_assessment, critical_alerts },
+   *   risk_analysis: { document_id, document_date, methodology_overview, risk_factors, scoring_criteria, risk_calculations, risk_distributions, user_anomalies, recommendations, audit_implications },
+   *   user_analysis: { analysis_id, analysis_date, user_summary, user_anomalies, user_risk_assessment, user_patterns },
+   *   chart_data: { risk_distribution_chart, flag_type_chart, amount_distribution_chart, overall_risk_gauge, ... },
+   *   analysis_metadata: { has_overall_analysis, has_risk_analysis, has_user_analysis, has_closing_entries_analysis, has_unusual_days_analysis, analysis_completeness, data_quality_score },
+   *   summary: { total_alerts, critical_issues, warnings, analysis_quality, overall_risk_level, key_findings, recommendations },
+   *   closing_entries_analysis: { analysis_id, analysis_date, closing_entries_count, risk_score, risk_level, closing_entries_details, recommendations },
+   *   unusual_days_analysis: { analysis_id, analysis_date, unusual_days_count, holiday_entries_count, risk_score, risk_level, unusual_days_details, holiday_entries_details, recommendations },
+   *   all_gl_accounts: { summary, accounts }
+   * }
+   */
   const transformApiResponse = (apiData) => {
     try {
-      console.log("Raw API Data:", apiData);
-      console.log("API Data Keys:", Object.keys(apiData || {}));
-      
       if (!apiData) {
         throw new Error('No API data received');
       }
@@ -97,20 +110,11 @@ export default function ExpenseSheetDetails() {
         chart_data,
         analysis_metadata,
         summary,
-        all_gl_accounts
+        all_gl_accounts,
+        closing_entries_analysis,
+        unusual_days_analysis,
+        anomalySummary
       } = apiData || {};
-
-      console.log("Extracted data:", {
-        file_info,
-        overall_analysis,
-        risk_analysis,
-        user_analysis,
-        chart_data,
-        analysis_metadata,
-        summary
-      });
-
-      console.log("Starting data transformation...");
 
       // Extract nested data structures
       const transactionSummary = overall_analysis?.transaction_summary || {};
@@ -120,28 +124,15 @@ export default function ExpenseSheetDetails() {
       const criticalAlerts = overall_analysis?.critical_alerts || [];
       const allGlAccounts = all_gl_accounts || [];
       
-      console.log("Extracted nested data:", {
-        transactionSummary,
-        flagSummary,
-        expenseAnalysis,
-        riskAssessment,
-        criticalAlerts,
-        allGlAccounts
-      });
+      // Extract additional analysis data
+      const closingEntriesData = closing_entries_analysis || {};
+      const unusualDaysData = unusual_days_analysis || {};
+      const analysisMetadata = analysis_metadata || {};
+      const summaryData = summary || {};
+      
+      // Debug the actual structure to see where anomaly data might be
 
-      console.log("Chart data debug:", {
-        chart_data,
-        risk_distribution_chart: chart_data?.risk_distribution_chart,
-        flag_type_chart: chart_data?.flag_type_chart,
-        amount_distribution_chart: chart_data?.amount_distribution_chart
-      });
 
-      console.log("GL Accounts debug:", {
-        all_gl_accounts,
-        allGlAccounts,
-        accountsCount: allGlAccounts?.accounts?.length || 0,
-        summary: allGlAccounts?.summary
-      });
 
       // Calculate date range from transaction summary
       const calculateDateRange = () => {
@@ -199,7 +190,14 @@ export default function ExpenseSheetDetails() {
           // Add risk-related statistics for banner
           riskScore: riskAssessment?.overall_risk_score || 0,
           riskLevel: riskAssessment?.risk_level || '',
-          anomaliesDetected: flagSummary?.total_anomalies || 0,
+          anomaliesDetected: anomalySummary?.totalAnomalies || 
+                             (anomalySummary?.duplicateEntries || 0) + 
+                             (anomalySummary?.userAnomalies || 0) + 
+                             (anomalySummary?.backdatedEntries || 0) + 
+                             (anomalySummary?.closingEntries || 0) + 
+                             (anomalySummary?.unusualDays || 0) + 
+                             (anomalySummary?.holidayEntries || 0) || 
+                             flagSummary?.total_anomalies || 0,
           duplicatesFound: flagSummary?.duplicate_anomalies || 0,
           userAnomalies: user_analysis?.user_anomalies?.total_anomalies || 0,
           highRiskUsers: user_analysis?.user_risk_assessment?.high_risk_users_count || 0
@@ -287,24 +285,51 @@ export default function ExpenseSheetDetails() {
             duplicateEntries: flagSummary?.duplicate_anomalies || 0,
             userAnomalies: user_analysis?.user_anomalies?.total_anomalies || 0,
             backdatedEntries: flagSummary?.backdated_anomalies || 0,
-            closingEntries: 0, // Not available in new structure
-            unusualDays: 0, // Not available in new structure
-            holidayEntries: 0, // Not available in new structure
+            closingEntries: closingEntriesData?.closing_entries_count || 0,
+            unusualDays: unusualDaysData?.unusual_days_count || 0,
+            holidayEntries: unusualDaysData?.holiday_entries_count || 0,
             totalAnomalies: flagSummary?.total_anomalies || 0,
             highRiskUsers: user_analysis?.user_risk_assessment?.high_risk_users_count || 0,
             totalUsers: user_analysis?.user_summary?.total_users || 0
           }
         },
         anomaliesAccordion: {
-          duplicateEntries: flagSummary?.duplicate_anomalies || 0,
-          userAnomalies: user_analysis?.user_anomalies?.total_anomalies || 0,
-          backdatedEntries: flagSummary?.backdated_anomalies || 0,
-          closingEntries: 0, // Not available in new structure
-          unusualDays: 0, // Not available in new structure
-          holidayEntries: 0, // Not available in new structure
-          totalAnomalies: flagSummary?.total_anomalies || 0,
-          highRiskUsers: user_analysis?.user_risk_assessment?.high_risk_users_count || 0,
-          totalUsers: user_analysis?.user_summary?.total_users || 0
+          duplicateEntries: anomalySummary?.duplicateEntries || 
+                           flagSummary?.duplicate_anomalies || 
+                           risk_analysis?.risk_factors?.duplicate_risk?.count || 
+                           summaryData?.duplicate_anomalies || 0,
+          userAnomalies: anomalySummary?.userAnomalies || 
+                        user_analysis?.user_anomalies?.total_anomalies || 
+                        risk_analysis?.risk_factors?.user_behavior_risk?.count || 
+                        summaryData?.user_anomalies || 0,
+          backdatedEntries: anomalySummary?.backdatedEntries || 
+                           flagSummary?.backdated_anomalies || 
+                           risk_analysis?.risk_factors?.backdated_risk?.count || 
+                           summaryData?.backdated_anomalies || 0,
+          closingEntries: anomalySummary?.closingEntries || 
+                         closingEntriesData?.closing_entries_count || 
+                         summaryData?.closing_entries || 0,
+          unusualDays: anomalySummary?.unusualDays || 
+                      unusualDaysData?.unusual_days_count || 
+                      summaryData?.unusual_days || 0,
+          holidayEntries: anomalySummary?.holidayEntries || 
+                         unusualDaysData?.holiday_entries_count || 
+                         summaryData?.holiday_entries || 0,
+          totalAnomalies: anomalySummary?.totalAnomalies || 
+                         flagSummary?.total_anomalies || 
+                         summaryData?.total_anomalies ||
+                         (anomalySummary?.duplicateEntries || 0) + 
+                         (anomalySummary?.userAnomalies || 0) + 
+                         (anomalySummary?.backdatedEntries || 0) + 
+                         (anomalySummary?.closingEntries || 0) + 
+                         (anomalySummary?.unusualDays || 0) + 
+                         (anomalySummary?.holidayEntries || 0),
+          highRiskUsers: anomalySummary?.highRiskUsers || 
+                        user_analysis?.user_risk_assessment?.high_risk_users_count || 
+                        summaryData?.high_risk_users || 0,
+          totalUsers: anomalySummary?.totalUsers || 
+                    user_analysis?.user_summary?.total_users || 
+                    summaryData?.total_users || 0
         },
         chartsData: {
           riskDistribution: (() => {
@@ -317,11 +342,7 @@ export default function ExpenseSheetDetails() {
               totalAnomalies > 0 ? (count / totalAnomalies) * 100 : 0
             );
             
-            console.log("ChartsData risk distribution debug:", {
-              chartRiskData,
-              totalAnomalies,
-              percentages
-            });
+
             
             return {
                 labels: chartRiskData.labels,
@@ -356,14 +377,16 @@ export default function ExpenseSheetDetails() {
             };
           })(),
           anomalyBreakdown: {
-            labels: ['Duplicate Transactions', 'Backdated Entries', 'High Value Transactions', 'User Anomalies'],
+            labels: ['Duplicate Entries', 'User Anomalies', 'Backdated Entries', 'Closing Entries', 'Unusual Days', 'Holiday Entries'],
             data: [
-              flagSummary?.duplicate_anomalies || 0,
-              flagSummary?.backdated_anomalies || 0,
-              flagSummary?.high_value_anomalies || 0,
-              user_analysis?.user_anomalies?.total_anomalies || 0
+              anomalySummary?.duplicateEntries || flagSummary?.duplicate_anomalies || 0,
+              anomalySummary?.userAnomalies || user_analysis?.user_anomalies?.total_anomalies || 0,
+              anomalySummary?.backdatedEntries || flagSummary?.backdated_anomalies || 0,
+              anomalySummary?.closingEntries || closingEntriesData?.closing_entries_count || 0,
+              anomalySummary?.unusualDays || unusualDaysData?.unusual_days_count || 0,
+              anomalySummary?.holidayEntries || unusualDaysData?.holiday_entries_count || 0
             ],
-            colors: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0']
+            colors: ['#FF6384', '#4BC0C0', '#36A2EB', '#FFCE56', '#9966FF', '#FF9F40']
           },
           topUsersByAmount: (() => {
             // Generate user data from high risk transactions
@@ -482,6 +505,10 @@ export default function ExpenseSheetDetails() {
             (flagSummary?.total_flagged / transactionSummary.total_transactions) * 100 : 0,
           user_anomalies: user_analysis?.user_anomalies?.total_anomalies || 0,
           high_risk_users: user_analysis?.user_risk_assessment?.high_risk_users_count || 0,
+          analysis_quality: summaryData?.analysis_quality || 'MEDIUM',
+          total_alerts: summaryData?.total_alerts || 0,
+          critical_issues: summaryData?.critical_issues || 0,
+          warnings: summaryData?.warnings || 0,
           anomalies_detected: {
             amount_anomalies: flagSummary?.high_value_anomalies || 0,
             timing_anomalies: flagSummary?.backdated_anomalies || 0,
@@ -489,18 +516,23 @@ export default function ExpenseSheetDetails() {
             employee_anomalies: user_analysis?.user_anomalies?.total_anomalies || 0,
             duplicate_suspicions: flagSummary?.duplicate_anomalies || 0,
             user_anomalies: user_analysis?.user_anomalies?.total_anomalies || 0,
-            high_risk_users: user_analysis?.user_risk_assessment?.high_risk_users_count || 0
+            high_risk_users: user_analysis?.user_risk_assessment?.high_risk_users_count || 0,
+            closing_entries: closingEntriesData?.closing_entries_count || 0,
+            unusual_days: unusualDaysData?.unusual_days_count || 0,
+            holiday_entries: unusualDaysData?.holiday_entries_count || 0
           },
           risk_factors: {
             unusual_patterns: risk_analysis?.risk_factors?.unusual_pattern_risk?.count || 0,
             round_amounts: 0, // Not available in new structure
-            holiday_transactions: 0, // Not available in new structure
+            holiday_transactions: unusualDaysData?.holiday_entries_count || 0,
             weekend_transactions: user_analysis?.user_patterns?.weekend_activity_percentage || 0,
             late_hour_transactions: 0, // Not available in new structure
             high_value_transactions: flagSummary?.high_value_anomalies || 0,
             user_behavior_risk: risk_analysis?.risk_factors?.user_behavior_risk?.count || 0,
             duplicate_risk: risk_analysis?.risk_factors?.duplicate_risk?.count || 0,
-            backdated_risk: risk_analysis?.risk_factors?.backdated_risk?.count || 0
+            backdated_risk: risk_analysis?.risk_factors?.backdated_risk?.count || 0,
+            closing_entries_risk: closingEntriesData?.risk_score || 0,
+            unusual_days_risk: unusualDaysData?.risk_score || 0
           }
         },
         chart_data: {
@@ -686,14 +718,25 @@ export default function ExpenseSheetDetails() {
         flagged_expenses: transformFlaggedExpensesFromNewData(riskAssessment, transactionSummary),
         anomalies_data: {
           anomaly_summary: {
-            duplicate_entries: flagSummary?.duplicate_anomalies || 0,
-            backdated_entries: flagSummary?.backdated_anomalies || 0,
-            closing_entries: 0, // Not available in new structure
-            unusual_days: 0, // Not available in new structure
-            holiday_entries: 0, // Not available in new structure
-            user_anomalies: user_analysis?.user_anomalies?.total_anomalies || 0,
-            high_risk_users: user_analysis?.user_risk_assessment?.high_risk_users_count || 0,
-            total_users: user_analysis?.user_summary?.total_users || 0
+            duplicate_entries: anomalySummary?.duplicateEntries || 
+                              flagSummary?.duplicate_anomalies || 
+                              risk_analysis?.risk_factors?.duplicate_risk?.count || 0,
+            backdated_entries: anomalySummary?.backdatedEntries || 
+                              flagSummary?.backdated_anomalies || 
+                              risk_analysis?.risk_factors?.backdated_risk?.count || 0,
+            closing_entries: anomalySummary?.closingEntries || 
+                           closingEntriesData?.closing_entries_count || 0,
+            unusual_days: anomalySummary?.unusualDays || 
+                         unusualDaysData?.unusual_days_count || 0,
+            holiday_entries: anomalySummary?.holidayEntries || 
+                           unusualDaysData?.holiday_entries_count || 0,
+            user_anomalies: anomalySummary?.userAnomalies || 
+                           user_analysis?.user_anomalies?.total_anomalies || 
+                           risk_analysis?.risk_factors?.user_behavior_risk?.count || 0,
+            high_risk_users: anomalySummary?.highRiskUsers || 
+                           user_analysis?.user_risk_assessment?.high_risk_users_count || 0,
+            total_users: anomalySummary?.totalUsers || 
+                        user_analysis?.user_summary?.total_users || 0
           },
           risk_distribution: (() => {
             // Use chart_data.risk_distribution_chart as the primary source (corrected from risk_distribution)
@@ -800,7 +843,17 @@ export default function ExpenseSheetDetails() {
               description: risk_analysis?.risk_factors?.user_behavior_risk?.description || 'Risk associated with user behavior patterns and anomalies',
               high_risk_users_count: risk_analysis?.risk_factors?.user_behavior_risk?.high_risk_users_count || 0,
               high_risk_users_percentage: risk_analysis?.risk_factors?.user_behavior_risk?.high_risk_users_percentage || 0
-            }
+            },
+            unusual_days_risk: {
+              count: risk_analysis?.risk_factors?.unusual_days_risk?.count || 0,
+              percentage: risk_analysis?.risk_factors?.unusual_days_risk?.percentage || 0,
+              description: risk_analysis?.risk_factors?.unusual_days_risk?.description || 'Risk associated with unusual days'
+            },
+            closing_entries_risk: {
+              count: risk_analysis?.risk_factors?.closing_entries_risk?.count || 0,
+              percentage: risk_analysis?.risk_factors?.closing_entries_risk?.percentage || 0,
+              description: risk_analysis?.risk_factors?.closing_entries_risk?.description || 'Risk associated with closing entries'
+            },
           },
           scoring_criteria: {
             low_risk: {
@@ -885,24 +938,49 @@ export default function ExpenseSheetDetails() {
             interpretation_guide: chart_data?.overall_risk_gauge?.interpretation_guide || {},
             business_impact: chart_data?.overall_risk_gauge?.business_impact || {}
           }
+        },
+        // New analysis data from updated API structure
+        closing_entries_analysis: {
+          analysis_id: closingEntriesData?.analysis_id || '',
+          analysis_date: closingEntriesData?.analysis_date || '',
+          closing_entries_count: closingEntriesData?.closing_entries_count || 0,
+          risk_score: closingEntriesData?.risk_score || 0,
+          risk_level: closingEntriesData?.risk_level || 'LOW',
+          closing_entries_details: closingEntriesData?.closing_entries_details || [],
+          recommendations: closingEntriesData?.recommendations || []
+        },
+        unusual_days_analysis: {
+          analysis_id: unusualDaysData?.analysis_id || '',
+          analysis_date: unusualDaysData?.analysis_date || '',
+          unusual_days_count: unusualDaysData?.unusual_days_count || 0,
+          holiday_entries_count: unusualDaysData?.holiday_entries_count || 0,
+          risk_score: unusualDaysData?.risk_score || 0,
+          risk_level: unusualDaysData?.risk_level || 'LOW',
+          unusual_days_details: unusualDaysData?.unusual_days_details || [],
+          holiday_entries_details: unusualDaysData?.holiday_entries_details || [],
+          recommendations: unusualDaysData?.recommendations || []
+        },
+        analysis_metadata: {
+          has_overall_analysis: analysisMetadata?.has_overall_analysis || false,
+          has_risk_analysis: analysisMetadata?.has_risk_analysis || false,
+          has_user_analysis: analysisMetadata?.has_user_analysis || false,
+          has_closing_entries_analysis: analysisMetadata?.has_closing_entries_analysis || false,
+          has_unusual_days_analysis: analysisMetadata?.has_unusual_days_analysis || false,
+          analysis_completeness: analysisMetadata?.analysis_completeness || 'PARTIAL',
+          data_quality_score: analysisMetadata?.data_quality_score || 0
+        },
+        summary_data: {
+          total_alerts: summaryData?.total_alerts || 0,
+          critical_issues: summaryData?.critical_issues || 0,
+          warnings: summaryData?.warnings || 0,
+          analysis_quality: summaryData?.analysis_quality || 'MEDIUM',
+          overall_risk_level: summaryData?.overall_risk_level || 'LOW',
+          key_findings: summaryData?.key_findings || [],
+          recommendations: summaryData?.recommendations || []
         }
       };
 
-      console.log("Result object created successfully");
 
-      // Debug the final transformed result
-      console.log("Final transformed result:", result);
-      console.log("Final statistics:", result.statistics);
-      console.log("Final fileInfo:", result.fileInfo);
-      console.log("Final analysis_summary:", result.analysis_summary);
-      console.log("Final risk data in result:", {
-        statistics_riskScore: result.statistics.riskScore,
-        statistics_riskLevel: result.statistics.riskLevel,
-        analysis_summary_overall_fraud_score: result.analysis_summary.overall_fraud_score,
-        analysis_summary_risk_level: result.analysis_summary.risk_level,
-        analysis_summary_total_flagged_expenses: result.analysis_summary.total_flagged_expenses
-      });
-      console.log("Transformation function completed successfully");
 
       return result;
     } catch (error) {
@@ -1344,7 +1422,7 @@ export default function ExpenseSheetDetails() {
         ) : (
           <>
             {/* Dashboard Toggle */}
-            <Box sx={{ 
+            {/* <Box sx={{ 
               p: 3, 
               pb: 0, 
               display: 'flex', 
@@ -1383,7 +1461,7 @@ export default function ExpenseSheetDetails() {
                   Listing View
                 </ToggleButton>
               </ToggleButtonGroup>
-            </Box>
+            </Box> */}
 
             {/* Dashboard Content */}
             {dashboardView === 'analysis' ? (

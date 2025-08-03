@@ -51,7 +51,6 @@ import AnomalyAnalysisAccordion from './AnomalyAnalysisAccordion';
 import DetailedRiskAnalysis from './DetailedRiskAnalysis';
 
 export default function ExpenseAnalysisDashboard({ sheetData }) {
-  console.log("Dashboard - sheetData:", sheetData)
   if (!sheetData) {
     return (
       <Box sx={{ p: 4, textAlign: 'center' }}>
@@ -79,13 +78,9 @@ export default function ExpenseAnalysisDashboard({ sheetData }) {
   const anomaliesData = sheetData.anomalies_data;
   const advancedMetrics = sheetData.advanced_metrics;
 
-  console.log("Dashboard - sheetData:", sheetData)
-  console.log("Dashboard - statistics:", statistics)
-  console.log("Dashboard - fileInfo:", fileInfo)
-  console.log("Dashboard - analysisSummary:", analysisSummary)
-  console.log("Dashboard - anomaliesAccordion:", anomaliesAccordion)
-  console.log("Dashboard - chartsData:", chartsData)
-  console.log("Dashboard - chartsData?.topUsersByAmount:", chartsData?.topUsersByAmount)
+
+
+console.log(sheetData)
 
   // Helper function to format currency
   const formatCurrency = (amount) => {
@@ -112,12 +107,22 @@ export default function ExpenseAnalysisDashboard({ sheetData }) {
     }
   };
 
-  // Calculate overall risk score from the actual data structure
-  const overallRiskScore = Math.round(analysisSummary?.overall_fraud_score || 0);
+  // Calculate overall risk score from the detailed risk analysis data
+  const overallRiskScore = Math.round(sheetData?.detailed_risk_analysis?.overall_risk_gauge?.value || sheetData?.analysis_summary?.overall_fraud_score || 0);
   
-  // Get risk level from chart_data.overall_risk_gauge as primary source, then risk_distribution_chart
-  const getRiskLevelFromDistribution = () => {
-    // First try to get from overall_risk_gauge which has the most accurate risk level
+  // Get risk level from detailed risk analysis data
+  const getRiskLevelFromDetailedData = () => {
+    // First try to get from detailed risk analysis
+    if (sheetData?.detailed_risk_analysis?.overall_risk_gauge?.risk_level) {
+      return sheetData.detailed_risk_analysis.overall_risk_gauge.risk_level;
+    }
+    
+    // Fallback to analysis summary
+    if (sheetData?.analysis_summary?.risk_level) {
+      return sheetData.analysis_summary.risk_level;
+    }
+    
+    // Fallback to chart_data.overall_risk_gauge
     const overallRiskGauge = sheetData?.chart_data?.overall_risk_gauge;
     if (overallRiskGauge?.risk_level) {
       return overallRiskGauge.risk_level;
@@ -151,57 +156,40 @@ export default function ExpenseAnalysisDashboard({ sheetData }) {
       return dominantRiskLevel;
     }
     
-    // Fallback to analysis summary or calculated risk level
-    return analysisSummary?.risk_level || 
-           (overallRiskScore >= 80 ? 'CRITICAL' : 
+    // Fallback to calculated risk level
+    return (overallRiskScore >= 80 ? 'CRITICAL' : 
            overallRiskScore >= 60 ? 'HIGH' : 
            overallRiskScore >= 40 ? 'MEDIUM' : 'LOW');
   };
   
-  const riskLevel = getRiskLevelFromDistribution();
+  const riskLevel = getRiskLevelFromDetailedData();
   
-  // Debug risk level calculation
-  console.log("Risk level calculation debug:", {
-    chartDataRiskDistribution: sheetData?.chart_data?.risk_distribution_chart,
-    overallRiskGauge: sheetData?.chart_data?.overall_risk_gauge,
-    analysisSummaryRiskLevel: analysisSummary?.risk_level,
-    overallRiskScore,
-    calculatedRiskLevel: riskLevel
-  });
 
-  // Extract anomaly data from the actual structure
+
+  // Extract anomaly data from the comprehensive risk analysis structure
   const anomalyData = {
-    duplicateEntries: anomaliesAccordion?.duplicateEntries || 0,
-    userAnomalies: anomaliesAccordion?.userAnomalies || 0,
-    backdatedEntries: anomaliesAccordion?.backdatedEntries || 0,
-    closingEntries: anomaliesAccordion?.closingEntries || 0,
-    unusualDays: anomaliesAccordion?.unusualDays || 0,
-    holidayEntries: anomaliesAccordion?.holidayEntries || 0,
-    totalAnomalies: anomaliesAccordion?.totalAnomalies || 
-                   (anomaliesAccordion?.duplicateEntries || 0) + 
-                   (anomaliesAccordion?.userAnomalies || 0) + 
-                   (anomaliesAccordion?.backdatedEntries || 0) + 
-                   (anomaliesAccordion?.closingEntries || 0) + 
-                   (anomaliesAccordion?.unusualDays || 0) + 
-                   (anomaliesAccordion?.holidayEntries || 0)
+    duplicateEntries: sheetData?.detailed_risk_analysis?.risk_factors?.duplicate_risk?.count || sheetData?.anomalies_data?.anomaly_summary?.duplicate_entries || anomaliesAccordion?.duplicateEntries || 0,
+    userAnomalies: sheetData?.detailed_risk_analysis?.user_anomalies?.total_user_anomalies || anomaliesAccordion?.userAnomalies || 0,
+    backdatedEntries: sheetData?.detailed_risk_analysis?.risk_factors?.backdated_risk?.count || sheetData?.anomalies_data?.anomaly_summary?.backdated_entries || anomaliesAccordion?.backdatedEntries || 0,
+    closingEntries: sheetData?.detailed_risk_analysis?.risk_factors?.closing_entries_risk?.count || sheetData?.anomalies_data?.anomaly_summary?.closing_entries || anomaliesAccordion?.closingEntries || 0,
+    unusualDays: sheetData?.detailed_risk_analysis?.risk_factors?.unusual_days_risk?.count || sheetData?.anomalies_data?.anomaly_summary?.unusual_days || anomaliesAccordion?.unusualDays || 0,
+    holidayEntries: sheetData?.anomalies_data?.anomaly_summary?.holiday_entries || anomaliesAccordion?.holidayEntries || 0,
+    totalAnomalies: sheetData?.detailed_risk_analysis?.risk_calculations?.total_flagged || sheetData?.analysis_summary?.total_flagged_expenses || anomaliesAccordion?.totalAnomalies || 
+                   (sheetData?.detailed_risk_analysis?.risk_factors?.duplicate_risk?.count || 0) + 
+                   (sheetData?.detailed_risk_analysis?.user_anomalies?.total_user_anomalies || 0) + 
+                   (sheetData?.detailed_risk_analysis?.risk_factors?.backdated_risk?.count || 0) + 
+                   (sheetData?.detailed_risk_analysis?.risk_factors?.closing_entries_risk?.count || 0) + 
+                   (sheetData?.detailed_risk_analysis?.risk_factors?.unusual_days_risk?.count || 0) + 
+                   (sheetData?.anomalies_data?.anomaly_summary?.holiday_entries || 0),
+    highRiskUsers: sheetData?.detailed_risk_analysis?.user_anomalies?.high_risk_users_count || 0
   };
 
-  // Debug the values being displayed
-  console.log("Display values:", {
-    totalTransactions: statistics?.totalTransactions,
-    totalAmount: statistics?.totalAmount,
-    uniqueUsers: statistics?.uniqueUsers,
-    uniqueAccounts: statistics?.uniqueAccounts,
-    flaggedTransactions: statistics?.flaggedTransactions,
-    overallRiskScore,
-    riskLevel,
-    anomalyData
-  });
+
 
   // Comprehensive statistics object for display
   const comprehensiveStats = {
     // Basic Transaction Stats
-    totalTransactions: statistics?.totalTransactions || 0,
+    totalTransactions: sheetData?.detailed_risk_analysis?.methodology?.total_transactions_analyzed || statistics?.totalTransactions || 0,
     totalAmount: statistics?.totalAmount || 0,
     avgAmount: statistics?.avgAmount || 0,
     minAmount: statistics?.minAmount || 0,
@@ -214,13 +202,20 @@ export default function ExpenseAnalysisDashboard({ sheetData }) {
     uniqueProfitCenters: statistics?.uniqueProfitCenters || 0,
     
     // Risk & Anomaly Stats
-    riskScore: statistics?.riskScore || overallRiskScore,
-    riskLevel: statistics?.riskLevel || riskLevel,
-    anomaliesDetected: statistics?.anomaliesDetected || anomalyData.totalAnomalies,
-    duplicatesFound: statistics?.duplicatesFound || anomalyData.duplicateEntries,
-    flaggedTransactions: statistics?.flaggedTransactions || analysisSummary?.total_flagged_expenses || 0,
-    flagRate: statistics?.flagRate || 0,
-    highValueTransactions: statistics?.highValueTransactions || 0,
+    riskScore: sheetData?.detailed_risk_analysis?.overall_risk_gauge?.value || sheetData?.analysis_summary?.overall_fraud_score || statistics?.riskScore || overallRiskScore,
+    riskLevel: sheetData?.detailed_risk_analysis?.overall_risk_gauge?.risk_level || sheetData?.analysis_summary?.risk_level || statistics?.riskLevel || riskLevel,
+    anomaliesDetected: sheetData?.detailed_risk_analysis?.risk_calculations?.total_flagged || sheetData?.analysis_summary?.total_flagged_expenses || anomalyData.totalAnomalies || statistics?.anomaliesDetected || 0,
+    flaggedTransactions: sheetData?.detailed_risk_analysis?.risk_calculations?.total_flagged || sheetData?.analysis_summary?.total_flagged_expenses || statistics?.flaggedTransactions || 0,
+    flagRate: sheetData?.analysis_summary?.flag_rate || statistics?.flagRate || 0,
+    highValueTransactions: sheetData?.detailed_risk_analysis?.risk_factors?.high_value_risk?.count || statistics?.highValueTransactions || 0,
+    highRiskUsers: sheetData?.detailed_risk_analysis?.user_anomalies?.high_risk_users_count || anomalyData.highRiskUsers || 0,
+    anomalyRate: sheetData?.analysis_summary?.flag_rate || (anomalyData.totalAnomalies > 0 ? Math.round((anomalyData.totalAnomalies / (statistics?.totalTransactions || 1)) * 100) : 0),
+    
+    // Risk Distribution Stats
+    criticalRiskTransactions: sheetData?.detailed_risk_analysis?.risk_distributions?.critical_risk || 0,
+    highRiskTransactions: sheetData?.detailed_risk_analysis?.risk_distributions?.high_risk || 0,
+    mediumRiskTransactions: sheetData?.detailed_risk_analysis?.risk_distributions?.medium_risk || 0,
+    lowRiskTransactions: sheetData?.detailed_risk_analysis?.risk_distributions?.low_risk || 0,
     
     // Financial Stats
     totalDebits: statistics?.totalDebits || 0,
@@ -231,7 +226,7 @@ export default function ExpenseAnalysisDashboard({ sheetData }) {
     dateRange: statistics?.dateRange || { startDate: '', endDate: '' }
   };
 
-console.log("sheetData:", sheetData)
+
   return (
     <Box sx={{ minHeight: '100vh', background: colorScheme.background, p: 3 }}>
       {/* Top Summary Banner */}
@@ -486,13 +481,13 @@ console.log("sheetData:", sheetData)
                           mb: 0.5,
                           fontSize: '1.1rem'
                         }}>
-                          {comprehensiveStats.duplicatesFound}
+                          {comprehensiveStats.anomalyRate}%
                         </Typography>
                         <Typography variant="body2" sx={{ 
                           color: colorScheme.textSecondary,
                           fontSize: '0.8rem'
                         }}>
-                          Duplicates
+                          Anomaly Rate
                         </Typography>
                       </Box>
                     </Grid>
@@ -724,10 +719,10 @@ console.log("sheetData:", sheetData)
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>
-                        Duplicates Found
+                        High Risk Users
                       </Typography>
                       <Typography variant="body1" sx={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>
-                        {comprehensiveStats.duplicatesFound}
+                        {anomalyData.highRiskUsers || 0}
                       </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -829,7 +824,7 @@ console.log("sheetData:", sheetData)
       {/* Main Content Grid */}
       <Grid container spacing={3}>
         {/* Risk Distribution */}
-        <Grid item size={{xs: 12, md: 6}}>
+        <Grid item size={{xs: 12, md: 12}}>
           <Card sx={{ 
             borderRadius: 3, 
             boxShadow: '0 4px 20px rgba(0,0,0,0.08)', 
@@ -853,14 +848,7 @@ console.log("sheetData:", sheetData)
                   const data = riskDistributionData?.data || [0, 0, 0, 0];
                   const percentages = riskDistributionData?.percentages || [0, 0, 0, 0];
                   
-                  // Debug risk distribution data
-                  console.log("Risk Distribution Card Data:", {
-                    riskDistributionData,
-                    labels,
-                    data,
-                    percentages,
-                    currentRiskLevel: riskLevel
-                  });
+
                   
                   return labels.map((label, index) => {
                     const count = data[index] || 0;
@@ -924,19 +912,14 @@ console.log("sheetData:", sheetData)
                   data: sheetData?.chartsData?.riskDistribution?.data || [0, 0, 0, 0],
                   percentages: sheetData?.chartsData?.riskDistribution?.percentages || [0, 0, 0, 0]
                 }} />
-                {/* Debug chart data */}
-                {console.log("Risk Distribution Chart Data:", {
-                  chartLabels: sheetData?.chartsData?.riskDistribution?.labels,
-                  chartData: sheetData?.chartsData?.riskDistribution?.data,
-                  chartPercentages: sheetData?.chartsData?.riskDistribution?.percentages
-                })}
+
               </Box>
             </CardContent>
           </Card>
         </Grid>
 
         {/* Anomaly Summary */}
-        <Grid item size={{xs: 12, md: 6}}>
+        <Grid item size={{xs: 12, md: 12}}>
           <Card sx={{ 
             borderRadius: 3, 
             boxShadow: '0 4px 20px rgba(0,0,0,0.08)', 
@@ -957,60 +940,93 @@ console.log("sheetData:", sheetData)
                   { 
                     label: 'Duplicate Entries', 
                     value: anomalyData.duplicateEntries, 
-                    icon: <Error sx={{ color: colorScheme.primary }} />,
-                    color: colorScheme.primary
+                    icon: <Error sx={{ color: '#9862A0' }} />,
+                    color: '#9862A0',
+                    description: 'Identical transactions detected',
+                    riskLevel: anomalyData.duplicateEntries > 10 ? 'HIGH' : anomalyData.duplicateEntries > 5 ? 'MEDIUM' : 'LOW'
                   },
                   { 
                     label: 'User Anomalies', 
                     value: anomalyData.userAnomalies, 
-                    icon: <People sx={{ color: colorScheme.primary }} />,
-                    color: colorScheme.primary
+                    icon: <People sx={{ color: '#9862A0' }} />,
+                    color: '#9862A0',
+                    description: 'Suspicious user behavior patterns',
+                    riskLevel: anomalyData.userAnomalies > 15 ? 'HIGH' : anomalyData.userAnomalies > 8 ? 'MEDIUM' : 'LOW'
                   },
                   { 
                     label: 'Backdated Entries', 
                     value: anomalyData.backdatedEntries, 
-                    icon: <Timeline sx={{ color: colorScheme.primary }} />,
-                    color: colorScheme.primary
+                    icon: <Timeline sx={{ color: '#9862A0' }} />,
+                    color: '#9862A0',
+                    description: 'Transactions posted on past dates',
+                    riskLevel: anomalyData.backdatedEntries > 5 ? 'HIGH' : anomalyData.backdatedEntries > 2 ? 'MEDIUM' : 'LOW'
                   },
                   { 
                     label: 'Closing Entries', 
                     value: anomalyData.closingEntries, 
-                    icon: <CheckCircle sx={{ color: colorScheme.primary }} />,
-                    color: colorScheme.primary
+                    icon: <CheckCircle sx={{ color: '#9862A0' }} />,
+                    color: '#9862A0',
+                    description: 'Period-end closing transactions',
+                    riskLevel: anomalyData.closingEntries > 20 ? 'HIGH' : anomalyData.closingEntries > 10 ? 'MEDIUM' : 'LOW'
                   },
                   { 
                     label: 'Unusual Days', 
                     value: anomalyData.unusualDays, 
-                    icon: <Warning sx={{ color: colorScheme.primary }} />,
-                    color: colorScheme.primary
+                    icon: <Warning sx={{ color: '#9862A0' }} />,
+                    color: '#9862A0',
+                    description: 'Weekend/holiday transactions',
+                    riskLevel: anomalyData.unusualDays > 15 ? 'HIGH' : anomalyData.unusualDays > 8 ? 'MEDIUM' : 'LOW'
                   },
                   { 
                     label: 'Holiday Entries', 
                     value: anomalyData.holidayEntries, 
-                    icon: <Assessment sx={{ color: colorScheme.primary }} />,
-                    color: colorScheme.primary
+                    icon: <Assessment sx={{ color: '#9862A0' }} />,
+                    color: '#9862A0',
+                    description: 'Transactions on holidays',
+                    riskLevel: anomalyData.holidayEntries > 5 ? 'HIGH' : anomalyData.holidayEntries > 2 ? 'MEDIUM' : 'LOW'
                   }
                 ].map((item, index) => (
-                  <Box key={index} sx={{ mb: 2 }}>
+                  <Box key={index} sx={{ mb: 2.5, p: 2, borderRadius: 2, backgroundColor: `${item.color}08`, border: `1px solid ${item.color}20` }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                       <Box sx={{ mr: 1.5 }}>
                         {item.icon}
                       </Box>
-                      <Typography variant="body1" sx={{ 
-                        flex: 1, 
-                        fontWeight: 600,
-                        color: colorScheme.textPrimary,
-                        fontSize: '0.9rem'
-                      }}>
-                        {item.label}
-                      </Typography>
-                      <Typography variant="body1" sx={{ 
-                        fontWeight: 600, 
-                        color: item.color,
-                        fontSize: '0.9rem'
-                      }}>
-                        {item.value}
-                      </Typography>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="body1" sx={{ 
+                          fontWeight: 600,
+                          color: colorScheme.textPrimary,
+                          fontSize: '0.9rem',
+                          mb: 0.5
+                        }}>
+                          {item.label}
+                        </Typography>
+                        <Typography variant="caption" sx={{ 
+                          color: colorScheme.textSecondary,
+                          fontSize: '0.75rem'
+                        }}>
+                          {item.description}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ textAlign: 'right' }}>
+                        <Typography variant="body1" sx={{ 
+                          fontWeight: 700, 
+                          color: item.color,
+                          fontSize: '1rem'
+                        }}>
+                          {item.value}
+                        </Typography>
+                        <Chip 
+                          label={item.riskLevel} 
+                          size="small"
+                          sx={{ 
+                            backgroundColor: '#9862A0',
+                            color: 'white',
+                            fontWeight: 600,
+                            fontSize: '0.65rem',
+                            height: 20
+                          }}
+                        />
+                      </Box>
                     </Box>
                     <LinearProgress 
                       variant="determinate" 
@@ -1020,7 +1036,7 @@ console.log("sheetData:", sheetData)
                         borderRadius: 3,
                         backgroundColor: '#f0f0f0',
                         '& .MuiLinearProgress-bar': {
-                          backgroundColor: "#b18db7",
+                          backgroundColor: item.color,
                           borderRadius: 3
                         }
                       }} 
@@ -1047,6 +1063,120 @@ console.log("sheetData:", sheetData)
                     anomalyData.holidayEntries
                   ]
                 }} />
+
+              </Box>
+              
+              {/* Anomaly Statistics Summary */}
+              <Box sx={{ mt: 3, p: 3, backgroundColor: '#f8f9fa', borderRadius: 2, border: '1px solid #e9ecef' }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, color: colorScheme.textPrimary }}>
+                  Anomaly Analysis Summary
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item size={{xs: 12, sm: 6, md: 3}}>
+                    <Box sx={{ textAlign: 'center', p: 2, backgroundColor: 'white', borderRadius: 2, border: '1px solid #dee2e6' }}>
+                      <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#9862A0', mb: 1 }}>
+                        {anomalyData.totalAnomalies}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: colorScheme.textSecondary, fontSize: '0.8rem' }}>
+                        Total Anomalies
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item size={{xs: 12, sm: 6, md: 3}}>
+                    <Box sx={{ textAlign: 'center', p: 2, backgroundColor: 'white', borderRadius: 2, border: '1px solid #dee2e6' }}>
+                      <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#9862A0', mb: 1 }}>
+                        {anomalyData.totalAnomalies > 0 ? Math.round((anomalyData.totalAnomalies / (statistics?.totalTransactions || 1)) * 100) : 0}%
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: colorScheme.textSecondary, fontSize: '0.8rem' }}>
+                        Anomaly Rate
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item size={{xs: 12, sm: 6, md: 3}}>
+                    <Box sx={{ textAlign: 'center', p: 2, backgroundColor: 'white', borderRadius: 2, border: '1px solid #dee2e6' }}>
+                      <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#9862A0', mb: 1 }}>
+                        {(() => {
+                          const highRiskCount = [
+                            anomalyData.duplicateEntries > 10 ? 1 : 0,
+                            anomalyData.userAnomalies > 15 ? 1 : 0,
+                            anomalyData.backdatedEntries > 5 ? 1 : 0,
+                            anomalyData.closingEntries > 20 ? 1 : 0,
+                            anomalyData.unusualDays > 15 ? 1 : 0,
+                            anomalyData.holidayEntries > 5 ? 1 : 0
+                          ].reduce((sum, val) => sum + val, 0);
+                          return highRiskCount;
+                        })()}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: colorScheme.textSecondary, fontSize: '0.8rem' }}>
+                        High Risk Types
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item size={{xs: 12, sm: 6, md: 3}}>
+                    <Box sx={{ textAlign: 'center', p: 2, backgroundColor: 'white', borderRadius: 2, border: '1px solid #dee2e6' }}>
+                      <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#9862A0', mb: 1 }}>
+                        {anomalyData.totalAnomalies > 0 ? Math.round((anomalyData.duplicateEntries / anomalyData.totalAnomalies) * 100) : 0}%
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: colorScheme.textSecondary, fontSize: '0.8rem' }}>
+                        Duplicate Rate
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Box>
+              
+              {/* Anomaly Patterns & Insights */}
+              <Box sx={{ mt: 3, p: 3, backgroundColor: '#fff3cd', borderRadius: 2, border: '1px solid #ffeaa7' }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, color: '#856404' }}>
+                  🔍 Anomaly Patterns & Insights
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item size={{xs: 12, sm: 6}}>
+                    <Box sx={{ p: 2, backgroundColor: 'white', borderRadius: 2, border: '1px solid #ffeaa7' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#856404', mb: 1 }}>
+                        Most Common Anomaly Type
+                      </Typography>
+                      <Typography variant="h6" sx={{ color: '#856404' }}>
+                        {(() => {
+                          const types = [
+                            { name: 'Closing Entries', count: anomalyData.closingEntries },
+                            { name: 'Unusual Days', count: anomalyData.unusualDays },
+                            { name: 'User Anomalies', count: anomalyData.userAnomalies },
+                            { name: 'Duplicate Entries', count: anomalyData.duplicateEntries },
+                            { name: 'Backdated Entries', count: anomalyData.backdatedEntries },
+                            { name: 'Holiday Entries', count: anomalyData.holidayEntries }
+                          ];
+                          const maxType = types.reduce((max, type) => type.count > max.count ? type : max, types[0]);
+                          return maxType.name;
+                        })()}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item size={{xs: 12, sm: 6}}>
+                    <Box sx={{ p: 2, backgroundColor: 'white', borderRadius: 2, border: '1px solid #ffeaa7' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#856404', mb: 1 }}>
+                        Risk Assessment
+                      </Typography>
+                      <Typography variant="h6" sx={{ color: '#856404' }}>
+                        {(() => {
+                          const highRiskCount = [
+                            anomalyData.duplicateEntries > 10 ? 1 : 0,
+                            anomalyData.userAnomalies > 15 ? 1 : 0,
+                            anomalyData.backdatedEntries > 5 ? 1 : 0,
+                            anomalyData.closingEntries > 20 ? 1 : 0,
+                            anomalyData.unusualDays > 15 ? 1 : 0,
+                            anomalyData.holidayEntries > 5 ? 1 : 0
+                          ].reduce((sum, val) => sum + val, 0);
+                          
+                          if (highRiskCount >= 4) return 'CRITICAL';
+                          if (highRiskCount >= 2) return 'HIGH';
+                          if (highRiskCount >= 1) return 'MEDIUM';
+                          return 'LOW';
+                        })()}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
               </Box>
             </CardContent>
           </Card>
@@ -1260,9 +1390,7 @@ console.log("sheetData:", sheetData)
                 {(() => {
                   const chartLabels = (chartsData?.topUsersByAmount || []).slice(0, 5).map(user => user.userName || user.user_name || (typeof user === 'string' ? user : 'Unknown User'));
                   const chartData = (chartsData?.topUsersByAmount || []).slice(0, 5).map(user => user.totalAmount || 0);
-                  console.log('Chart - chartLabels:', chartLabels);
-                  console.log('Chart - chartData:', chartData);
-                  console.log('Chart - chartsData?.topUsersByAmount:', chartsData?.topUsersByAmount);
+
                   
                   return (
                     <EmployeeExpensesChart data={{
@@ -1278,14 +1406,7 @@ console.log("sheetData:", sheetData)
         )}
 
         {/* Top GL Accounts */}
-        {(() => {
-          console.log("GL Accounts Data Debug:", {
-            glChartsData: glChartsData,
-            topAccountsByAmount: glChartsData?.topAccountsByAmount,
-            accountCount: glChartsData?.topAccountsByAmount?.length || 0
-          });
-          return (glChartsData?.topAccountsByAmount && glChartsData.topAccountsByAmount.length > 0);
-        })() && (
+        {(glChartsData?.topAccountsByAmount && glChartsData.topAccountsByAmount.length > 0) && (
           <Grid item size={{xs: 12, md: 12}}>
             <Card sx={{ 
               borderRadius: 3, 
@@ -1303,15 +1424,7 @@ console.log("sheetData:", sheetData)
                 </Typography>
                 
                 {/* GL Account Summary */}
-                {(() => {
-                  console.log("GL Summary Statistics Debug:", {
-                    glSummary: glSummary,
-                    summaryStatistics: glSummary?.summaryStatistics,
-                    totalAccounts: glSummary?.summaryStatistics?.totalAccounts,
-                    totalTrialBalance: glSummary?.summaryStatistics?.totalTrialBalance
-                  });
-                  return glSummary?.summaryStatistics;
-                })() && (
+                {glSummary?.summaryStatistics && (
                 <Box sx={{ 
                   mb: 4, 
                   p: 4, 
@@ -1736,7 +1849,7 @@ console.log("sheetData:", sheetData)
 
           {/* Anomaly Analysis Accordion */}
         <Grid item size={{xs: 12, md: 12}}>
-            <AnomalyAnalysisAccordion sheetId={sheetData?.sheet_id} anomalySummary={sheetData?.anomalies_data?.anomaly_summary} />
+            <AnomalyAnalysisAccordion sheetId={sheetData?.sheet_id} anomalySummary={sheetData?.anomaliesAccordion} />
           </Grid>
         </Grid>
     </Box>

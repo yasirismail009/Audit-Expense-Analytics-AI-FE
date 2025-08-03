@@ -86,8 +86,6 @@ export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
     const duplicateEntries = data?.detailed_results?.duplicate_entries || data?.duplicate_entries;
     
     if (duplicateEntries) {
-      console.log('DuplicateRiskChart - duplicateEntries:', duplicateEntries);
-      
       // Initialize risk level categories
       const riskCategories = {
         CRITICAL: { count: 0, amount: 0, transactions: 0 },
@@ -100,7 +98,6 @@ export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
       duplicateEntries.forEach(entry => {
         // Process transaction1
         const amount1 = entry.transaction1?.amount || 0;
-        console.log(`Processing transaction1 with amount: ${amount1}`);
         
         // Categorize transaction1 based on amount ranges
         if (amount1 > 2000000) {
@@ -108,30 +105,25 @@ export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
           riskCategories.CRITICAL.count += 1;
           riskCategories.CRITICAL.amount += amount1;
           riskCategories.CRITICAL.transactions += 1;
-          console.log(`CRITICAL: Added transaction1 amount ${amount1}, count now ${riskCategories.CRITICAL.count}`);
         } else if (amount1 >= 1000000 && amount1 <= 2000000) {
           // 1-2 million = HIGH
           riskCategories.HIGH.count += 1;
           riskCategories.HIGH.amount += amount1;
           riskCategories.HIGH.transactions += 1;
-          console.log(`HIGH: Added transaction1 amount ${amount1}, count now ${riskCategories.HIGH.count}`);
         } else if (amount1 >= 500000 && amount1 < 1000000) {
           // 500K to 1 million = MEDIUM
           riskCategories.MEDIUM.count += 1;
           riskCategories.MEDIUM.amount += amount1;
           riskCategories.MEDIUM.transactions += 1;
-          console.log(`MEDIUM: Added transaction1 amount ${amount1}, count now ${riskCategories.MEDIUM.count}`);
         } else {
           // Below 500K = LOW
           riskCategories.LOW.count += 1;
           riskCategories.LOW.amount += amount1;
           riskCategories.LOW.transactions += 1;
-          console.log(`LOW: Added transaction1 amount ${amount1}, count now ${riskCategories.LOW.count}`);
         }
         
         // Process transaction2
         const amount2 = entry.transaction2?.amount || 0;
-        console.log(`Processing transaction2 with amount: ${amount2}`);
         
         // Categorize transaction2 based on amount ranges
         if (amount2 > 2000000) {
@@ -139,25 +131,21 @@ export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
           riskCategories.CRITICAL.count += 1;
           riskCategories.CRITICAL.amount += amount2;
           riskCategories.CRITICAL.transactions += 1;
-          console.log(`CRITICAL: Added transaction2 amount ${amount2}, count now ${riskCategories.CRITICAL.count}`);
         } else if (amount2 >= 1000000 && amount2 <= 2000000) {
           // 1-2 million = HIGH
           riskCategories.HIGH.count += 1;
           riskCategories.HIGH.amount += amount2;
           riskCategories.HIGH.transactions += 1;
-          console.log(`HIGH: Added transaction2 amount ${amount2}, count now ${riskCategories.HIGH.count}`);
         } else if (amount2 >= 500000 && amount2 < 1000000) {
           // 500K to 1 million = MEDIUM
           riskCategories.MEDIUM.count += 1;
           riskCategories.MEDIUM.amount += amount2;
           riskCategories.MEDIUM.transactions += 1;
-          console.log(`MEDIUM: Added transaction2 amount ${amount2}, count now ${riskCategories.MEDIUM.count}`);
         } else {
           // Below 500K = LOW
           riskCategories.LOW.count += 1;
           riskCategories.LOW.amount += amount2;
           riskCategories.LOW.transactions += 1;
-          console.log(`LOW: Added transaction2 amount ${amount2}, count now ${riskCategories.LOW.count}`);
         }
       });
       
@@ -170,9 +158,6 @@ export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
           amount: data.amount,
           transactions: data.transactions
         }));
-      
-      console.log('Risk categories:', riskCategories);
-      console.log('Transformed data:', transformedData);
     } else {
       // Fallback to original API structure if no duplicate entries
       transformedData = Object.entries(chartData)

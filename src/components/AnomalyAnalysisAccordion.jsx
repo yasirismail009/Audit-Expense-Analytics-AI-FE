@@ -62,7 +62,7 @@ const anomalyTypes = [
     title: 'Closing Entries',
     icon: <EventIcon />,
     description: 'Transactions posted on month-end closing dates',
-    apiEndpoint: '/api/closing-anomalies/analyze/',
+    apiEndpoint: '/api/closing-entries-analysis/',
     color: '#4BC0C0'
   },
   {
@@ -70,7 +70,7 @@ const anomalyTypes = [
     title: 'Unusual Days',
     icon: <WarningIcon />,
     description: 'Transactions on unusual business days',
-    apiEndpoint: '/api/unusual-days/analyze/',
+    apiEndpoint: '/api/unusual-days-analysis/',
     color: '#9966FF'
   },
   {
@@ -84,7 +84,6 @@ const anomalyTypes = [
 ];
 
 export default function AnomalyAnalysisAccordion({ sheetId, anomalySummary }) {
-  console.log(sheetId, anomalySummary)
   const [expandedAccordion, setExpandedAccordion] = useState(null);
   const [loadingStates, setLoadingStates] = useState({});
   const [anomalyData, setAnomalyData] = useState({});
@@ -156,21 +155,23 @@ export default function AnomalyAnalysisAccordion({ sheetId, anomalySummary }) {
     if (!summary) return null;
 
     const typeMapping = {
-      'duplicate': 'duplicate_entries',
-      'user': 'user_anomalies',
-      'backdated': 'backdated_entries',
-      'closing': 'closing_entries',
-      'unusual': 'unusual_days',
-      'holidays': 'holiday_entries'
+      'duplicate': 'duplicateEntries',
+      'user': 'userAnomalies',
+      'backdated': 'backdatedEntries',
+      'closing': 'closingEntries',
+      'unusual': 'unusualDays',
+      'holidays': 'holidayEntries'
     };
 
     const key = typeMapping[anomalyType];
     if (!key) return null;
 
+
+
     return {
       count: summary[key] || 0,
       percentage: summary[`${key}_percentage`] || 0,
-      total: summary.total_anomalies || 0
+      total: summary.totalAnomalies || 0
     };
   };
   return (

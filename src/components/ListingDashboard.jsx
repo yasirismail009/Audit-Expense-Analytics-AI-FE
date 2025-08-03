@@ -40,7 +40,6 @@ import { colorScheme, getRiskColor } from '../utils/colorScheme';
 import DetailedRiskAnalysis from './DetailedRiskAnalysis';
 
 export default function ListingDashboard({ sheetData }) {
-  console.log("Listing Dashboard - sheetData:", sheetData)
   
   if (!sheetData) {
     return (

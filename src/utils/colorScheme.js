@@ -5,6 +5,20 @@ export const colorScheme = {
   secondary: '#36A2EB',
   accent: '#FFCE56',
   
+  // Purple shades for unusual days charts
+  purpleShades: [
+    '#925A9B', // Primary Purple
+    '#7B4A82', // Darker Purple
+    '#A67BB3', // Lighter Purple
+    '#8E6C95', // Medium Purple
+    '#B894C4', // Very Light Purple
+    '#6B3E72', // Very Dark Purple
+    '#C4A5D1', // Pale Purple
+    '#5A2E61', // Deep Purple
+    '#D1B8DC', // Lightest Purple
+    '#4A1F50'  // Darkest Purple
+  ],
+  
   // Chart colors
   chartColors: [
     '#925A9B', // Purple (Primary)
@@ -48,6 +62,11 @@ export const colorScheme = {
 // Get color by index with fallback
 export const getColorByIndex = (index) => {
   return colorScheme.chartColors[index % colorScheme.chartColors.length];
+};
+
+// Get purple shade by index
+export const getPurpleShade = (index) => {
+  return colorScheme.purpleShades[index % colorScheme.purpleShades.length];
 };
 
 // Get risk color

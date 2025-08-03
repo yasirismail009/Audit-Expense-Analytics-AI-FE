@@ -16,7 +16,8 @@ import {
   IconButton,
   LinearProgress,
   Avatar,
-  Badge
+  Badge,
+  Button
 } from '@mui/material';
 import {
   Visibility as VisibilityIcon,
@@ -28,7 +29,8 @@ import {
   AccountBalance as AccountBalanceIcon,
   Timeline as TimelineIcon,
   Security as SecurityIcon,
-  Assessment as AssessmentIcon
+  Assessment as AssessmentIcon,
+  PictureAsPdf as PictureAsPdfIcon
 } from '@mui/icons-material';
 import { getRiskColor } from '../../utils/colorScheme';
 
@@ -42,6 +44,9 @@ import UserAnalysisDrawer from '../UserAnalysisDrawer';
 
 // Import dashboard component
 import UserAnalysisDashboard from '../charts/UserAnalysisDashboard';
+
+// Import PDF component
+import UserAnalysisPDF from './UserAnalysisPDF';
 
 // Import Recharts for custom charts (if needed for future use)
 // import { 
@@ -65,6 +70,7 @@ import UserAnalysisDashboard from '../charts/UserAnalysisDashboard';
 export default function UserAnalysisContent({ data, distributionData, anomalySummary }) {
   const [selectedUser, setSelectedUser] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
 
   // Extract currency from data or use default
   const currency = data?.currency || data?.file_info?.currency || 'SAR';
@@ -79,6 +85,14 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
   const handleDrawerClose = () => {
     setDrawerOpen(false);
     setSelectedUser(null);
+  };
+
+  const handlePdfOpen = () => {
+    setPdfModalOpen(true);
+  };
+
+  const handlePdfClose = () => {
+    setPdfModalOpen(false);
   };
 
   const getRiskLevel = (score) => {
@@ -168,6 +182,20 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
         severity={userAnomalies.length > 0 ? "warning" : "success"} 
         sx={{ mb: 3, borderRadius: 2 }}
         icon={userAnomalies.length > 0 ? <WarningIcon /> : <InfoIcon />}
+        action={
+          <Button
+            color="inherit"
+            size="small"
+            startIcon={<PictureAsPdfIcon />}
+            onClick={handlePdfOpen}
+            sx={{ 
+              backgroundColor: 'rgba(255, 255, 255, 0.2)', 
+              '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.3)' }
+            }}
+          >
+            Download PDF
+          </Button>
+        }
       >
         <Typography variant="body1" sx={{ fontWeight: 600 }}>
           {userAnomalies.length > 0 
@@ -315,6 +343,22 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
 
             {/* Right Section - Analysis Results & Statistics */}
             <Grid item size={{xs: 12, md: 6}}>
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                <Button
+                  variant="contained"
+                  startIcon={<PictureAsPdfIcon />}
+                  onClick={handlePdfOpen}
+                  sx={{
+                    backgroundColor: '#925a9b',
+                    '&:hover': { backgroundColor: '#7a4a82' },
+                    borderRadius: 2,
+                    px: 3,
+                    py: 1
+                  }}
+                >
+                  Download PDF Report
+                </Button>
+              </Box>
               <Grid container spacing={2}>
                 <Grid item size={{xs: 6, md: 3}}>
                   <Box sx={{ textAlign: 'center' }}>
@@ -714,6 +758,14 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
         onClose={handleDrawerClose}
         userData={selectedUser}
         type="User Analysis"
+      />
+
+      {/* User Analysis PDF */}
+      <UserAnalysisPDF
+        open={pdfModalOpen}
+        setOpen={setPdfModalOpen}
+        data={data}
+        currency={currency}
       />
     </Box>
   );
