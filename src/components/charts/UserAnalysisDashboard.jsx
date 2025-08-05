@@ -82,26 +82,45 @@ export default function UserAnalysisDashboard({ data }) {
     count: parseInt(count)
   }));
 
+  // Calculate average risk score based on risk levels (since no numeric scores in new API)
+  const riskLevelScores = {
+    'LOW': 20,
+    'MEDIUM': 50,
+    'HIGH': 80,
+    'CRITICAL': 95
+  };
+
   const userRiskTrendData = userRiskScores.map((user, index) => ({
     user: user.user,
-    riskScore: user.risk_score || 0,
+    riskScore: riskLevelScores[user.risk_level] || 0,
     rank: index + 1
   })).sort((a, b) => b.riskScore - a.riskScore).slice(0, 10);
 
-  const userAccountDiversityData = userAccountDistribution.map((user, index) => ({
-    user: user.user,
-    accounts: user.total_accounts || 0,
-    transactions: user.total_transactions || 0,
-    avgAmount: user.average_transaction_amount || 0
-  })).sort((a, b) => b.accounts - a.accounts).slice(0, 10);
+  // Create user account diversity data from user summary
+  const userAccountDiversityData = userSummary
+    .map(user => ({
+      user: user.user,
+      accounts: user.accounts ? user.accounts.length : 0
+    }))
+    .sort((a, b) => b.accounts - a.accounts)
+    .slice(0, 10);
+
+  // Check which charts have meaningful data
+  const hasUserAmountsData = userAmountsData.length > 0 && userAmountsData.some(item => item.amount > 0);
+  const hasUserActivityData = userActivityData.length > 0 && userActivityData.some(item => item.activity > 0);
+  const hasRiskDistributionData = riskDistributionData.length > 0 && riskDistributionData.some(item => item.count > 0);
+  const hasAnomalyDistributionData = anomalyDistributionData.length > 0 && anomalyDistributionData.some(item => item.count > 0);
+  const hasUserRiskTrendData = userRiskTrendData.length > 0 && userRiskTrendData.some(item => item.riskScore > 0);
+  const hasUserAccountData = userAccountDiversityData.length > 0 && userAccountDiversityData.some(item => item.accounts > 0);
 
   // Calculate summary statistics
   const totalUsers = userSummary.length;
   const totalAmount = userSummary.reduce((sum, user) => sum + (user.total_amount || 0), 0);
-  const totalTransactions = userSummary.reduce((sum, user) => sum + (user.total_transactions || 0), 0);
+  const totalTransactions = userSummary.reduce((sum, user) => sum + (user.transaction_count || 0), 0);
+  
   const avgRiskScore = userRiskScores.length > 0 ? 
-    userRiskScores.reduce((sum, user) => sum + (user.risk_score || 0), 0) / userRiskScores.length : 0;
-  const highRiskUsers = userRiskScores.filter(user => (user.risk_score || 0) >= 60).length;
+    userRiskScores.reduce((sum, user) => sum + (riskLevelScores[user.risk_level] || 0), 0) / userRiskScores.length : 0;
+  const highRiskUsers = userRiskScores.filter(user => user.risk_level === 'HIGH' || user.risk_level === 'CRITICAL').length;
 
   const COLORS = ['#925a9b', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#03a9f4', '#00bcd4', '#009688', '#4caf50'];
 
@@ -121,337 +140,361 @@ export default function UserAnalysisDashboard({ data }) {
       </Typography>
 
       <Grid container spacing={3}>
+        {/* Show message if no charts have data */}
+        {!hasUserAmountsData && !hasUserActivityData && !hasRiskDistributionData && 
+         !hasAnomalyDistributionData && !hasUserRiskTrendData && !hasUserAccountData && (
+          <Grid item size={{xs: 12}}>
+            <Card sx={{ 
+              background: 'white', 
+              borderRadius: 2,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              border: '1px solid #e9ecef'
+            }}>
+              <CardContent sx={{ textAlign: 'center', py: 4 }}>
+                <InfoIcon sx={{ fontSize: 48, color: '#6c757d', mb: 2 }} />
+                <Typography variant="h6" sx={{ color: '#6c757d', mb: 1 }}>
+                  No Chart Data Available
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                  There is no sufficient data to display charts at this time.
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+
         {/* Chart 1: User Amount Distribution */}
-        <Grid item size={{xs: 12, md: 6}}>
-          <Card sx={{ 
-            background: 'white', 
-            borderRadius: 2,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            border: '1px solid #e9ecef',
-            height: '100%'
-          }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ 
-                mb: 2, 
-                display: 'flex', 
-                alignItems: 'center',
-                fontWeight: 600,
-                color: '#2c3e50'
-              }}>
-                <TrendingUpIcon sx={{ mr: 1, color: '#925a9b' }} />
-                User Amount Distribution
-              </Typography>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={userAmountsData}>
-                  <defs>
-                    <linearGradient id="amountGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#925a9b" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#925a9b" stopOpacity={0.1}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" />
-                  <XAxis 
-                    dataKey="user" 
-                    angle={-45} 
-                    textAnchor="end" 
-                    height={80} 
-                    tick={{ fontSize: 12 }}
-                    interval={0}
-                  />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip 
-                    formatter={(value) => formatCurrency(value)}
-                    labelStyle={{ color: '#2c3e50' }}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="amount" 
-                    stroke="#925a9b" 
-                    strokeWidth={3}
-                    fill="url(#amountGradient)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </Grid>
+        {hasUserAmountsData && (
+          <Grid item size={{xs: 12, md: 6}}>
+            <Card sx={{ 
+              background: 'white', 
+              borderRadius: 2,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              border: '1px solid #e9ecef',
+              height: '100%'
+            }}>
+              <CardContent>
+                <Typography variant="h6" sx={{ 
+                  mb: 2, 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  fontWeight: 600,
+                  color: '#2c3e50'
+                }}>
+                  <TrendingUpIcon sx={{ mr: 1, color: '#925a9b' }} />
+                  User Amount Distribution
+                </Typography>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={userAmountsData}>
+                    <defs>
+                      <linearGradient id="amountGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#925a9b" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#925a9b" stopOpacity={0.1}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" />
+                    <XAxis 
+                      dataKey="user" 
+                      angle={-45} 
+                      textAnchor="end" 
+                      height={80} 
+                      tick={{ fontSize: 12 }}
+                      interval={0}
+                    />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip 
+                      formatter={(value) => formatCurrency(value)}
+                      labelStyle={{ color: '#2c3e50' }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="amount" 
+                      stroke="#925a9b" 
+                      strokeWidth={3}
+                      fill="url(#amountGradient)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
 
         {/* Chart 2: Risk Distribution */}
-        <Grid item size={{xs: 12, md: 6}}>
-          <Card sx={{ 
-            background: 'white', 
-            borderRadius: 2,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            border: '1px solid #e9ecef',
-            height: '100%'
-          }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ 
-                mb: 2, 
-                display: 'flex', 
-                alignItems: 'center',
-                fontWeight: 600,
-                color: '#2c3e50'
-              }}>
-                <SecurityIcon sx={{ mr: 1, color: '#925a9b' }} />
-                Risk Distribution
-              </Typography>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={riskDistributionData}>
-                  <defs>
-                    <linearGradient id="amountGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#925a9b" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#925a9b" stopOpacity={0.1}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" />
-                  <XAxis 
-                    dataKey="level" 
-                    tick={{ fontSize: 12 }}
-                  />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip 
-                    labelStyle={{ color: '#2c3e50' }}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="count" 
-                    stroke="#925a9b" 
-                    strokeWidth={3}
-                    fill="url(#amountGradient)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </Grid>
+        {hasRiskDistributionData && (
+          <Grid item size={{xs: 12, md: 6}}>
+            <Card sx={{ 
+              background: 'white', 
+              borderRadius: 2,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              border: '1px solid #e9ecef',
+              height: '100%'
+            }}>
+              <CardContent>
+                <Typography variant="h6" sx={{ 
+                  mb: 2, 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  fontWeight: 600,
+                  color: '#2c3e50'
+                }}>
+                  <SecurityIcon sx={{ mr: 1, color: '#925a9b' }} />
+                  Risk Distribution
+                </Typography>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={riskDistributionData}>
+                    <defs>
+                      <linearGradient id="amountGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#925a9b" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#925a9b" stopOpacity={0.1}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" />
+                    <XAxis 
+                      dataKey="level" 
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip 
+                      labelStyle={{ color: '#2c3e50' }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="count" 
+                      stroke="#925a9b" 
+                      strokeWidth={3}
+                      fill="url(#amountGradient)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
 
         {/* Chart 3: User Activity Patterns */}
-        <Grid item size={{xs: 12, md: 6}}>
-          <Card sx={{ 
-            background: 'white', 
-            borderRadius: 2,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            border: '1px solid #e9ecef',
-            height: '100%'
-          }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ 
-                mb: 2, 
-                display: 'flex', 
-                alignItems: 'center',
-                fontWeight: 600,
-                color: '#2c3e50'
-              }}>
-                <PersonIcon sx={{ mr: 1, color: '#925a9b' }} />
-                User Activity Patterns
-              </Typography>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={userActivityData}>
-                  <defs>
-                    <linearGradient id="amountGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#925a9b" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#925a9b" stopOpacity={0.1}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" />
-                  <XAxis 
-                    dataKey="user" 
-                    angle={-45} 
-                    textAnchor="end" 
-                    height={80} 
-                    tick={{ fontSize: 12 }}
-                    interval={0}
-                  />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip 
-                    labelStyle={{ color: '#2c3e50' }}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="activity" 
-                    stroke="#925a9b" 
-                    strokeWidth={3}
-                    fill="url(#amountGradient)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </Grid>
+        {hasUserActivityData && (
+          <Grid item size={{xs: 12, md: 6}}>
+            <Card sx={{ 
+              background: 'white', 
+              borderRadius: 2,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              border: '1px solid #e9ecef',
+              height: '100%'
+            }}>
+              <CardContent>
+                <Typography variant="h6" sx={{ 
+                  mb: 2, 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  fontWeight: 600,
+                  color: '#2c3e50'
+                }}>
+                  <PersonIcon sx={{ mr: 1, color: '#925a9b' }} />
+                  User Activity Patterns
+                </Typography>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={userActivityData}>
+                    <defs>
+                      <linearGradient id="amountGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#925a9b" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#925a9b" stopOpacity={0.1}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" />
+                    <XAxis 
+                      dataKey="user" 
+                      angle={-45} 
+                      textAnchor="end" 
+                      height={80} 
+                      tick={{ fontSize: 12 }}
+                      interval={0}
+                    />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip 
+                      labelStyle={{ color: '#2c3e50' }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="activity" 
+                      stroke="#925a9b" 
+                      strokeWidth={3}
+                      fill="url(#amountGradient)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
 
         {/* Chart 4: Anomaly Distribution */}
-        <Grid item size={{xs: 12, md: 6}}>
-          <Card sx={{ 
-            background: 'white', 
-            borderRadius: 2,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            border: '1px solid #e9ecef',
-            height: '100%'
-          }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ 
-                mb: 2, 
-                display: 'flex', 
-                alignItems: 'center',
-                fontWeight: 600,
-                color: '#2c3e50'
-              }}>
-                <WarningIcon sx={{ mr: 1, color: '#925a9b' }} />
-                Anomaly Distribution
-              </Typography>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={anomalyDistributionData}>
-                  <defs>
-                    <linearGradient id="amountGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#925a9b" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#925a9b" stopOpacity={0.1}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" />
-                  <XAxis 
-                    dataKey="type" 
-                    angle={-45} 
-                    textAnchor="end" 
-                    height={80} 
-                    tick={{ fontSize: 12 }}
-                    interval={0}
-                  />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip 
-                    labelStyle={{ color: '#2c3e50' }}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="count" 
-                    stroke="#925a9b" 
-                    strokeWidth={3}
-                    fill="url(#amountGradient)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </Grid>
+        {hasAnomalyDistributionData && (
+          <Grid item size={{xs: 12, md: 6}}>
+            <Card sx={{ 
+              background: 'white', 
+              borderRadius: 2,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              border: '1px solid #e9ecef',
+              height: '100%'
+            }}>
+              <CardContent>
+                <Typography variant="h6" sx={{ 
+                  mb: 2, 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  fontWeight: 600,
+                  color: '#2c3e50'
+                }}>
+                  <WarningIcon sx={{ mr: 1, color: '#925a9b' }} />
+                  Anomaly Distribution
+                </Typography>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={anomalyDistributionData}>
+                    <defs>
+                      <linearGradient id="amountGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#925a9b" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#925a9b" stopOpacity={0.1}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" />
+                    <XAxis 
+                      dataKey="type" 
+                      angle={-45} 
+                      textAnchor="end" 
+                      height={80} 
+                      tick={{ fontSize: 12 }}
+                      interval={0}
+                    />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip 
+                      labelStyle={{ color: '#2c3e50' }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="count" 
+                      stroke="#925a9b" 
+                      strokeWidth={3}
+                      fill="url(#amountGradient)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
 
         {/* Chart 5: User Risk Trend */}
-        <Grid item size={{xs: 12, md: 6}}>
-          <Card sx={{ 
-            background: 'white', 
-            borderRadius: 2,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            border: '1px solid #e9ecef',
-            height: '100%'
-          }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ 
-                mb: 2, 
-                display: 'flex', 
-                alignItems: 'center',
-                fontWeight: 600,
-                color: '#2c3e50'
-              }}>
-                <ErrorIcon sx={{ mr: 1, color: '#925a9b' }} />
-                User Risk Trend
-              </Typography>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={userRiskTrendData}>
-                  <defs>
-                    <linearGradient id="amountGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#925a9b" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#925a9b" stopOpacity={0.1}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" />
-                  <XAxis 
-                    dataKey="user" 
-                    angle={-45} 
-                    textAnchor="end" 
-                    height={80} 
-                    tick={{ fontSize: 12 }}
-                    interval={0}
-                  />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip 
-                    labelStyle={{ color: '#2c3e50' }}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="riskScore" 
-                    stroke="#925a9b" 
-                    strokeWidth={3}
-                    fill="url(#amountGradient)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </Grid>
+        {hasUserRiskTrendData && (
+          <Grid item size={{xs: 12, md: 6}}>
+            <Card sx={{ 
+              background: 'white', 
+              borderRadius: 2,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              border: '1px solid #e9ecef',
+              height: '100%'
+            }}>
+              <CardContent>
+                <Typography variant="h6" sx={{ 
+                  mb: 2, 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  fontWeight: 600,
+                  color: '#2c3e50'
+                }}>
+                  <ErrorIcon sx={{ mr: 1, color: '#925a9b' }} />
+                  User Risk Trend
+                </Typography>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={userRiskTrendData}>
+                    <defs>
+                      <linearGradient id="amountGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#925a9b" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#925a9b" stopOpacity={0.1}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" />
+                    <XAxis 
+                      dataKey="user" 
+                      angle={-45} 
+                      textAnchor="end" 
+                      height={80} 
+                      tick={{ fontSize: 12 }}
+                      interval={0}
+                    />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip 
+                      labelStyle={{ color: '#2c3e50' }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="riskScore" 
+                      stroke="#925a9b" 
+                      strokeWidth={3}
+                      fill="url(#amountGradient)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
 
-        {/* Chart 6: User Account Diversity */}
-        <Grid item size={{xs: 12, md: 6}}>
-          <Card sx={{ 
-            background: 'white', 
-            borderRadius: 2,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            border: '1px solid #e9ecef',
-            height: '100%'
-          }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ 
-                mb: 2, 
-                display: 'flex', 
-                alignItems: 'center',
-                fontWeight: 600,
-                color: '#2c3e50'
-              }}>
-                <InfoIcon sx={{ mr: 1, color: '#925a9b' }} />
-                User Account Diversity
-              </Typography>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={userAccountDiversityData}>
-                  <defs>
-                    <linearGradient id="accountsGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#925a9b" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#925a9b" stopOpacity={0.1}/>
-                    </linearGradient>
-                    {/* <linearGradient id="transactionsGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#925a9b" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#925a9b" stopOpacity={0.1}/>
-                    </linearGradient> */}
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" />
-                  <XAxis 
-                    dataKey="user" 
-                    angle={-45} 
-                    textAnchor="end" 
-                    height={80} 
-                    tick={{ fontSize: 12 }}
-                    interval={0}
-                  />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip 
-                    labelStyle={{ color: '#2c3e50' }}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="accounts" 
-                    stroke="#925a9b" 
-                    strokeWidth={3}
-                    fill="url(#accountsGradient)"
-                  />
-                  {/* <Area 
-                    type="monotone" 
-                    dataKey="transactions" 
-                    stroke="#925a9b" 
-                    strokeWidth={3}
-                    fill="url(#transactionsGradient)"
-                  /> */}
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </Grid>
+        {/* Chart 6: User Account Count */}
+        {hasUserAccountData && (
+          <Grid item size={{xs: 12, md: 6}}>
+            <Card sx={{ 
+              background: 'white', 
+              borderRadius: 2,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              border: '1px solid #e9ecef',
+              height: '100%'
+            }}>
+              <CardContent>
+                <Typography variant="h6" sx={{ 
+                  mb: 2, 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  fontWeight: 600,
+                  color: '#2c3e50'
+                }}>
+                  <InfoIcon sx={{ mr: 1, color: '#925a9b' }} />
+                  User Account Count
+                </Typography>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={userAccountDiversityData}>
+                    <defs>
+                      <linearGradient id="accountsGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#925a9b" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#925a9b" stopOpacity={0.1}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" />
+                    <XAxis 
+                      dataKey="user" 
+                      angle={-45} 
+                      textAnchor="end" 
+                      height={80} 
+                      tick={{ fontSize: 12 }}
+                      interval={0}
+                    />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip 
+                      labelStyle={{ color: '#2c3e50' }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="accounts" 
+                      stroke="#925a9b" 
+                      strokeWidth={3}
+                      fill="url(#accountsGradient)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
 
         {/* Consolidated Statistics Card */}
         <Grid item size={{xs: 12}}>

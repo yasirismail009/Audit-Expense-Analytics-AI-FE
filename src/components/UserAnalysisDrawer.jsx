@@ -49,6 +49,14 @@ import { colorScheme, getRiskColor, formatCurrency } from '../utils/colorScheme'
 export default function UserAnalysisDrawer({ open, onClose, userData, type = 'User Analysis' }) {
   if (!userData) return null;
 
+  // Calculate risk score based on risk levels (since no numeric scores in new API)
+  const riskLevelScores = {
+    'LOW': 20,
+    'MEDIUM': 50,
+    'HIGH': 80,
+    'CRITICAL': 95
+  };
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       weekday: 'long',
@@ -80,10 +88,10 @@ export default function UserAnalysisDrawer({ open, onClose, userData, type = 'Us
 
   const getAnomalyIcon = (type) => {
     switch (type) {
-      case 'high_amount': return <MoneyIcon />;
-      case 'unusual_balance': return <AccountBalanceIcon />;
-      case 'account_concentration': return <BusinessIcon />;
-      case 'transaction_pattern': return <TimelineIcon />;
+      case 'HIGH_ACTIVITY': return <TimelineIcon />;
+      case 'HIGH_AMOUNT': return <MoneyIcon />;
+      case 'UNUSUAL_BALANCE': return <AccountBalanceIcon />;
+      case 'ACCOUNT_CONCENTRATION': return <BusinessIcon />;
       default: return <WarningIcon />;
     }
   };
@@ -200,7 +208,7 @@ export default function UserAnalysisDrawer({ open, onClose, userData, type = 'Us
                     Transactions
                   </Typography>
                   <Typography variant="h6" sx={{ fontWeight: 'bold', color: colorScheme.primary }}>
-                    {userData.total_transactions || 0}
+                    {userData.transaction_count || 0}
                   </Typography>
                 </Box>
               </Grid>
@@ -220,7 +228,7 @@ export default function UserAnalysisDrawer({ open, onClose, userData, type = 'Us
                     Avg Amount
                   </Typography>
                   <Typography variant="h6" sx={{ fontWeight: 'bold', color: colorScheme.primary }}>
-                    {formatCurrency(userData.average_transaction_amount || 0)}
+                    {formatCurrency(userData.avg_amount || 0)}
                   </Typography>
                 </Box>
               </Grid>
@@ -248,7 +256,7 @@ export default function UserAnalysisDrawer({ open, onClose, userData, type = 'Us
                     fontWeight: 'bold', 
                     color: getRiskColor(userData.risk_level || 'medium')
                   }}>
-                    {getRiskLevel(userData.risk_score || 0)}
+                    {userData.risk_level || 'N/A'}
                   </Typography>
                 </Box>
               </Grid>
@@ -267,7 +275,7 @@ export default function UserAnalysisDrawer({ open, onClose, userData, type = 'Us
                     fontWeight: 'bold', 
                     color: getRiskColor(userData.risk_level || 'medium')
                   }}>
-                    {userData.risk_score || 0}
+                    {riskLevelScores[userData.risk_level] || 0}
                   </Typography>
                 </Box>
               </Grid>
@@ -286,7 +294,7 @@ export default function UserAnalysisDrawer({ open, onClose, userData, type = 'Us
                     fontWeight: 'bold', 
                     color: colorScheme.primary
                   }}>
-                    {userData.anomaly_count || 0}
+                    {userData.anomaly_type ? 1 : 0}
                   </Typography>
                 </Box>
               </Grid>

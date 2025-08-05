@@ -878,14 +878,14 @@ const UnusualDaysAnalysisPDF = ({
                             </tr>
                             <tr>
                               <td>Pattern Risk Score</td>
-                              <td>{riskAssessment.unusual_pattern_risk_score?.toFixed(1) || 0}%</td>
+                              <td>{data?.unusual_days_count ? ((data.unusual_days_count / (data.total_transactions || 1)) * 100).toFixed(1) : 0}%</td>
                               <td>
                                 <span
                                   style={{
-                                    color: RiskColor[getRiskLevelNumber(riskAssessment.unusual_pattern_risk_score || 0)],
+                                    color: RiskColor[getRiskLevelNumber(data?.unusual_days_count ? ((data.unusual_days_count / (data.total_transactions || 1)) * 100) : 0)],
                                     fontWeight: "bold"
                                   }}>
-                                  {getRiskLevel(riskAssessment.unusual_pattern_risk_score || 0)}
+                                  {getRiskLevel(data?.unusual_days_count ? ((data.unusual_days_count / (data.total_transactions || 1)) * 100) : 0)}
                                 </span>
                               </td>
                             </tr>

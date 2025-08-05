@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -22,7 +22,12 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  Button
+  Button,
+  TablePagination,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel
 } from '@mui/material';
 import {
   Visibility as VisibilityIcon,
@@ -56,18 +61,41 @@ import {
   AreaChart
 } from 'recharts';
 
-export default function ClosingAnalysisContent({ data, distributionData, anomalySummary }) {
+export default function ClosingAnalysisContent({ data, distributionData, anomalySummary, sheetId }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const [listingData, setListingData] = useState(null);
+  const [listingLoading, setListingLoading] = useState(false);
+  const [listingError, setListingError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [paginationLoading, setPaginationLoading] = useState(false);
 
   // Extract currency from data or use default
   const currency = data?.currency || data?.file_info?.currency || 'SAR';
 
-  // Color scheme - using purple theme like DuplicateAnalysisContent
+  // Color scheme - using purple theme only
   const primaryColor = '#925a9b';
   const textPrimary = '#2c3e50';
   const textSecondary = '#6c757d';
+  
+  // Purple color variants for consistent theming
+  const purpleVariants = {
+    primary: '#925a9b',
+    dark: '#7B4A82',
+    darker: '#6B3E72',
+    darkest: '#5A2E61',
+    light: '#A67BB3',
+    lighter: '#B894C4',
+    lightest: '#C4A5D1',
+    pale: '#D1B8DC',
+    deep: '#4A1F50',
+    success: '#8E6C95',
+    warning: '#A67BB3',
+    error: '#7B4A82',
+    info: '#B894C4'
+  };
 
   const handleDrawerOpen = (entry) => {
     setSelectedEntry(entry);
@@ -101,11 +129,90 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
     }
   };
 
+  // Helper function to calculate average risk score from risk levels
+  const calculateAverageRiskScore = (riskLevels, totalEntries) => {
+    if (!riskLevels || Object.keys(riskLevels).length === 0 || totalEntries === 0) {
+      return 0;
+    }
+    
+    const riskScores = {
+      'LOW': 20,
+      'MEDIUM': 50,
+      'HIGH': 70,
+      'CRITICAL': 90
+    };
+    
+    return Object.entries(riskLevels).reduce((sum, [level, count]) => {
+      return sum + (riskScores[level] || 0) * count;
+    }, 0) / totalEntries;
+  };
+
+  // Helper function to safely get data with fallbacks
+  const getSafeData = (data, path, defaultValue = 0) => {
+    try {
+      return path.split('.').reduce((obj, key) => obj?.[key], data) ?? defaultValue;
+    } catch {
+      return defaultValue;
+    }
+  };
+
+  // Function to call the listing API with pagination
+  const fetchListingData = async (fileId, page = 1, size = 10) => {
+    if (!fileId) {
+      console.log('No file_id available for listing API call');
+      return;
+    }
+
+    setListingLoading(true);
+    setListingError(null);
+
+    try {
+      const response = await fetch(`http://localhost:8000/api/closing-entries-list/${fileId}/?page=${page}&page_size=${size}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const listingResponse = await response.json();
+      console.log('Listing API Response:', listingResponse);
+      setListingData(listingResponse);
+    } catch (error) {
+      console.error('Error fetching listing data:', error);
+      setListingError(error.message);
+    } finally {
+      setListingLoading(false);
+    }
+  };
+
+  // Pagination handlers
+  const handlePageChange = async (newPage) => {
+    setPaginationLoading(true);
+    setCurrentPage(newPage);
+    await fetchListingData(sheetId, newPage, pageSize);
+    setPaginationLoading(false);
+  };
+
+  const handlePageSizeChange = async (newPageSize) => {
+    setPaginationLoading(true);
+    setPageSize(newPageSize);
+    setCurrentPage(1);
+    await fetchListingData(sheetId, 1, newPageSize);
+    setPaginationLoading(false);
+  };
+
+  // Call the listing API when component mounts or file_id changes
+  useEffect(() => {
+    const fileId = sheetId;
+    if (fileId) {
+      fetchListingData(fileId, currentPage, pageSize);
+    }
+  }, [sheetId, currentPage, pageSize]);
+
   // Extract data from the API structure
   const fileInfo = data?.file_info || {};
   const analysisInfo = data?.analysis_info || {};
   const summary = data?.summary || {};
-  const detailedResults = data?.closing_entries_analysis || {};
+  const detailedAnalysis = data?.detailed_analysis || {};
   const visualizations = data?.visualizations || {};
   const exportData = data?.export_data || {};
   const riskAssessment = data?.risk_assessment || {};
@@ -115,65 +222,45 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
   const summaryStats = {
     closing_entries: summary.closing_entries_count || 0,
     total_transactions: summary.total_transactions || 0,
-    total_amount: 0, // Calculate from closing entries
-    avg_amount: 0,
-    closing_dates: [],
+    total_amount: detailedAnalysis.amount_analysis?.total_amount || 0,
+    avg_amount: detailedAnalysis.amount_analysis?.average_amount || 0,
+    closing_dates: Object.keys(detailedAnalysis.temporal_analysis || {}),
     overall_risk_score: summary.overall_risk_score || 0,
     risk_level: summary.risk_level || 'LOW'
   };
   
-  // Extract closing entries from the actual data structure
-  const closingEntries = detailedResults.closing_entries || [];
+  // Extract user analysis from detailed_analysis
+  const userAnalysis = detailedAnalysis.user_analysis || {};
+  const accountAnalysis = detailedAnalysis.account_analysis || {};
+  const temporalAnalysis = detailedAnalysis.temporal_analysis || {};
+  const riskDistribution = detailedAnalysis.risk_distribution || {};
   
-  // Calculate total amount from closing entries
-  if (closingEntries.length > 0) {
-    summaryStats.total_amount = closingEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
-    summaryStats.avg_amount = summaryStats.total_amount / closingEntries.length;
-  }
+  // Extract user names from user analysis
+  const userNames = Object.keys(userAnalysis);
   
-  // Extract unique closing dates
-  if (closingEntries.length > 0) {
-    summaryStats.closing_dates = [...new Set(closingEntries.map(entry => entry.posting_date))];
-  }
+  // Extract account names from account analysis
+  const accountNames = Object.keys(accountAnalysis);
   
-  // Extract user data from closing entries
-  const userNames = [...new Set(closingEntries.map(entry => entry.user_name))];
+  // Extract GL account names from account analysis
+  const glAccountNames = Object.keys(accountAnalysis);
   
-  // Extract account data from closing entries
-  const accountNames = [...new Set(closingEntries.map(entry => entry.fs_line))];
-  
-  // Extract GL account data from closing entries
-  const glAccountNames = [...new Set(closingEntries.map(entry => entry.gl_account))];
-  
-  // Map chart data from visualizations
+  // Map chart data from visualizations and detailed analysis
   const chartData = {
     closing_entries_by_user: {
       labels: userNames,
-      data: userNames.map(user => {
-        const userEntries = closingEntries.filter(entry => entry.user_name === user);
-        return userEntries.length;
-      })
+      data: userNames.map(user => userAnalysis[user]?.total_entries || 0)
     },
     closing_entries_by_account: {
       labels: accountNames,
-      data: accountNames.map(account => {
-        const accountEntries = closingEntries.filter(entry => entry.fs_line === account);
-        return accountEntries.length;
-      })
+      data: accountNames.map(account => accountAnalysis[account]?.total_entries || 0)
     },
     closing_entries_by_gl_account: {
       labels: glAccountNames,
-      data: glAccountNames.map(glAccount => {
-        const glAccountEntries = closingEntries.filter(entry => entry.gl_account === glAccount);
-        return glAccountEntries.length;
-      })
+      data: glAccountNames.map(glAccount => accountAnalysis[glAccount]?.total_entries || 0)
     },
     closing_entries_by_date: {
-      labels: summaryStats.closing_dates,
-      data: summaryStats.closing_dates.map(date => {
-        const dateEntries = closingEntries.filter(entry => entry.posting_date === date);
-        return dateEntries.length;
-      })
+      labels: Object.keys(temporalAnalysis),
+      data: Object.keys(temporalAnalysis).map(date => temporalAnalysis[date]?.total_entries || 0)
     },
     // Map visualization data from API
     month_end_patterns: visualizations.chart_data?.month_end_patterns || {},
@@ -196,8 +283,8 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
   const riskLevel = summaryStats.risk_level || 'LOW';
 
   // Prepare chart data from the rich API structure
-  const userClosingData = detailedResults.user_closing || {};
-  const fsLineClosingData = detailedResults.fs_line_closing || {};
+  const userClosingData = detailedAnalysis.user_analysis || {};
+  const fsLineClosingData = detailedAnalysis.account_analysis || {};
   
   // User Analysis Chart Data
   const userChartData = Object.keys(userClosingData).map(userName => {
@@ -205,7 +292,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
     return {
       name: userName,
       totalAmount: userData.total_amount || 0,
-      entries: userData.entries?.length || 0,
+      entries: userData.total_entries || 0,
       monthEndCount: userData.month_end_count || 0,
       preCloseCount: userData.pre_close_count || 0
     };
@@ -217,54 +304,57 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
     return {
       name: fsLine,
       totalAmount: fsData.total_amount || 0,
-      entries: fsData.entries?.length || 0,
+      entries: fsData.total_entries || 0,
       monthEndCount: fsData.month_end_count || 0,
-      uniqueUsers: fsData.unique_users?.length || 0
+      uniqueUsers: fsData.users?.length || 0
     };
   }).sort((a, b) => b.totalAmount - a.totalAmount);
 
   // Risk Distribution Chart Data - using purple variants
   const riskDistributionData = [
-    { name: 'Low Risk', value: closingEntries.filter(entry => (entry.risk_score || 0) < 40).length, color: '#B894C4' },
-    { name: 'Medium Risk', value: closingEntries.filter(entry => (entry.risk_score || 0) >= 40 && (entry.risk_score || 0) < 60).length, color: '#A67BB3' },
-    { name: 'High Risk', value: closingEntries.filter(entry => (entry.risk_score || 0) >= 60 && (entry.risk_score || 0) < 80).length, color: '#8E6C95' },
-    { name: 'Critical Risk', value: closingEntries.filter(entry => (entry.risk_score || 0) >= 80).length, color: '#7B4A82' }
+    { name: 'Low Risk', value: riskDistribution.LOW || 0, color: '#B894C4' },
+    { name: 'Medium Risk', value: riskDistribution.MEDIUM || 0, color: '#A67BB3' },
+    { name: 'High Risk', value: riskDistribution.HIGH || 0, color: '#8E6C95' },
+    { name: 'Critical Risk', value: riskDistribution.CRITICAL || 0, color: '#7B4A82' }
   ];
 
   // Closing Window Type Distribution - using purple variants
   const closingWindowData = [
-    { name: 'Month End', value: closingEntries.filter(entry => entry.closing_window_type === 'month_end').length, color: '#925a9b' },
-    { name: 'Pre Close', value: closingEntries.filter(entry => entry.closing_window_type === 'pre_close').length, color: '#6B3E72' }
-  ];
-
-  // Purple color variants for charts
-  const purpleVariants = [
-    '#925a9b', // Primary purple
-    '#7B4A82', // Darker purple
-    '#A67BB3', // Lighter purple
-    '#8E6C95', // Medium purple
-    '#B894C4', // Very light purple
-    '#6B3E72', // Very dark purple
-    '#C4A5D1', // Pale purple
-    '#5A2E61', // Deep purple
-    '#D1B8DC', // Lightest purple
-    '#4A1F50'  // Darkest purple
+    { name: 'Month End', value: Object.values(temporalAnalysis).filter(entry => entry.days_from_month_end === 0).reduce((sum, entry) => sum + entry.total_entries, 0), color: '#925a9b' },
+    { name: 'Pre Close', value: Object.values(temporalAnalysis).filter(entry => entry.days_from_month_end > 0).reduce((sum, entry) => sum + entry.total_entries, 0), color: '#6B3E72' }
   ];
 
   // Chart colors - using purple variants
-  const chartColors = purpleVariants;
+  const chartColors = [
+    purpleVariants.primary,
+    purpleVariants.dark,
+    purpleVariants.light,
+    purpleVariants.success,
+    purpleVariants.lighter,
+    purpleVariants.darker,
+    purpleVariants.lightest,
+    purpleVariants.deepest,
+    purpleVariants.pale,
+    purpleVariants.deep
+  ];
 
   return (
     <Box sx={{ minHeight: '100vh', background: '#f8f9fa', p: 3 }}>
       {/* Analysis Status */}
       <Alert 
-        severity={totalEntries > 0 ? "warning" : "success"} 
-        sx={{ mb: 3, borderRadius: 2 }}
+        severity={totalEntries > 0 ? "warning" : "info"} 
+        sx={{ 
+          mb: 3, 
+          borderRadius: 2,
+          backgroundColor: totalEntries > 0 ? `${purpleVariants.warning}20` : `${purpleVariants.info}20`,
+          borderColor: totalEntries > 0 ? purpleVariants.warning : purpleVariants.info,
+          color: totalEntries > 0 ? purpleVariants.darker : purpleVariants.dark
+        }}
         icon={totalEntries > 0 ? <WarningIcon /> : <InfoIcon />}
       >
         <Typography variant="body1" sx={{ fontWeight: 600 }}>
           {totalEntries > 0 
-            ? `Found ${closingEntries.length} closing entries involving ${totalTransactions} transactions`
+            ? `Found ${summaryStats.closing_entries} closing entries involving ${totalTransactions} transactions`
             : "No closing entries found"
           }
         </Typography>
@@ -275,10 +365,48 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
         )}
       </Alert>
 
+      {/* Listing API Status */}
+      <Alert 
+        severity={listingError ? "error" : listingLoading ? "info" : listingData ? "success" : "info"} 
+        sx={{ 
+          mb: 3, 
+          borderRadius: 2,
+          backgroundColor: listingError ? `${purpleVariants.error}20` : listingLoading ? `${purpleVariants.info}20` : listingData ? `${purpleVariants.success}20` : `${purpleVariants.info}20`,
+          borderColor: listingError ? purpleVariants.error : listingLoading ? purpleVariants.info : listingData ? purpleVariants.success : purpleVariants.info,
+          color: listingError ? purpleVariants.darker : listingLoading ? purpleVariants.dark : listingData ? purpleVariants.dark : purpleVariants.dark
+        }}
+        icon={listingError ? <ErrorIcon /> : listingLoading ? <InfoIcon /> : listingData ? <InfoIcon /> : <InfoIcon />}
+      >
+        <Typography variant="body1" sx={{ fontWeight: 600 }}>
+          {listingError 
+            ? `Listing API Error: ${listingError}`
+            : listingLoading 
+            ? "Fetching detailed closing entries list..."
+            : listingData 
+            ? `Listing API Response Received - ${listingData.count || 0} total entries (Page ${currentPage} of ${Math.ceil((listingData.count || 0) / pageSize)})`
+            : "Listing API not called yet"
+          }
+        </Typography>
+        {listingData && (
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            Showing {listingData.results?.length || 0} entries on current page. File ID: {data?.file_info?.file_id || 'N/A'}
+          </Typography>
+        )}
+        {listingLoading && (
+          <LinearProgress sx={{ mt: 1, backgroundColor: `${purpleVariants.info}40`, '& .MuiLinearProgress-bar': { backgroundColor: purpleVariants.info } }} />
+        )}
+      </Alert>
+
       {/* Closing Entries Definitions */}
       <Alert 
         severity="info" 
-        sx={{ mb: 3, borderRadius: 2 }}
+        sx={{ 
+          mb: 3, 
+          borderRadius: 2,
+          backgroundColor: `${purpleVariants.info}20`,
+          borderColor: purpleVariants.info,
+          color: purpleVariants.dark
+        }}
         icon={<InfoIcon />}
       >
         <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
@@ -290,41 +418,41 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
         <Box sx={{ mt: 2 }}>
           <Grid container spacing={2}>
             <Grid item size={{xs: 12, md: 6}}>
-              <Box sx={{ p: 2, backgroundColor: 'rgba(76, 175, 80, 0.1)', borderRadius: 2, border: '1px solid rgba(76, 175, 80, 0.3)' }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#2e7d32', mb: 1 }}>
+              <Box sx={{ p: 2, backgroundColor: `${purpleVariants.info}20`, borderRadius: 2, border: `1px solid ${purpleVariants.info}` }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: purpleVariants.dark, mb: 1 }}>
                   Month-End Entries
                 </Typography>
-                <Typography variant="body2" sx={{ fontSize: '0.875rem', color: '#6c757d' }}>
+                <Typography variant="body2" sx={{ fontSize: '0.875rem', color: textSecondary }}>
                   Transactions posted on the last day of the month
                 </Typography>
               </Box>
             </Grid>
             <Grid item size={{xs: 12, md: 6}}>
-              <Box sx={{ p: 2, backgroundColor: 'rgba(76, 175, 80, 0.1)', borderRadius: 2, border: '1px solid rgba(76, 175, 80, 0.3)' }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#2e7d32', mb: 1 }}>
+              <Box sx={{ p: 2, backgroundColor: `${purpleVariants.info}20`, borderRadius: 2, border: `1px solid ${purpleVariants.info}` }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: purpleVariants.dark, mb: 1 }}>
                   Quarter-End Entries
                 </Typography>
-                <Typography variant="body2" sx={{ fontSize: '0.875rem', color: '#6c757d' }}>
+                <Typography variant="body2" sx={{ fontSize: '0.875rem', color: textSecondary }}>
                   Transactions posted on the last day of the quarter
                 </Typography>
               </Box>
             </Grid>
             <Grid item size={{xs: 12, md: 6}}>
-              <Box sx={{ p: 2, backgroundColor: 'rgba(76, 175, 80, 0.1)', borderRadius: 2, border: '1px solid rgba(76, 175, 80, 0.3)' }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#2e7d32', mb: 1 }}>
+              <Box sx={{ p: 2, backgroundColor: `${purpleVariants.info}20`, borderRadius: 2, border: `1px solid ${purpleVariants.info}` }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: purpleVariants.dark, mb: 1 }}>
                   Year-End Entries
                 </Typography>
-                <Typography variant="body2" sx={{ fontSize: '0.875rem', color: '#6c757d' }}>
+                <Typography variant="body2" sx={{ fontSize: '0.875rem', color: textSecondary }}>
                   Transactions posted on the last day of the fiscal year
                 </Typography>
               </Box>
             </Grid>
             <Grid item size={{xs: 12, md: 6}}>
-              <Box sx={{ p: 2, backgroundColor: 'rgba(76, 175, 80, 0.1)', borderRadius: 2, border: '1px solid rgba(76, 175, 80, 0.3)' }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#2e7d32', mb: 1 }}>
+              <Box sx={{ p: 2, backgroundColor: `${purpleVariants.info}20`, borderRadius: 2, border: `1px solid ${purpleVariants.info}` }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: purpleVariants.dark, mb: 1 }}>
                   Adjusting Entries
                 </Typography>
-                <Typography variant="body2" sx={{ fontSize: '0.875rem', color: '#6c757d' }}>
+                <Typography variant="body2" sx={{ fontSize: '0.875rem', color: textSecondary }}>
                   Entries made to adjust account balances
                 </Typography>
               </Box>
@@ -384,7 +512,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
                 Analysis Date: {new Date(analysisInfo.analysis_date || Date.now()).toLocaleDateString()}
               </Typography>
               <Typography variant="body2" sx={{ color: textSecondary }}>
-                Status: {analysisInfo.status || 'COMPLETED'} • Entries: {closingEntries.length}
+                Status: {analysisInfo.status || 'COMPLETED'} • Entries: {summaryStats.closing_entries}
               </Typography>
               <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'row', width:'fit-content', marginTop: '10px', gap: '10px' }}>
                 <Box sx={{ 
@@ -449,7 +577,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
                       mb: 0.5,
                       fontSize: '1.1rem'
                     }}>
-                      {closingEntries.length}
+                      {summaryStats.closing_entries}
                     </Typography>
                     <Typography variant="body2" sx={{ 
                       color: textSecondary,
@@ -582,14 +710,14 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
 
       {/* Distribution Overview */}
       {distributionData && (
-        <Box sx={{ mb: 4, p: 3, backgroundColor: '#e8f5e8', borderRadius: 2, border: '1px solid #4caf50' }}>
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: '#2e7d32' }}>
+        <Box sx={{ mb: 4, p: 3, backgroundColor: `${purpleVariants.info}20`, borderRadius: 2, border: `1px solid ${purpleVariants.info}` }}>
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: purpleVariants.dark }}>
             📊 Closing Entries Distribution Overview
           </Typography>
           <Grid container spacing={2}>
             <Grid item size={{xs: 12, md: 3}}>
               <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#2e7d32' }}>
+                <Typography variant="h4" sx={{ fontWeight: 'bold', color: purpleVariants.dark }}>
                   {distributionData.count}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -599,7 +727,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
             </Grid>
             <Grid item size={{xs: 12, md: 3}}>
               <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1565c0' }}>
+                <Typography variant="h4" sx={{ fontWeight: 'bold', color: purpleVariants.primary }}>
                   {distributionData.percentage?.toFixed(1) || 0}%
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -609,7 +737,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
             </Grid>
             <Grid item size={{xs: 12, md: 3}}>
               <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#e65100' }}>
+                <Typography variant="h4" sx={{ fontWeight: 'bold', color: purpleVariants.success }}>
                   {anomalySummary?.total_anomalies || 0}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -619,7 +747,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
             </Grid>
             <Grid item size={{xs: 12, md: 3}}>
               <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#c2185b' }}>
+                <Typography variant="h4" sx={{ fontWeight: 'bold', color: purpleVariants.warning }}>
                   {anomalySummary ? Object.keys(anomalySummary).filter(key => 
                     key !== 'total_anomalies' && (anomalySummary[key] || 0) > 0
                   ).length : 0}
@@ -637,8 +765,8 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
       {summary && (
         <Grid container spacing={2} sx={{ mb: 3 }}>
           <Grid item size={{xs: 12, md: 3}}>
-            <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#fff3e0' }}>
-              <Typography variant="h6" color="#e65100">
+            <Paper sx={{ p: 2, textAlign: 'center', bgcolor: `${purpleVariants.lightest}20` }}>
+              <Typography variant="h6" sx={{ color: purpleVariants.dark }}>
                 {summary.closing_entries_count || 0}
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -647,8 +775,8 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
             </Paper>
           </Grid>
           <Grid item size={{xs: 12, md: 3}}>
-            <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#e8f5e8' }}>
-              <Typography variant="h6" color="#2e7d32">
+            <Paper sx={{ p: 2, textAlign: 'center', bgcolor: `${purpleVariants.info}20` }}>
+              <Typography variant="h6" sx={{ color: purpleVariants.dark }}>
                 {summary.total_transactions || 0}
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -657,8 +785,8 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
             </Paper>
           </Grid>
           <Grid item size={{xs: 12, md: 3}}>
-            <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#e3f2fd' }}>
-              <Typography variant="h6" color="#1565c0">
+            <Paper sx={{ p: 2, textAlign: 'center', bgcolor: `${purpleVariants.lighter}20` }}>
+              <Typography variant="h6" sx={{ color: purpleVariants.primary }}>
                 {formatCurrency(summaryStats.total_amount || 0)}
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -667,8 +795,8 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
             </Paper>
           </Grid>
               <Grid item size={{xs: 12, md: 3}}>
-            <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#fce4ec' }}>
-              <Typography variant="h6" color="#c2185b">
+            <Paper sx={{ p: 2, textAlign: 'center', bgcolor: `${purpleVariants.pale}20` }}>
+              <Typography variant="h6" sx={{ color: purpleVariants.warning }}>
                 {summaryStats.closing_dates?.length || 0}
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -995,182 +1123,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
               Detailed Analysis Tables
             </Typography>
 
-            {/* Closing Entries Table */}
-            {closingEntries && closingEntries.length > 0 && (
-              <Box sx={{ mb: 4 }}>
-                <Typography variant="h6" sx={{ 
-                  fontWeight: 600, 
-                  mb: 3, 
-                  color: textPrimary,
-                  fontSize: '1.1rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1
-                }}>
-                  <EventIcon sx={{ color: primaryColor, fontSize: 20 }} />
-                  Detailed Closing Entries Analysis
-                </Typography>
-                <Paper sx={{ 
-                  borderRadius: 3, 
-                  boxShadow: 2,
-                  overflow: 'hidden'
-                }}>
-                  <TableContainer>
-                    <Table size="small">
-                                              <TableHead>
-                          <TableRow sx={{ 
-                            backgroundColor: '#f8f9fa',
-                            '& th': {
-                              borderBottom: '2px solid #e9ecef',
-                              fontWeight: 700,
-                              color: textPrimary,
-                              fontSize: '0.875rem',
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.5px'
-                            }
-                          }}>
-                            <TableCell>Transaction ID</TableCell>
-                            <TableCell>User</TableCell>
-                            <TableCell>Posting Date</TableCell>
-                            <TableCell>GL Account</TableCell>
-                            <TableCell>FS Line</TableCell>
-                            <TableCell>Transaction Type</TableCell>
-                            <TableCell>Closing Window</TableCell>
-                            <TableCell align="right">Amount</TableCell>
-                            <TableCell align="center">Risk Score</TableCell>
-                          </TableRow>
-                        </TableHead>
-                      <TableBody>
-                        {closingEntries.map((entry, index) => (
-                          <TableRow 
-                            key={index}
-                            sx={{ 
-                              '&:hover': { 
-                                backgroundColor: '#f8f9fa',
-                                transform: 'scale(1.01)',
-                                transition: 'all 0.2s ease-in-out'
-                              },
-                              '&:nth-of-type(even)': {
-                                backgroundColor: '#fafbfc'
-                              }
-                            }}
-                          >
-                            <TableCell sx={{ py: 2 }}>
-                              <Typography variant="body2" sx={{ 
-                                fontWeight: 600, 
-                                color: textPrimary,
-                                fontSize: '0.875rem'
-                              }}>
-                                {entry.transaction_id}
-                              </Typography>
-                            </TableCell>
-                            <TableCell sx={{ py: 2 }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                <Avatar sx={{ 
-                                  width: 32, 
-                                  height: 32, 
-                                  backgroundColor: primaryColor,
-                                  fontSize: '0.875rem',
-                                  fontWeight: 600
-                                }}>
-                                  {entry.user_name?.charAt(0) || 'U'}
-                                </Avatar>
-                                <Typography variant="body2" sx={{ 
-                                  color: textSecondary,
-                                  fontSize: '0.875rem',
-                                  fontWeight: 500
-                                }}>
-                                  {entry.user_name}
-                                </Typography>
-                              </Box>
-                            </TableCell>
-                            <TableCell sx={{ py: 2 }}>
-                              <Typography variant="body2" sx={{ 
-                                color: textSecondary,
-                                fontSize: '0.875rem'
-                              }}>
-                                {new Date(entry.posting_date).toLocaleDateString()}
-                              </Typography>
-                            </TableCell>
-                            <TableCell sx={{ py: 2 }}>
-                              <Chip 
-                                label={entry.gl_account}
-                                size="small"
-                                variant="outlined"
-                                sx={{ 
-                                  borderColor: primaryColor,
-                                  color: primaryColor,
-                                  fontWeight: 600,
-                                  fontSize: '0.75rem'
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell sx={{ py: 2 }}>
-                              <Chip 
-                                label={entry.fs_line}
-                                size="small"
-                                variant="outlined"
-                                sx={{ 
-                                  borderColor: '#1565c0',
-                                  color: '#1565c0',
-                                  fontWeight: 600,
-                                  fontSize: '0.75rem'
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell sx={{ py: 2 }}>
-                              <Chip 
-                                label={entry.transaction_type}
-                                size="small"
-                                sx={{ 
-                                  backgroundColor: entry.transaction_type === 'DEBIT' ? '#dc3545' : '#28a745',
-                                  color: 'white',
-                                  fontWeight: 600,
-                                  fontSize: '0.75rem'
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell sx={{ py: 2 }}>
-                              <Chip 
-                                label={entry.closing_window_type.replace('_', ' ').charAt(0).toUpperCase() + entry.closing_window_type.replace('_', ' ').slice(1)}
-                                size="small"
-                                sx={{ 
-                                  backgroundColor: entry.closing_window_type === 'month_end' ? '#ff9800' : '#9c27b0',
-                                  color: 'white',
-                                  fontWeight: 600,
-                                  fontSize: '0.75rem'
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell align="right" sx={{ py: 2 }}>
-                              <Typography variant="body2" sx={{ 
-                                fontWeight: 700, 
-                                color: primaryColor,
-                                fontSize: '0.875rem'
-                              }}>
-                                {formatCurrency(entry.amount)}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="center" sx={{ py: 2 }}>
-                              <Chip 
-                                label={entry.risk_score || 'N/A'} 
-                                size="small"
-                                sx={{ 
-                                  backgroundColor: getRiskColor(getRiskLevel(entry.risk_score || 0)),
-                                  color: 'white',
-                                  fontWeight: 600,
-                                  fontSize: '0.75rem'
-                                }}
-                              />
-                            </TableCell>
-                                                        </TableRow>
-                          ))}
-                        </TableBody>
-                    </Table>
-                  </TableContainer>
-                </Paper>
-              </Box>
-            )}
+
 
             {/* User Breakdown Table */}
             {chartData.closing_entries_by_user && chartData.closing_entries_by_user.labels.length > 0 && (
@@ -1200,7 +1153,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
                           '& th': {
                             borderBottom: '2px solid #e9ecef',
                             fontWeight: 700,
-                            color: '#2c3e50',
+                            color: textPrimary,
                             fontSize: '0.875rem',
                             textTransform: 'uppercase',
                             letterSpacing: '0.5px'
@@ -1215,11 +1168,12 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
                       </TableHead>
                       <TableBody>
                         {chartData.closing_entries_by_user.labels.map((userName, index) => {
-                          const userEntries = closingEntries.filter(entry => entry.user_name === userName);
-                          const totalAmount = userEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
-                          const avgAmount = userEntries.length > 0 ? totalAmount / userEntries.length : 0;
-                          const avgRiskScore = userEntries.length > 0 ? 
-                            userEntries.reduce((sum, entry) => sum + (entry.risk_score || 0), 0) / userEntries.length : 0;
+                          const userData = userAnalysis[userName] || {};
+                          const totalAmount = userData.total_amount || 0;
+                          const totalEntries = userData.total_entries || 0;
+                          const avgAmount = totalEntries > 0 ? totalAmount / totalEntries : 0;
+                          const riskLevels = userData.risk_levels || {};
+                          const avgRiskScore = calculateAverageRiskScore(riskLevels, totalEntries);
                           
                           return (
                           <TableRow 
@@ -1261,13 +1215,13 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
                                 color: primaryColor,
                                 fontSize: '0.875rem'
                               }}>
-                                {userEntries.length}
+                                {totalEntries}
                               </Typography>
                             </TableCell>
                             <TableCell align="right" sx={{ py: 2 }}>
                               <Typography variant="body2" sx={{ 
                                 fontWeight: 600, 
-                                color: '#4caf50',
+                                color: purpleVariants.success,
                                 fontSize: '0.875rem'
                               }}>
                                 {formatCurrency(totalAmount)}
@@ -1275,7 +1229,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
                             </TableCell>
                             <TableCell align="right" sx={{ py: 2 }}>
                               <Typography variant="body2" sx={{ 
-                                color: '#6c757d',
+                                color: textSecondary,
                                 fontSize: '0.875rem'
                               }}>
                                 {formatCurrency(avgAmount)}
@@ -1308,13 +1262,13 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
                 <Typography variant="h6" sx={{ 
                   fontWeight: 600, 
                   mb: 3, 
-                  color: '#2c3e50',
+                  color: textPrimary,
                   fontSize: '1.1rem',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 1
                 }}>
-                  <AccountBalanceIcon sx={{ color: '#4caf50', fontSize: 20 }} />
+                  <AccountBalanceIcon sx={{ color: purpleVariants.success, fontSize: 20 }} />
                   GL Account Breakdown
                 </Typography>
                 <Paper sx={{ 
@@ -1345,11 +1299,12 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
                       </TableHead>
                       <TableBody>
                         {chartData.closing_entries_by_gl_account.labels.map((glAccount, index) => {
-                          const glAccountEntries = closingEntries.filter(entry => entry.gl_account === glAccount);
-                          const totalAmount = glAccountEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
-                          const avgAmount = glAccountEntries.length > 0 ? totalAmount / glAccountEntries.length : 0;
-                          const avgRiskScore = glAccountEntries.length > 0 ? 
-                            glAccountEntries.reduce((sum, entry) => sum + (entry.risk_score || 0), 0) / glAccountEntries.length : 0;
+                          const accountData = accountAnalysis[glAccount] || {};
+                          const totalAmount = accountData.total_amount || 0;
+                          const totalEntries = accountData.total_entries || 0;
+                          const avgAmount = totalEntries > 0 ? totalAmount / totalEntries : 0;
+                          const riskLevels = accountData.risk_levels || {};
+                          const avgRiskScore = calculateAverageRiskScore(riskLevels, totalEntries);
                           
                           return (
                           <TableRow 
@@ -1384,7 +1339,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
                               color: primaryColor,
                               fontSize: '0.875rem'
                             }}>
-                              {glAccountEntries.length}
+                                {totalEntries}
                             </Typography>
                             </TableCell>
                             <TableCell align="right" sx={{ py: 2 }}>
@@ -1425,7 +1380,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
               </Box>
             )}
 
-            {/* Account Breakdown Table */}
+                        {/* Account Breakdown Table */}
             {chartData.closing_entries_by_account && chartData.closing_entries_by_account.labels.length > 0 && (
               <Box sx={{ mb: 4 }}>
                 <Typography variant="h6" sx={{ 
@@ -1453,7 +1408,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
                           '& th': {
                             borderBottom: '2px solid #e9ecef',
                             fontWeight: 700,
-                            color: '#2c3e50',
+                            color: textPrimary,
                             fontSize: '0.875rem',
                             textTransform: 'uppercase',
                             letterSpacing: '0.5px'
@@ -1468,11 +1423,12 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
                       </TableHead>
                       <TableBody>
                         {chartData.closing_entries_by_account.labels.map((account, index) => {
-                          const accountEntries = closingEntries.filter(entry => entry.fs_line === account);
-                          const totalAmount = accountEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
-                          const avgAmount = accountEntries.length > 0 ? totalAmount / accountEntries.length : 0;
-                          const avgRiskScore = accountEntries.length > 0 ? 
-                            accountEntries.reduce((sum, entry) => sum + (entry.risk_score || 0), 0) / accountEntries.length : 0;
+                          const accountData = accountAnalysis[account] || {};
+                          const totalAmount = accountData.total_amount || 0;
+                          const totalEntries = accountData.total_entries || 0;
+                          const avgAmount = totalEntries > 0 ? totalAmount / totalEntries : 0;
+                          const riskLevels = accountData.risk_levels || {};
+                          const avgRiskScore = calculateAverageRiskScore(riskLevels, totalEntries);
                           
                           return (
                           <TableRow 
@@ -1502,18 +1458,18 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
                               />
                             </TableCell>
                             <TableCell align="right" sx={{ py: 2 }}>
-                              <Typography variant="body2" sx={{ 
-                                fontWeight: 600, 
-                                color: primaryColor,
-                                fontSize: '0.875rem'
-                              }}>
-                                {accountEntries.length}
-                              </Typography>
+                                                          <Typography variant="body2" sx={{ 
+                              fontWeight: 600, 
+                              color: primaryColor,
+                              fontSize: '0.875rem'
+                            }}>
+                                {totalEntries}
+                            </Typography>
                             </TableCell>
                             <TableCell align="right" sx={{ py: 2 }}>
                               <Typography variant="body2" sx={{ 
                                 fontWeight: 600, 
-                                color: '#4caf50',
+                                color: purpleVariants.success,
                                 fontSize: '0.875rem'
                               }}>
                                 {formatCurrency(totalAmount)}
@@ -1521,7 +1477,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
                             </TableCell>
                             <TableCell align="right" sx={{ py: 2 }}>
                               <Typography variant="body2" sx={{ 
-                                color: '#6c757d',
+                                color: textSecondary,
                                 fontSize: '0.875rem'
                               }}>
                                 {formatCurrency(avgAmount)}
@@ -1589,8 +1545,8 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
                                 <InfoIcon sx={{ color: primaryColor, fontSize: 16 }} />
                               </ListItemIcon>
                               <ListItemText 
-                                primary={recommendation.action}
-                                secondary={recommendation.recommendation || recommendation.description}
+                                primary={recommendation}
+                                secondary={recommendation || recommendation.description}
                                 sx={{ 
                                   '& .MuiListItemText-primary': {
                                     fontSize: '0.875rem',
@@ -1656,11 +1612,11 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
                   {/* Critical Alerts */}
                   {criticalAlerts.length > 0 && (
                     <Grid item size={{xs: 12}}>
-                      <Box sx={{ p: 2, background: '#fff3cd', borderRadius: 2, border: '1px solid #ffeaa7' }}>
+                      <Box sx={{ p: 2, background: `${purpleVariants.warning}20`, borderRadius: 2, border: `1px solid ${purpleVariants.warning}` }}>
                         <Typography variant="h6" sx={{ 
                           fontWeight: 600, 
                           mb: 2, 
-                          color: '#856404',
+                          color: purpleVariants.darker,
                           fontSize: '1.1rem'
                         }}>
                           Critical Alerts
@@ -1669,7 +1625,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
                           {criticalAlerts.map((alert, index) => (
                             <ListItem key={index} sx={{ py: 0.5 }}>
                               <ListItemIcon sx={{ minWidth: 24 }}>
-                                <ErrorIcon sx={{ color: '#dc3545', fontSize: 16 }} />
+                                <ErrorIcon sx={{ color: purpleVariants.error, fontSize: 16 }} />
                               </ListItemIcon>
                               <ListItemText 
                                 primary={alert.description}
@@ -1677,12 +1633,12 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
                                 sx={{ 
                                   '& .MuiListItemText-primary': {
                                     fontSize: '0.875rem',
-                                    color: '#856404',
+                                    color: purpleVariants.darker,
                                     fontWeight: 600
                                   },
                                   '& .MuiListItemText-secondary': {
                                     fontSize: '0.75rem',
-                                    color: '#856404'
+                                    color: purpleVariants.darker
                                   }
                                 }}
                               />
@@ -1698,8 +1654,8 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
           </Grid>
         )}
 
-        {/* Section 3: Visualization Data */}
-        {chartData.month_end_patterns && Object.keys(chartData.month_end_patterns).length > 0 && (
+        {/* Section 3: Temporal Analysis */}
+        {Object.keys(temporalAnalysis).length > 0 && (
           <Grid item size={{xs: 12}}>
             <Card sx={{ 
               background: 'white', 
@@ -1714,86 +1670,437 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
                   color: textPrimary,
                   fontSize: '1.25rem'
                 }}>
-                  Chart Visualization Data
+                  Temporal Analysis - Closing Entries by Date
                 </Typography>
                 
-                <Grid container spacing={3}>
-                  {/* Month End Patterns */}
-                  <Grid item size={{xs: 12, md: 6}}>
-                    <Box sx={{ p: 2, background: '#f8f9fa', borderRadius: 2, border: '1px solid #e9ecef' }}>
-                                              <Typography variant="h6" sx={{ 
-                          fontWeight: 600, 
-                          mb: 2, 
-                          color: textPrimary,
-                          fontSize: '1.1rem'
+                <Paper sx={{ 
+                  borderRadius: 3, 
+                  boxShadow: 2,
+                  overflow: 'hidden'
+                }}>
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow sx={{ 
+                          backgroundColor: '#f8f9fa',
+                          '& th': {
+                            borderBottom: '2px solid #e9ecef',
+                            fontWeight: 700,
+                            color: textPrimary,
+                            fontSize: '0.875rem',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px'
+                          }
                         }}>
-                          Month End Patterns
-                        </Typography>
-                      <Box sx={{ mb: 2 }}>
-                        <Typography variant="body2" sx={{ color: '#6c757d', mb: 1 }}>
-                          <strong>Labels:</strong> {chartData.month_end_patterns.labels?.join(', ') || 'N/A'}
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: '#6c757d', mb: 1 }}>
-                          <strong>Closing Entries:</strong> {chartData.month_end_patterns.closing_entries?.join(', ') || 'N/A'}
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: '#6c757d', mb: 1 }}>
-                          <strong>Post Close Entries:</strong> {chartData.month_end_patterns.post_close_entries?.join(', ') || 'N/A'}
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: '#6c757d' }}>
-                          <strong>Total Transactions:</strong> {chartData.month_end_patterns.total_transactions?.join(', ') || 'N/A'}
-                        </Typography>
+                          <TableCell>Date</TableCell>
+                          <TableCell align="right">Closing Entries</TableCell>
+                          <TableCell align="right">Total Amount</TableCell>
+                          <TableCell align="right">Days from Month End</TableCell>
+                          <TableCell align="center">Risk Level</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {Object.entries(temporalAnalysis)
+                          .sort(([a], [b]) => new Date(b) - new Date(a))
+                          .map(([date, data], index) => {
+                          const riskLevels = data.risk_levels || {};
+                          const avgRiskScore = calculateAverageRiskScore(riskLevels, data.total_entries || 0);
+                          
+                          return (
+                          <TableRow 
+                            key={index}
+                            sx={{ 
+                              '&:hover': { 
+                                backgroundColor: '#f8f9fa',
+                                transform: 'scale(1.01)',
+                                transition: 'all 0.2s ease-in-out'
+                              },
+                              '&:nth-of-type(even)': {
+                                backgroundColor: '#fafbfc'
+                              }
+                            }}
+                          >
+                            <TableCell sx={{ py: 2 }}>
+                              <Typography variant="body2" sx={{ 
+                                fontWeight: 600, 
+                                color: textPrimary,
+                                fontSize: '0.875rem'
+                              }}>
+                                {new Date(date).toLocaleDateString()}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="right" sx={{ py: 2 }}>
+                              <Typography variant="body2" sx={{ 
+                                fontWeight: 600, 
+                                color: primaryColor,
+                                fontSize: '0.875rem'
+                              }}>
+                                {data.total_entries || 0}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="right" sx={{ py: 2 }}>
+                              <Typography variant="body2" sx={{ 
+                                fontWeight: 600, 
+                                color: purpleVariants.success,
+                                fontSize: '0.875rem'
+                              }}>
+                                {formatCurrency(data.total_amount || 0)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="right" sx={{ py: 2 }}>
+                              <Typography variant="body2" sx={{ 
+                                color: textSecondary,
+                                fontSize: '0.875rem'
+                              }}>
+                                {data.days_from_month_end || 0}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="center" sx={{ py: 2 }}>
+                              <Chip 
+                                label={getRiskLevel(avgRiskScore)}
+                                size="small"
+                                sx={{ 
+                                  backgroundColor: getRiskColor(getRiskLevel(avgRiskScore)),
+                                  color: 'white',
+                                  fontWeight: 600,
+                                  fontSize: '0.75rem'
+                                }}
+                              />
+                            </TableCell>
+                          </TableRow>
+                        )})}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Paper>
+              </CardContent>
+            </Card>
+      </Grid>
+        )}
+
+        {/* Section 4: Detailed Closing Entries List with Pagination */}
+        {listingData && listingData.results && (
+          <Grid item size={{xs: 12}}>
+            <Card sx={{ 
+              background: 'white', 
+              borderRadius: 2,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              border: '1px solid #e9ecef'
+            }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h5" sx={{ 
+                  fontWeight: 600, 
+                  mb: 3, 
+                  color: textPrimary,
+                  fontSize: '1.25rem'
+                }}>
+                  Detailed Closing Entries List
+                </Typography>
+                
+                <Paper sx={{ 
+                  borderRadius: 3, 
+                  boxShadow: 2,
+                  overflow: 'hidden'
+                }}>
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow sx={{ 
+                          backgroundColor: '#f8f9fa',
+                          '& th': {
+                            borderBottom: '2px solid #e9ecef',
+                            fontWeight: 700,
+                            color: textPrimary,
+                            fontSize: '0.875rem',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px'
+                          }
+                        }}>
+                          <TableCell>Posting Date</TableCell>
+                          <TableCell>Document Number</TableCell>
+                          <TableCell>Account</TableCell>
+                          <TableCell>User</TableCell>
+                          <TableCell align="right">Amount</TableCell>
+                          <TableCell align="center">Risk Level</TableCell>
+                          <TableCell align="center">Days from Month End</TableCell>
+                          <TableCell align="center">Actions</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      {paginationLoading && (
+                        <TableBody>
+                          <TableRow>
+                            <TableCell colSpan={8} sx={{ py: 3 }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                <LinearProgress sx={{ 
+                                  width: '100%', 
+                                  backgroundColor: `${purpleVariants.info}40`, 
+                                  '& .MuiLinearProgress-bar': { backgroundColor: purpleVariants.info } 
+                                }} />
+                              </Box>
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      )}
+                      <TableBody>
+                        {listingData.results.map((entry, index) => (
+                          <TableRow 
+                            key={index}
+                            sx={{ 
+                              '&:hover': { 
+                                backgroundColor: '#f8f9fa',
+                                transform: 'scale(1.01)',
+                                transition: 'all 0.2s ease-in-out'
+                              },
+                              '&:nth-of-type(even)': {
+                                backgroundColor: '#fafbfc'
+                              }
+                            }}
+                          >
+                            <TableCell sx={{ py: 2 }}>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                <Typography variant="body2" sx={{ 
+                                  fontWeight: 600, 
+                                  color: textPrimary,
+                                  fontSize: '0.875rem'
+                                }}>
+                                  {new Date(entry.posting_date).toLocaleDateString()}
+                                </Typography>
+                                {entry.month_end_indicator && (
+                                  <Chip 
+                                    label="MONTH END"
+                                    size="small"
+                                    sx={{ 
+                                      backgroundColor: '#4caf50',
+                                      color: 'white',
+                                      fontWeight: 600,
+                                      fontSize: '0.6rem',
+                                      height: '16px',
+                                      width: 'fit-content'
+                                    }}
+                                  />
+                                )}
+                              </Box>
+                            </TableCell>
+                            <TableCell sx={{ py: 2 }}>
+                              <Typography variant="body2" sx={{ 
+                                color: textPrimary,
+                                fontSize: '0.875rem'
+                              }}>
+                                {entry.document_number || 'N/A'}
+                              </Typography>
+                            </TableCell>
+                            <TableCell sx={{ py: 2 }}>
+                              <Typography variant="body2" sx={{ 
+                                color: textPrimary,
+                                fontSize: '0.875rem'
+                              }}>
+                                {entry.account || 'N/A'}
+                              </Typography>
+                            </TableCell>
+                            <TableCell sx={{ py: 2 }}>
+                              <Typography variant="body2" sx={{ 
+                                color: textPrimary,
+                                fontSize: '0.875rem'
+                              }}>
+                                {entry.user || 'N/A'}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="right" sx={{ py: 2 }}>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
+                                <Typography variant="body2" sx={{ 
+                                  fontWeight: 600, 
+                                  color: purpleVariants.success,
+                                  fontSize: '0.875rem'
+                                }}>
+                                  {entry.amount_formatted || formatCurrency(entry.amount || 0)}
+                                </Typography>
+                                {entry.is_high_value && (
+                                  <Chip 
+                                    label="HIGH VALUE"
+                                    size="small"
+                                    sx={{ 
+                                      backgroundColor: '#ff6b6b',
+                                      color: 'white',
+                                      fontWeight: 600,
+                                      fontSize: '0.6rem',
+                                      height: '16px'
+                                    }}
+                                  />
+                                )}
+                              </Box>
+                            </TableCell>
+                            <TableCell align="center" sx={{ py: 2 }}>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+                                <Chip 
+                                  label={entry.risk_level || 'LOW'}
+                                  size="small"
+                                  sx={{ 
+                                    backgroundColor: entry.risk_color || getRiskColor(entry.risk_level || 'LOW'),
+                                    color: 'white',
+                                    fontWeight: 600,
+                                    fontSize: '0.75rem'
+                                  }}
+                                />
+                                {entry.amount_category && (
+                                  <Chip 
+                                    label={entry.amount_category}
+                                    size="small"
+                                    sx={{ 
+                                      backgroundColor: entry.amount_category === 'HIGH' ? '#ff9800' : 
+                                                     entry.amount_category === 'MEDIUM' ? '#2196f3' : '#4caf50',
+                                      color: 'white',
+                                      fontWeight: 600,
+                                      fontSize: '0.6rem',
+                                      height: '16px'
+                                    }}
+                                  />
+                                )}
+                              </Box>
+                            </TableCell>
+                            <TableCell align="center" sx={{ py: 2 }}>
+                              <Typography variant="body2" sx={{ 
+                                color: textSecondary,
+                                fontSize: '0.875rem',
+                                fontWeight: 600
+                              }}>
+                                {entry.days_from_month_end || 0}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="center" sx={{ py: 2 }}>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleDrawerOpen(entry)}
+                                sx={{ 
+                                  color: primaryColor,
+                                  '&:hover': {
+                                    backgroundColor: `${primaryColor}20`
+                                  }
+                                }}
+                              >
+                                <VisibilityIcon fontSize="small" />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                  
+                  {/* Pagination */}
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    p: 2,
+                    borderTop: '1px solid #e9ecef',
+                    backgroundColor: '#f8f9fa'
+                  }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Typography variant="body2" sx={{ color: textSecondary }}>
+                        Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, listingData.count || 0)} of {listingData.count || 0} entries
+                      </Typography>
+                    </Box>
+                    
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <FormControl size="small" sx={{ minWidth: 120 }}>
+                        <InputLabel>Page Size</InputLabel>
+                        <Select
+                          value={pageSize}
+                          label="Page Size"
+                          disabled={paginationLoading}
+                          onChange={(e) => handlePageSizeChange(e.target.value)}
+                          sx={{ 
+                            '& .MuiOutlinedInput-notchedOutline': {
+                              borderColor: primaryColor
+                            },
+                            '&:hover .MuiOutlinedInput-notchedOutline': {
+                              borderColor: purpleVariants.dark
+                            }
+                          }}
+                        >
+                          <MenuItem value={5}>5 per page</MenuItem>
+                          <MenuItem value={10}>10 per page</MenuItem>
+                          <MenuItem value={25}>25 per page</MenuItem>
+                          <MenuItem value={50}>50 per page</MenuItem>
+                        </Select>
+                      </FormControl>
+                      
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          disabled={!listingData.previous || paginationLoading}
+                          onClick={() => handlePageChange(currentPage - 1)}
+                          sx={{
+                            borderColor: primaryColor,
+                            color: primaryColor,
+                            '&:hover': {
+                              borderColor: purpleVariants.dark,
+                              backgroundColor: `${primaryColor}10`
+                            },
+                            '&:disabled': {
+                              borderColor: '#ccc',
+                              color: '#ccc'
+                            }
+                          }}
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          disabled={!listingData.next || paginationLoading}
+                          onClick={() => handlePageChange(currentPage + 1)}
+                          sx={{
+                            borderColor: primaryColor,
+                            color: primaryColor,
+                            '&:hover': {
+                              borderColor: purpleVariants.dark,
+                              backgroundColor: `${primaryColor}10`
+                            },
+                            '&:disabled': {
+                              borderColor: '#ccc',
+                              color: '#ccc'
+                            }
+                          }}
+                        >
+                          Next
+                        </Button>
                       </Box>
                     </Box>
-                  </Grid>
-
-                  {/* Chart Types */}
-                  <Grid item size={{xs: 12, md: 6}}>
-                    <Box sx={{ p: 2, background: '#f8f9fa', borderRadius: 2, border: '1px solid #e9ecef' }}>
-                      <Typography variant="h6" sx={{ 
-                        fontWeight: 600, 
-                        mb: 2, 
-                        color: textPrimary,
-                        fontSize: '1.1rem'
-                      }}>
-                        Available Chart Types
-                      </Typography>
-                      <List dense>
-                        {chartData.chart_types.map((chartType, index) => (
-                          <ListItem key={index} sx={{ py: 0.5 }}>
-                            <ListItemIcon sx={{ minWidth: 24 }}>
-                              <TrendingUpIcon sx={{ color: primaryColor, fontSize: 16 }} />
-                            </ListItemIcon>
-                            <ListItemText 
-                              primary={chartType}
-                              sx={{ 
-                                '& .MuiListItemText-primary': {
-                                  fontSize: '0.875rem',
-                                  color: textPrimary,
-                                  fontWeight: 600
-                                }
-                              }}
-                            />
-                          </ListItem>
-                        ))}
-                      </List>
-                    </Box>
-                  </Grid>
-                </Grid>
+                  </Box>
+                </Paper>
               </CardContent>
             </Card>
           </Grid>
         )}
+
+        {/* Section 5: API Information */}
+        <Grid item size={{xs: 12}}>
+          <Alert 
+            severity="info" 
+            sx={{ 
+              mb: 3, 
+              borderRadius: 2,
+              backgroundColor: `${purpleVariants.info}20`,
+              borderColor: purpleVariants.info,
+              color: purpleVariants.dark
+            }}
+            icon={<InfoIcon />}
+          >
+            <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+              API Endpoints
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              • Analysis Data: <code>api/closing-entries-analysis/&lt;uuid:file_id&gt;/</code>
+            </Typography>
+            <Typography variant="body2">
+              • Detailed List: <code>api/closing-entries-list/&lt;uuid:file_id&gt;/</code>
+            </Typography>
+          </Alert>
+        </Grid>
       </Grid>
 
-      {/* Raw Data Display */}
-      <Paper sx={{ p: 2, bgcolor: '#f8f9fa', mt: 3 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Raw Analysis Data
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
-          {JSON.stringify(data, null, 2)}
-        </Typography>
-      </Paper>
     </Box>
   );
 } 

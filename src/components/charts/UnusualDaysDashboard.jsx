@@ -23,7 +23,8 @@ import UnusualDaysUserPieChart from './UnusualDaysUserPieChart';
 
 // Weekend Activity Chart
 const WeekendActivityChart = ({ data }) => {
-  if (!data || !data.weekend_postings || data.weekend_postings.length === 0) {
+  console.log('WeekendActivityChart received data:', data);
+  if (!data || !data.weekend_postings || !Array.isArray(data.weekend_postings) || data.weekend_postings.length === 0) {
     return (
       <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2 }}>
         <CardContent>
@@ -31,7 +32,12 @@ const WeekendActivityChart = ({ data }) => {
             Weekend Activity
           </Typography>
           <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Typography variant="body2" color="text.secondary">No weekend data available</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {!data ? 'No data provided' : 
+               !data.weekend_postings ? 'No weekend data available' :
+               !Array.isArray(data.weekend_postings) ? 'Invalid data format' :
+               'No weekend data available'}
+            </Typography>
           </Box>
         </CardContent>
       </Card>
@@ -123,7 +129,8 @@ const WeekendActivityChart = ({ data }) => {
 
 // Day of Week Activity Chart
 const DayOfWeekActivityChart = ({ data }) => {
-  if (!data || !data.day_of_week_activity) {
+  console.log('DayOfWeekActivityChart received data:', data);
+  if (!data || !data.day_of_week_activity || !Array.isArray(data.day_of_week_activity) || data.day_of_week_activity.length === 0) {
     return (
       <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2 }}>
         <CardContent>
@@ -131,14 +138,19 @@ const DayOfWeekActivityChart = ({ data }) => {
             Day of Week Activity
           </Typography>
           <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Typography variant="body2" color="text.secondary">No day activity data available</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {!data ? 'No data provided' : 
+               !data.day_of_week_activity ? 'No day activity data available' :
+               !Array.isArray(data.day_of_week_activity) ? 'Invalid data format' :
+               'No day activity data available'}
+            </Typography>
           </Box>
         </CardContent>
       </Card>
     );
   }
 
-  const chartData = Object.values(data.day_of_week_activity).map((day, index) => ({
+  const chartData = data.day_of_week_activity.map((day, index) => ({
     name: day.day_name,
     amount: day.total_amount,
     transactions: day.total_transactions,
@@ -231,7 +243,8 @@ const DayOfWeekActivityChart = ({ data }) => {
 
 // Unusual Days Distribution Chart
 const UnusualDaysDistributionChart = ({ data }) => {
-  if (!data || !data.unusual_days || data.unusual_days.length === 0) {
+  console.log('UnusualDaysDistributionChart received data:', data);
+  if (!data || !data.unusual_days || !Array.isArray(data.unusual_days) || data.unusual_days.length === 0) {
     return (
       <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2 }}>
         <CardContent>
@@ -239,7 +252,12 @@ const UnusualDaysDistributionChart = ({ data }) => {
             Unusual Days Distribution
           </Typography>
           <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Typography variant="body2" color="text.secondary">No unusual days data available</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {!data ? 'No data provided' : 
+               !data.unusual_days ? 'No unusual days data available' :
+               !Array.isArray(data.unusual_days) ? 'Invalid data format' :
+               'No unusual days data available'}
+            </Typography>
           </Box>
         </CardContent>
       </Card>
@@ -315,7 +333,8 @@ const UnusualDaysDistributionChart = ({ data }) => {
 
 // Risk Score Distribution Chart
 const RiskScoreDistributionChart = ({ data }) => {
-  if (!data || !data.weekend_postings || data.weekend_postings.length === 0) {
+  console.log('RiskScoreDistributionChart received data:', data);
+  if (!data || !data.weekend_postings || !Array.isArray(data.weekend_postings) || data.weekend_postings.length === 0) {
     return (
       <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2 }}>
         <CardContent>
@@ -323,7 +342,12 @@ const RiskScoreDistributionChart = ({ data }) => {
             Risk Score Distribution
           </Typography>
           <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Typography variant="body2" color="text.secondary">No risk data available</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {!data ? 'No data provided' : 
+               !data.weekend_postings ? 'No risk data available' :
+               !Array.isArray(data.weekend_postings) ? 'Invalid data format' :
+               'No risk data available'}
+            </Typography>
           </Box>
         </CardContent>
       </Card>
@@ -425,6 +449,7 @@ const RiskScoreDistributionChart = ({ data }) => {
 
 // Main Dashboard Component
 export default function UnusualDaysDashboard({ data }) {
+  console.log('UnusualDaysDashboard received data:', data);
   const unusualDaysAnalysis = data?.unusual_days_analysis || {};
 
   return (

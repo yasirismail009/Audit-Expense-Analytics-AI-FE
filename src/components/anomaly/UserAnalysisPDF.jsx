@@ -218,9 +218,18 @@ const UserAnalysisPDF = ({
 
   // Calculate overall risk score
   const totalAmount = userSummary.reduce((sum, user) => sum + (user.total_amount || 0), 0);
-  const totalTransactions = userSummary.reduce((sum, user) => sum + (user.total_transactions || 0), 0);
+  const totalTransactions = userSummary.reduce((sum, user) => sum + (user.transaction_count || 0), 0);
+  
+  // Calculate average risk score based on risk levels (since no numeric scores in new API)
+  const riskLevelScores = {
+    'LOW': 20,
+    'MEDIUM': 50,
+    'HIGH': 80,
+    'CRITICAL': 95
+  };
+  
   const avgRiskScore = userRiskScores.length > 0 ? 
-    userRiskScores.reduce((sum, user) => sum + (user.risk_score || 0), 0) / userRiskScores.length : 0;
+    userRiskScores.reduce((sum, user) => sum + (riskLevelScores[user.risk_level] || 0), 0) / userRiskScores.length : 0;
   const overallRiskLevel = avgRiskScore >= 60 ? 'HIGH' : avgRiskScore >= 40 ? 'MEDIUM' : 'LOW';
 
   const getRiskLevel = (score) => {
@@ -663,15 +672,15 @@ const UserAnalysisPDF = ({
                               <tr key={index}>
                                 <td>{user.user}</td>
                                 <td>{formatCurrency(user.total_amount)}</td>
-                                <td>{user.total_transactions}</td>
-                                <td>{userRisk?.risk_score || 0}</td>
-                                <td>{userAnomaly?.anomaly_count || 0}</td>
+                                <td>{user.transaction_count}</td>
+                                <td>{riskLevelScores[userRisk?.risk_level] || 0}</td>
+                                <td>{userAnomaly ? 1 : 0}</td>
                                 <td>
                                   <span style={{
-                                    color: RiskColor[getRiskLevelNumber(userRisk?.risk_score || 0)],
+                                    color: RiskColor[getRiskLevelNumber(riskLevelScores[userRisk?.risk_level] || 0)],
                                     fontWeight: "bold"
                                   }}>
-                                    {getRiskLevel(userRisk?.risk_score || 0)}
+                                    {userRisk?.risk_level || 'N/A'}
                                   </span>
                                 </td>
                               </tr>
@@ -696,8 +705,7 @@ const UserAnalysisPDF = ({
                         <tbody style={{ textAlign: "center" }}>
                           {Object.entries(riskDistribution).map(([level, count], index) => {
                             const riskLevelUsers = userRiskScores.filter(user => {
-                              const userRiskLevel = getRiskLevel(user.risk_score || 0);
-                              return userRiskLevel === level.toUpperCase();
+                              return user.risk_level === level.toUpperCase();
                             });
                             
                             const totalAmount = riskLevelUsers.reduce((sum, user) => {
@@ -707,7 +715,7 @@ const UserAnalysisPDF = ({
                             
                             const totalTransactions = riskLevelUsers.reduce((sum, user) => {
                               const userSummaryItem = userSummary.find(u => u.user === user.user);
-                              return sum + (userSummaryItem?.total_transactions || 0);
+                              return sum + (userSummaryItem?.transaction_count || 0);
                             }, 0);
                             
                             return (

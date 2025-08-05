@@ -13,6 +13,61 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Zoom out utility classes */
+.zoom-out-10 {
+  font-size: 90% !important;
+}
+
+.zoom-out-20 {
+  font-size: 80% !important;
+}
+
+.zoom-out-30 {
+  font-size: 70% !important;
+}
+
+.zoom-out-40 {
+  font-size: 60% !important;
+}
+
+.zoom-out-50 {
+  font-size: 50% !important;
+}
+
+/* Apply zoom to all elements within the body */
+body.zoom-out-10 *,
+body.zoom-out-20 *,
+body.zoom-out-30 *,
+body.zoom-out-40 *,
+body.zoom-out-50 * {
+  font-size: inherit;
+}
+
+/* Ensure proper scaling for Material-UI components */
+body.zoom-out-10 .MuiTypography-root,
+body.zoom-out-20 .MuiTypography-root,
+body.zoom-out-30 .MuiTypography-root,
+body.zoom-out-40 .MuiTypography-root,
+body.zoom-out-50 .MuiTypography-root {
+  font-size: inherit !important;
+}
+
+body.zoom-out-10 .MuiButton-root,
+body.zoom-out-20 .MuiButton-root,
+body.zoom-out-30 .MuiButton-root,
+body.zoom-out-40 .MuiButton-root,
+body.zoom-out-50 .MuiButton-root {
+  font-size: inherit !important;
+}
+
+body.zoom-out-10 .MuiTableCell-root,
+body.zoom-out-20 .MuiTableCell-root,
+body.zoom-out-30 .MuiTableCell-root,
+body.zoom-out-40 .MuiTableCell-root,
+body.zoom-out-50 .MuiTableCell-root {
+  font-size: inherit !important;
+}
+
 a {
   font-weight: 500;
   color: #925A9B;

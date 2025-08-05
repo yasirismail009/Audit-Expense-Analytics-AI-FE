@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -23,7 +23,12 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  Button
+  Button,
+  Pagination,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel
 } from '@mui/material';
 import BackdatedAnalysisPDF from './BackdatedAnalysisPDF';
 import {
@@ -45,11 +50,23 @@ import AnomaliesDistributionChart from '../charts/AnomaliesDistributionChart';
 // Import Recharts for custom gradient charts
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Legend, Area, AreaChart } from 'recharts';
 
-export default function BackdatedAnalysisContent({ data, distributionData, anomalySummary }) {
+export default function BackdatedAnalysisContent({ data, distributionData, anomalySummary, sheetId }) {
   const [expandedTransactions, setExpandedTransactions] = useState({});
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedBackdated, setSelectedBackdated] = useState(null);
   const [pdfOpen, setPdfOpen] = useState(false);
+  
+  // New state for API integration
+  const [backdatedListing, setBackdatedListing] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState({
+    count: 0,
+    next: null,
+    previous: null,
+    currentPage: 1,
+    pageSize: 10
+  });
 
   // Extract currency from data or use default
   const currency = data?.currency || data?.file_info?.currency || 'SAR';
@@ -114,6 +131,58 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
   const totalTransactions = summaryStats.total_transactions || 0;
   const overallRiskScore = riskAssessment.overall_risk_score || 0;
   const riskLevel = riskAssessment.risk_level || 'LOW';
+
+  // API call to fetch backdated entries listing
+  const fetchBackdatedListing = async (page = 1, pageSize = 10) => {
+    if (!sheetId) {
+      console.warn('No sheetId provided for backdated listing API call');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`http://localhost:8000/api/backdated-entries-list/${sheetId}/?page=${page}&page_size=${pageSize}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      // Handle the specific API response format
+      const listingData = result.results || result.data || result.backdated_entries || [];
+      
+      setBackdatedListing(listingData);
+      setPagination({
+        count: result.count || 0,
+        next: result.next,
+        previous: result.previous,
+        currentPage: page,
+        pageSize: pageSize
+      });
+    } catch (err) {
+      console.error('Error fetching backdated listing:', err);
+      setError(err.message || 'Failed to fetch backdated entries listing');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchBackdatedListing(1, 10);
+  }, [sheetId]);
+
+  // Pagination handlers
+  const handlePageChange = (newPage) => {
+    fetchBackdatedListing(newPage, pagination.pageSize);
+  };
+
+  const handlePageSizeChange = (newPageSize) => {
+    fetchBackdatedListing(1, newPageSize);
+  };
 
   return (
     <Box sx={{ minHeight: '100vh', background: '#f8f9fa', p: 3 }}>
@@ -278,7 +347,7 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
       )}
 
       {/* High Risk Backdated Transactions */}
-      {riskAssessment.high_risk_backdated && riskAssessment.high_risk_backdated.length > 0 && (
+      {!loading && !error && backdatedListing.length > 0 && (
         <Box sx={{ mb: 3 }}>
           <Typography variant="h6" sx={{ 
             fontWeight: 600, 
@@ -293,14 +362,25 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
             High Risk Backdated Transactions
           </Typography>
           <Grid container spacing={2}>
-            {riskAssessment.high_risk_backdated.map((transaction, index) => (
+            {backdatedListing
+              .filter(entry => entry.risk_level === 'HIGH' || entry.backdated_severity === 'CRITICAL' || entry.backdated_severity === 'HIGH')
+              .slice(0, 6) // Show only first 6 high-risk entries
+              .map((entry, index) => (
               <Grid item size={{xs: 12, md: 6}} key={index}>
                 <Card sx={{ 
                   background: '#fff5f5', 
                   borderRadius: 2,
                   border: '1px solid #fecaca',
-                  boxShadow: '0 2px 8px rgba(220, 53, 69, 0.1)'
-                }}>
+                  boxShadow: '0 2px 8px rgba(220, 53, 69, 0.1)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease-in-out',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 4px 12px rgba(220, 53, 69, 0.2)'
+                  }
+                }}
+                onClick={() => handleDrawerOpen(entry)}
+                >
                   <CardContent sx={{ p: 2 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
                       <Typography variant="body1" sx={{ 
@@ -308,13 +388,13 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
                         color: '#dc3545',
                         fontSize: '0.9rem'
                       }}>
-                        {transaction.user_name}
+                        {entry.user}
                       </Typography>
                       <Chip 
-                        label={`${transaction.overall_risk_score}%`} 
+                        label={entry.backdated_severity || entry.risk_level} 
                         size="small"
                         sx={{ 
-                          backgroundColor: '#dc3545',
+                          backgroundColor: entry.backdated_severity === 'CRITICAL' ? '#dc3545' : '#fd7e14',
                           color: 'white',
                           fontWeight: 600,
                           fontSize: '0.7rem'
@@ -326,20 +406,54 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
                       fontSize: '0.8rem',
                       mb: 1
                     }}>
-                      Account: {transaction.gl_account} • Amount: {formatCurrency(transaction.amount_local_currency)}
+                      Account: {entry.account} • Amount: {entry.amount_formatted || formatCurrency(entry.amount)}
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: '#6c757d',
+                      fontSize: '0.8rem',
+                      mb: 1
+                    }}>
+                      Posting Date: {new Date(entry.posting_date).toLocaleDateString()} • 
+                      Document Date: {new Date(entry.document_date).toLocaleDateString()}
                     </Typography>
                     <Typography variant="body2" sx={{ 
                       color: '#6c757d',
                       fontSize: '0.8rem'
                     }}>
-                      Posting Date: {new Date(transaction.posting_date).toLocaleDateString()} • 
-                      Backdated Days: {transaction.backdated_days}
+                      Days Difference: {entry.days_difference} • Transaction ID: {entry.transaction_id?.substring(0, 8)}...
                     </Typography>
                   </CardContent>
                 </Card>
               </Grid>
             ))}
           </Grid>
+        </Box>
+      )}
+
+      {/* No High Risk Entries Found */}
+      {!loading && !error && backdatedListing.length > 0 && 
+       backdatedListing.filter(entry => entry.risk_level === 'HIGH' || entry.backdated_severity === 'CRITICAL' || entry.backdated_severity === 'HIGH').length === 0 && (
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h6" sx={{ 
+            fontWeight: 600, 
+            mb: 2, 
+            color: '#2c3e50',
+            fontSize: '1.1rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1
+          }}>
+            <InfoIcon sx={{ color: '#28a745', fontSize: 20 }} />
+            Risk Assessment Summary
+          </Typography>
+          <Alert severity="success" sx={{ borderRadius: 2 }}>
+            <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+              No High-Risk Backdated Entries Found
+            </Typography>
+            <Typography variant="body2">
+              All {backdatedListing.length} backdated entries have been assessed and none are classified as high-risk or critical severity. This indicates a lower risk profile for the analyzed data.
+            </Typography>
+          </Alert>
         </Box>
       )}
 
@@ -1019,7 +1133,7 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
       </Grid>
 
       {/* Backdated Summary Cards */}
-      {backdatedEntries && backdatedEntries.length > 0 && (
+      {!loading && !error && backdatedListing.length > 0 && (
         <Box sx={{ mb: 4 }}>
           <Typography variant="h5" sx={{ 
             fontWeight: 600, 
@@ -1027,10 +1141,10 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
             color: '#2c3e50',
             fontSize: '1.25rem'
           }}>
-            Backdated Entry Summary
+            Backdated Entry Summary (API Data)
           </Typography>
           <Grid container spacing={3}>
-            {backdatedEntries.map((entry, index) => (
+            {backdatedListing.slice(0, 6).map((entry, index) => (
               <Grid item size={{xs: 12, sm: 6, md: 4}} key={index}>
                 <Card sx={{ 
                   background: 'white', 
@@ -1039,11 +1153,14 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
                   border: '1px solid #e9ecef',
                   height: '100%',
                   transition: 'transform 0.2s ease-in-out',
+                  cursor: 'pointer',
                   '&:hover': {
                     transform: 'translateY(-4px)',
                     boxShadow: '0 4px 16px rgba(0,0,0,0.1)'
                   }
-                }}>
+                }}
+                onClick={() => handleDrawerOpen(entry)}
+                >
                   <CardContent sx={{ p: 3 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                       <Avatar sx={{ 
@@ -1065,10 +1182,10 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
                           {entry.user}
                         </Typography>
                         <Chip 
-                          label={entry.risk_level?.toUpperCase() || 'UNKNOWN'}
+                          label={entry.backdated_severity?.toUpperCase() || entry.risk_level?.toUpperCase() || 'UNKNOWN'}
                           size="small"
                           sx={{ 
-                            backgroundColor: getRiskColor(entry.risk_level?.toUpperCase()),
+                            backgroundColor: getRiskColor(entry.backdated_severity?.toUpperCase() || entry.risk_level?.toUpperCase()),
                             color: 'white',
                             fontWeight: 600,
                             fontSize: '0.7rem',
@@ -1086,7 +1203,7 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
                             color: '#e65100',
                             fontSize: '1.5rem'
                           }}>
-                            {formatCurrency(entry.amount)}
+                            {entry.amount_formatted || formatCurrency(entry.amount)}
                           </Typography>
                           <Typography variant="body2" sx={{ 
                             color: '#6c757d',
@@ -1128,13 +1245,13 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
                         fontSize: '0.875rem',
                         mb: 1
                       }}>
-                        <strong>Risk Score:</strong> {entry.risk_score || 'N/A'}
+                        <strong>Severity:</strong> {entry.backdated_severity || 'N/A'}
                       </Typography>
                       <Typography variant="body2" sx={{ 
                         color: '#6c757d',
                         fontSize: '0.875rem'
                       }}>
-                        <strong>Type:</strong> {entry.transaction_type || 'N/A'}
+                        <strong>Transaction ID:</strong> {entry.transaction_id?.substring(0, 8)}...
                       </Typography>
                     </Box>
                   </CardContent>
@@ -1145,243 +1262,443 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
         </Box>
       )}
 
-      {/* All Content in One View */}
-      <Grid container spacing={3} sx={{ mt: 3 }}>
-
-        {/* Section 1: Detailed Tables */}
-        <Grid item size={{xs: 12, md: 12}}>
-          <Box sx={{ p: 3 }}>
+      {/* API Fetched Backdated Listing */}
+      <Card sx={{ 
+        mb: 4, 
+        background: 'white', 
+        borderRadius: 2,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        border: '1px solid #e9ecef'
+      }}>
+        <CardContent sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
             <Typography variant="h5" sx={{ 
               fontWeight: 600, 
-              mb: 3, 
               color: '#2c3e50',
               fontSize: '1.25rem'
             }}>
-              Detailed Analysis Tables
-              </Typography>
-
-            {/* Detailed Backdated Entries Table */}
-            {backdatedEntries && backdatedEntries.length > 0 && (
-              <Box>
-                <Typography variant="h6" sx={{ 
-                  fontWeight: 600, 
-                  mb: 3, 
-                  color: '#2c3e50',
-                  fontSize: '1.1rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1
-                }}>
-                  <WarningIcon sx={{ color: '#e65100', fontSize: 20 }} />
-                  Detailed Backdated Entries Analysis
-              </Typography>
-                <Paper sx={{ 
-                  borderRadius: 3, 
-                  boxShadow: 2,
-                  overflow: 'hidden'
-                }}>
-                  <TableContainer>
-                    <Table size="small">
-            <TableHead>
-                        <TableRow sx={{ 
-                          backgroundColor: '#f8f9fa',
-                          '& th': {
-                            borderBottom: '2px solid #e9ecef',
-                            fontWeight: 700,
-                            color: '#2c3e50',
-                            fontSize: '0.875rem',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px'
-                          }
-                        }}>
-                          <TableCell>Transaction ID</TableCell>
-                          <TableCell>User</TableCell>
-                          <TableCell>Account</TableCell>
-                          <TableCell>Posting Date</TableCell>
-                          <TableCell>Document Date</TableCell>
-                          <TableCell>Days Difference</TableCell>
-                          <TableCell align="right">Amount</TableCell>
-                          <TableCell align="center">Risk Level</TableCell>
-                          <TableCell align="right">Risk Score</TableCell>
-                          <TableCell>Transaction Type</TableCell>
-                          <TableCell>Document Number</TableCell>
-                          <TableCell align="center">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-                        {backdatedEntries.map((entry, index) => (
-                          <TableRow 
-                            key={index}
-                            sx={{ 
-                              '&:hover': { 
-                                backgroundColor: '#f8f9fa',
-                                transform: 'scale(1.01)',
-                                transition: 'all 0.2s ease-in-out'
-                              },
-                              '&:nth-of-type(even)': {
-                                backgroundColor: '#fafbfc'
-                              }
-                            }}
-                          >
-                            <TableCell sx={{ py: 2 }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                <Avatar sx={{ 
-                                  width: 32, 
-                                  height: 32, 
-                                  backgroundColor: '#e65100',
-                                  fontSize: '0.875rem',
-                                  fontWeight: 600
-                                }}>
-                                  {entry.transaction_id?.charAt(0) || 'T'}
-                                </Avatar>
-                                <Box>
-                                  <Typography variant="body2" sx={{ 
-                                    fontWeight: 600, 
-                                    color: '#2c3e50',
-                                    fontSize: '0.875rem'
-                                  }}>
-                                    {entry.transaction_id}
-                                  </Typography>
-                                  <Typography variant="caption" sx={{ 
-                                    color: '#6c757d',
-                                    fontSize: '0.75rem'
-                                  }}>
-                                    Entry #{index + 1}
-                                  </Typography>
-                                </Box>
-                              </Box>
-                            </TableCell>
-                            <TableCell sx={{ py: 2 }}>
-                              <Typography variant="body2" sx={{ 
-                                color: '#6c757d',
-                                fontSize: '0.875rem',
-                                fontWeight: 500
-                              }}>
-                                {entry.user}
-                              </Typography>
-                            </TableCell>
-                            <TableCell sx={{ py: 2 }}>
-                              <Chip 
-                                label={entry.account}
-                                size="small"
-                                variant="outlined"
-                                sx={{ 
-                                  borderColor: '#e65100',
-                                  color: '#e65100',
-                                  fontWeight: 600,
-                                  fontSize: '0.75rem'
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell sx={{ py: 2 }}>
-                              <Typography variant="body2" sx={{ 
-                                color: '#6c757d',
-                                fontSize: '0.875rem'
-                              }}>
-                                {new Date(entry.posting_date).toLocaleDateString()}
-                              </Typography>
-                            </TableCell>
-                            <TableCell sx={{ py: 2 }}>
-                              <Typography variant="body2" sx={{ 
-                                color: '#6c757d',
-                                fontSize: '0.875rem'
-                              }}>
-                                {new Date(entry.document_date).toLocaleDateString()}
-                              </Typography>
-                            </TableCell>
-                            <TableCell sx={{ py: 2 }}>
-                    <Chip 
-                      label={`${entry.days_difference} days`} 
-                      size="small"
-                                sx={{ 
-                                  backgroundColor: Math.abs(entry.days_difference) > 30 ? '#dc3545' : Math.abs(entry.days_difference) > 7 ? '#ffc107' : '#28a745',
-                                  color: 'white',
-                                  fontWeight: 600,
-                                  fontSize: '0.75rem'
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell align="right" sx={{ py: 2 }}>
-                              <Typography variant="body2" sx={{ 
-                                fontWeight: 700, 
-                                color: '#e65100',
-                                fontSize: '0.875rem'
-                              }}>
-                                {formatCurrency(entry.amount)}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="center" sx={{ py: 2 }}>
-                              <Chip 
-                                label={entry.risk_level?.toUpperCase()} 
-                                size="small"
-                                sx={{ 
-                                  backgroundColor: getRiskColor(entry.risk_level?.toUpperCase()),
-                                  color: 'white',
-                                  fontWeight: 600,
-                                  fontSize: '0.75rem'
-                                }}
-                    />
-                  </TableCell>
-                            <TableCell align="right" sx={{ py: 2 }}>
-                    <Chip 
-                      label={entry.risk_score || 'N/A'} 
-                      size="small"
-                                sx={{ 
-                                  backgroundColor: entry.risk_score > 70 ? '#dc3545' : entry.risk_score > 40 ? '#ffc107' : '#28a745',
-                                  color: 'white',
-                                  fontWeight: 600,
-                                  fontSize: '0.75rem'
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell sx={{ py: 2 }}>
-                              <Chip 
-                                label={entry.transaction_type || 'N/A'} 
-                                size="small"
-                                variant="outlined"
-                                sx={{ 
-                                  borderColor: entry.transaction_type === 'DEBIT' ? '#dc3545' : '#28a745',
-                                  color: entry.transaction_type === 'DEBIT' ? '#dc3545' : '#28a745',
-                                  fontWeight: 600,
-                                  fontSize: '0.75rem'
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell sx={{ py: 2 }}>
-                              <Typography variant="body2" sx={{ 
-                                color: '#6c757d',
-                                fontSize: '0.875rem'
-                              }}>
-                                {entry.document_number || 'N/A'}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="center" sx={{ py: 2 }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleDrawerOpen(entry)}
-                                  sx={{ 
-                                    color: '#e65100',
-                                    '&:hover': {
-                                      backgroundColor: '#e65100',
-                                      color: 'white'
-                                    }
-                                  }}
-                                >
-                                  <VisibilityIcon />
-                                </IconButton>
-                              </Box>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </Paper>
-              </Box>
-            )}
+              Backdated Entries Listing
+            </Typography>
+            <Button
+              variant="outlined"
+              onClick={() => fetchBackdatedListing(pagination.currentPage, pagination.pageSize)}
+              disabled={loading}
+              sx={{
+                borderColor: '#e65100',
+                color: '#e65100',
+                fontWeight: 600,
+                px: 2,
+                py: 1,
+                borderRadius: 2,
+                textTransform: 'none',
+                fontSize: '0.875rem',
+                '&:hover': {
+                  backgroundColor: '#e65100',
+                  color: 'white',
+                  borderColor: '#e65100'
+                }
+              }}
+            >
+              {loading ? 'Refreshing...' : '🔄 Refresh'}
+            </Button>
           </Box>
-        </Grid>
+
+          {/* Loading State */}
+          {loading && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
+              <LinearProgress sx={{ width: '100%', mb: 2 }} />
+              <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                Fetching backdated entries listing...
+              </Typography>
+            </Box>
+          )}
+
+          {/* Error State */}
+          {error && (
+            <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+              <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+                Error Loading Backdated Listing
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                {error}
+              </Typography>
+              <Button
+                variant="contained"
+                onClick={() => fetchBackdatedListing(pagination.currentPage, pagination.pageSize)}
+                sx={{
+                  backgroundColor: '#dc3545',
+                  color: 'white',
+                  fontWeight: 600,
+                  px: 2,
+                  py: 1,
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontSize: '0.875rem',
+                  '&:hover': {
+                    backgroundColor: '#c82333'
+                  }
+                }}
+              >
+                🔄 Retry
+              </Button>
+            </Alert>
+          )}
+
+          {/* Success State - Display Data */}
+          {!loading && !error && backdatedListing.length > 0 && (
+            <Box>
+                             <Typography variant="body1" sx={{ 
+                 fontWeight: 600, 
+                 mb: 2, 
+                 color: '#2c3e50',
+                 fontSize: '1rem'
+               }}>
+                 Found {pagination.count} backdated entries from API (showing page {pagination.currentPage} of {Math.ceil(pagination.count / pagination.pageSize)})
+               </Typography>
+              
+              <Paper sx={{ 
+                borderRadius: 3, 
+                boxShadow: 2,
+                overflow: 'hidden'
+              }}>
+                <TableContainer>
+                  <Table size="small">
+                                         <TableHead>
+                       <TableRow sx={{ 
+                         backgroundColor: '#f8f9fa',
+                         '& th': {
+                           borderBottom: '2px solid #e9ecef',
+                           fontWeight: 700,
+                           color: '#2c3e50',
+                           fontSize: '0.875rem',
+                           textTransform: 'uppercase',
+                           letterSpacing: '0.5px'
+                         }
+                       }}>
+                         <TableCell>Transaction ID</TableCell>
+                         <TableCell>User</TableCell>
+                         <TableCell>Account</TableCell>
+                         <TableCell>Posting Date</TableCell>
+                         <TableCell>Document Date</TableCell>
+                         <TableCell>Days Difference</TableCell>
+                         <TableCell align="right">Amount</TableCell>
+                         <TableCell>Risk Level</TableCell>
+                         <TableCell>Severity</TableCell>
+                         <TableCell>Document Number</TableCell>
+                         <TableCell align="center">Actions</TableCell>
+                       </TableRow>
+                     </TableHead>
+                    <TableBody>
+                      {backdatedListing.map((entry, index) => (
+                                                 <TableRow 
+                           key={index}
+                           sx={{ 
+                             '&:hover': { 
+                               backgroundColor: '#f8f9fa',
+                               transform: 'scale(1.01)',
+                               transition: 'all 0.2s ease-in-out'
+                             },
+                             '&:nth-of-type(even)': {
+                               backgroundColor: '#fafbfc'
+                             }
+                           }}
+                         >
+                           <TableCell sx={{ py: 2 }}>
+                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                               <Avatar sx={{ 
+                                 width: 32, 
+                                 height: 32, 
+                                 backgroundColor: '#e65100',
+                                 fontSize: '0.875rem',
+                                 fontWeight: 600
+                               }}>
+                                 {entry.transaction_id?.charAt(0) || 'T'}
+                               </Avatar>
+                               <Box>
+                                 <Typography variant="body2" sx={{ 
+                                   fontWeight: 600, 
+                                   color: '#2c3e50',
+                                   fontSize: '0.875rem'
+                                 }}>
+                                   {entry.transaction_id || `Entry-${index + 1}`}
+                                 </Typography>
+                                 <Typography variant="caption" sx={{ 
+                                   color: '#6c757d',
+                                   fontSize: '0.75rem'
+                                 }}>
+                                   API Entry #{index + 1}
+                                 </Typography>
+                               </Box>
+                             </Box>
+                           </TableCell>
+                           <TableCell sx={{ py: 2 }}>
+                             <Typography variant="body2" sx={{ 
+                               color: '#6c757d',
+                               fontSize: '0.875rem',
+                               fontWeight: 500
+                             }}>
+                               {entry.user || 'N/A'}
+                             </Typography>
+                           </TableCell>
+                           <TableCell sx={{ py: 2 }}>
+                             <Chip 
+                               label={entry.account || 'N/A'}
+                               size="small"
+                               variant="outlined"
+                               sx={{ 
+                                 borderColor: '#e65100',
+                                 color: '#e65100',
+                                 fontWeight: 600,
+                                 fontSize: '0.75rem'
+                               }}
+                             />
+                           </TableCell>
+                           <TableCell sx={{ py: 2 }}>
+                             <Typography variant="body2" sx={{ 
+                               color: '#6c757d',
+                               fontSize: '0.875rem'
+                             }}>
+                               {entry.posting_date ? new Date(entry.posting_date).toLocaleDateString() : 'N/A'}
+                             </Typography>
+                           </TableCell>
+                           <TableCell sx={{ py: 2 }}>
+                             <Typography variant="body2" sx={{ 
+                               color: '#6c757d',
+                               fontSize: '0.875rem'
+                             }}>
+                               {entry.document_date ? new Date(entry.document_date).toLocaleDateString() : 'N/A'}
+                             </Typography>
+                           </TableCell>
+                           <TableCell sx={{ py: 2 }}>
+                             <Chip 
+                               label={`${entry.days_difference || 0} days`} 
+                               size="small"
+                               sx={{ 
+                                 backgroundColor: Math.abs(entry.days_difference || 0) > 30 ? '#dc3545' : Math.abs(entry.days_difference || 0) > 7 ? '#ffc107' : '#28a745',
+                                 color: 'white',
+                                 fontWeight: 600,
+                                 fontSize: '0.75rem'
+                               }}
+                             />
+                           </TableCell>
+                           <TableCell align="right" sx={{ py: 2 }}>
+                             <Typography variant="body2" sx={{ 
+                               fontWeight: 700, 
+                               color: '#e65100',
+                               fontSize: '0.875rem'
+                             }}>
+                               {entry.amount_formatted || formatCurrency(entry.amount || 0)}
+                             </Typography>
+                           </TableCell>
+                           <TableCell align="center" sx={{ py: 2 }}>
+                             <Chip 
+                               label={entry.risk_level?.toUpperCase() || 'N/A'} 
+                               size="small"
+                               sx={{ 
+                                 backgroundColor: getRiskColor(entry.risk_level?.toUpperCase()),
+                                 color: 'white',
+                                 fontWeight: 600,
+                                 fontSize: '0.75rem'
+                               }}
+                             />
+                           </TableCell>
+                           <TableCell align="center" sx={{ py: 2 }}>
+                             <Chip 
+                               label={entry.backdated_severity?.toUpperCase() || 'N/A'} 
+                               size="small"
+                               sx={{ 
+                                 backgroundColor: entry.backdated_severity === 'CRITICAL' ? '#dc3545' : 
+                                                  entry.backdated_severity === 'HIGH' ? '#fd7e14' : 
+                                                  entry.backdated_severity === 'MEDIUM' ? '#ffc107' : '#28a745',
+                                 color: 'white',
+                                 fontWeight: 600,
+                                 fontSize: '0.75rem'
+                               }}
+                             />
+                           </TableCell>
+                           <TableCell sx={{ py: 2 }}>
+                             <Typography variant="body2" sx={{ 
+                               color: '#6c757d',
+                               fontSize: '0.875rem'
+                             }}>
+                               {entry.document_number || 'N/A'}
+                             </Typography>
+                           </TableCell>
+                           <TableCell align="center" sx={{ py: 2 }}>
+                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                               <IconButton
+                                 size="small"
+                                 onClick={() => handleDrawerOpen(entry)}
+                                 sx={{ 
+                                   color: '#e65100',
+                                   '&:hover': {
+                                     backgroundColor: '#e65100',
+                                     color: 'white'
+                                   }
+                                 }}
+                               >
+                                 <VisibilityIcon />
+                               </IconButton>
+                             </Box>
+                           </TableCell>
+                         </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Paper>
+              
+              {/* Pagination Controls */}
+              {pagination.count > 0 && (
+                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  mt: 3,
+                  p: 2,
+                  backgroundColor: '#f8f9fa',
+                  borderRadius: 2
+                }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                      Showing {((pagination.currentPage - 1) * pagination.pageSize) + 1} to {Math.min(pagination.currentPage * pagination.pageSize, pagination.count)} of {pagination.count} entries
+                    </Typography>
+                    <FormControl size="small" sx={{ minWidth: 120 }}>
+                      <InputLabel>Page Size</InputLabel>
+                      <Select
+                        value={pagination.pageSize}
+                        label="Page Size"
+                        onChange={(e) => handlePageSizeChange(e.target.value)}
+                        sx={{ fontSize: '0.875rem' }}
+                      >
+                        <MenuItem value={5}>5 per page</MenuItem>
+                        <MenuItem value={10}>10 per page</MenuItem>
+                        <MenuItem value={25}>25 per page</MenuItem>
+                        <MenuItem value={50}>50 per page</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Box>
+                  
+                  <Pagination
+                    count={Math.ceil(pagination.count / pagination.pageSize)}
+                    page={pagination.currentPage}
+                    onChange={(event, newPage) => handlePageChange(newPage)}
+                    color="primary"
+                    size="large"
+                    showFirstButton
+                    showLastButton
+                    sx={{
+                      '& .MuiPaginationItem-root': {
+                        fontSize: '0.875rem',
+                        fontWeight: 600
+                      }
+                    }}
+                  />
+                </Box>
+              )}
+            </Box>
+          )}
+
+          {/* No Data State */}
+          {!loading && !error && backdatedListing.length === 0 && (
+            <Alert severity="info" sx={{ borderRadius: 2 }}>
+              <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+                No Backdated Entries Found
+              </Typography>
+              <Typography variant="body2">
+                The API returned no backdated entries for this analysis. This could mean either no backdated entries were found, or the data is still being processed.
+              </Typography>
+            </Alert>
+          )}
+
+          {/* API Data Summary */}
+          {!loading && !error && backdatedListing.length > 0 && (
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="h6" sx={{ 
+                fontWeight: 600, 
+                mb: 2, 
+                color: '#2c3e50',
+                fontSize: '1.1rem'
+              }}>
+                API Data Summary
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item size={{xs: 6, sm: 3}}>
+                  <Box sx={{ p: 2, backgroundColor: '#f8f9fa', borderRadius: 2, textAlign: 'center' }}>
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: 700, 
+                      color: '#e65100',
+                      fontSize: '1.5rem'
+                    }}>
+                      {pagination.count}
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: '#6c757d',
+                      fontSize: '0.875rem'
+                    }}>
+                      Total Entries
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item size={{xs: 6, sm: 3}}>
+                  <Box sx={{ p: 2, backgroundColor: '#f8f9fa', borderRadius: 2, textAlign: 'center' }}>
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: 700, 
+                      color: '#e65100',
+                      fontSize: '1.5rem'
+                    }}>
+                      {formatCurrency(backdatedListing.reduce((sum, entry) => sum + (parseFloat(entry.amount || entry.amount_local_currency || 0)), 0))}
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: '#6c757d',
+                      fontSize: '0.875rem'
+                    }}>
+                      Total Amount
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item size={{xs: 6, sm: 3}}>
+                  <Box sx={{ p: 2, backgroundColor: '#f8f9fa', borderRadius: 2, textAlign: 'center' }}>
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: 700, 
+                      color: '#e65100',
+                      fontSize: '1.5rem'
+                    }}>
+                      {Math.round(backdatedListing.reduce((sum, entry) => sum + Math.abs(entry.days_difference || 0), 0) / backdatedListing.length)}
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: '#6c757d',
+                      fontSize: '0.875rem'
+                    }}>
+                      Avg Days Diff
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item size={{xs: 6, sm: 3}}>
+                  <Box sx={{ p: 2, backgroundColor: '#f8f9fa', borderRadius: 2, textAlign: 'center' }}>
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: 700, 
+                      color: '#e65100',
+                      fontSize: '1.5rem'
+                    }}>
+                      {new Set(backdatedListing.map(entry => entry.user || entry.user_name)).size}
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: '#6c757d',
+                      fontSize: '0.875rem'
+                    }}>
+                      Unique Users
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* All Content in One View */}
+      <Grid container spacing={3} sx={{ mt: 3 }}>
 
         {/* Section 2: Recommendations */}
         {recommendations && recommendations.length > 0 && (

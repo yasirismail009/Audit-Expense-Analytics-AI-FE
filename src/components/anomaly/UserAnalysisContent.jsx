@@ -128,9 +128,10 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
 
   const getAnomalyIcon = (type) => {
     switch (type) {
-      case 'high_amount': return <ErrorIcon />;
-      case 'unusual_balance': return <WarningIcon />;
-      case 'account_concentration': return <InfoIcon />;
+      case 'HIGH_ACTIVITY': return <ErrorIcon />;
+      case 'HIGH_AMOUNT': return <ErrorIcon />;
+      case 'UNUSUAL_BALANCE': return <WarningIcon />;
+      case 'ACCOUNT_CONCENTRATION': return <InfoIcon />;
       default: return <InfoIcon />;
     }
   };
@@ -147,32 +148,41 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
   const chartData = data?.visualizations?.chart_data || {};
   const analysisInfo = data?.analysis_info || {};
 
-  // Prepare chart data
-  const userAmountsData = Object.entries(chartData.user_amounts || {}).map(([user, amount]) => ({
-    user,
-    amount: parseFloat(amount)
+  // Prepare chart data from the new structure
+  const userAmountsData = (chartData.user_summary || []).map(user => ({
+    user: user.user,
+    amount: parseFloat(user.total_amount || 0)
   })).sort((a, b) => b.amount - a.amount);
 
-  const userActivityData = Object.entries(chartData.user_activity || {}).map(([user, activity]) => ({
-    user,
-    activity: parseInt(activity)
+  const userActivityData = (chartData.user_summary || []).map(user => ({
+    user: user.user,
+    activity: parseInt(user.transaction_count || 0)
   })).sort((a, b) => b.activity - a.activity);
 
-  const riskDistributionData = Object.entries(chartData.risk_distribution || {}).map(([level, count]) => ({
+  const riskDistributionData = Object.entries(riskDistribution).map(([level, count]) => ({
     level: level.toUpperCase(),
     count: parseInt(count)
   }));
 
-  const anomalyDistributionData = Object.entries(chartData.anomaly_distribution || {}).map(([type, count]) => ({
+  const anomalyDistributionData = Object.entries(anomalyTypes).map(([type, data]) => ({
     type: type.replace('_', ' ').toUpperCase(),
-    count: parseInt(count)
+    count: parseInt(data.count || 0)
   }));
 
   // Calculate total amounts and risk scores
   const totalAmount = userSummary.reduce((sum, user) => sum + (user.total_amount || 0), 0);
-  const totalTransactions = userSummary.reduce((sum, user) => sum + (user.total_transactions || 0), 0);
+  const totalTransactions = userSummary.reduce((sum, user) => sum + (user.transaction_count || 0), 0);
+  
+  // Calculate average risk score based on risk levels (since no numeric scores in new API)
+  const riskLevelScores = {
+    'LOW': 20,
+    'MEDIUM': 50,
+    'HIGH': 80,
+    'CRITICAL': 95
+  };
+  
   const avgRiskScore = userRiskScores.length > 0 ? 
-    userRiskScores.reduce((sum, user) => sum + (user.risk_score || 0), 0) / userRiskScores.length : 0;
+    userRiskScores.reduce((sum, user) => sum + (riskLevelScores[user.risk_level] || 0), 0) / userRiskScores.length : 0;
   const overallRiskLevel = avgRiskScore >= 60 ? 'HIGH' : avgRiskScore >= 40 ? 'MEDIUM' : 'LOW';
 
   return (
@@ -373,7 +383,7 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
                       mb: 0.5,
                       fontSize: '1.1rem'
                     }}>
-                      {summary.total_users || 0}
+                      {summary.total_users || userSummary.length}
                     </Typography>
                     <Typography variant="body2" sx={{ 
                       color: '#6c757d',
@@ -396,7 +406,7 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
                       mb: 0.5,
                       fontSize: '1.1rem'
                     }}>
-                      {summary.high_risk_users || 0}
+                      {summary.high_risk_users || userRiskScores.filter(r => r.risk_level === 'HIGH' || r.risk_level === 'CRITICAL').length}
                     </Typography>
                     <Typography variant="body2" sx={{ 
                       color: '#6c757d',
@@ -565,7 +575,7 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
                                 {user.user}
                               </Typography>
                               <Typography variant="caption" color="#6c757d">
-                                {userAccount?.total_accounts || 0} accounts
+                                {user.accounts?.length || 0} accounts
                               </Typography>
                             </Box>
                           </Box>
@@ -575,22 +585,22 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
                             {formatCurrency(user.total_amount)}
                           </Typography>
                           <Typography variant="caption" color="#6c757d">
-                            Avg: {formatCurrency(user.average_transaction_amount)}
+                            Avg: {formatCurrency(user.avg_amount)}
                           </Typography>
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2" sx={{ color: '#2c3e50' }}>
-                            {user.total_transactions}
+                            {user.transaction_count}
                           </Typography>
                           <Typography variant="caption" color="#6c757d">
-                            Debit: {user.transaction_types?.debit_count || 0}
+                            Accounts: {user.accounts?.length || 0}
                           </Typography>
                         </TableCell>
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
                             <LinearProgress
                               variant="determinate"
-                              value={userRisk?.risk_score || 0}
+                              value={riskLevelScores[userRisk?.risk_level] || 0}
                               sx={{ 
                                 width: 60, 
                                 mr: 1,
@@ -604,14 +614,14 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
                               }}
                             />
                             <Typography variant="body2" sx={{ fontWeight: 600, color: '#2c3e50' }}>
-                              {userRisk?.risk_score || 0}
+                              {riskLevelScores[userRisk?.risk_level] || 0}
                             </Typography>
                           </Box>
                         </TableCell>
                         <TableCell>
-                          <Badge badgeContent={userAnomaly?.anomaly_count || 0} color="error">
+                          <Badge badgeContent={userAnomaly ? 1 : 0} color="error">
                             <Chip 
-                              label={userAnomaly?.risk_level || 'N/A'} 
+                              label={userAnomaly?.anomaly_type?.replace('_', ' ') || 'N/A'} 
                               size="small"
                               sx={{
                                 backgroundColor: getRiskColor(userAnomaly?.risk_level || 'medium'),
@@ -624,7 +634,7 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
                         </TableCell>
                         <TableCell>
                           <Chip 
-                            label={getRiskLevel(userRisk?.risk_score || 0)} 
+                            label={userRisk?.risk_level || 'N/A'} 
                             size="small"
                             sx={{
                               backgroundColor: getRiskColor(userRisk?.risk_level || 'medium'),
@@ -641,7 +651,7 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
                               ...user,
                               ...userRisk,
                               ...userAnomaly,
-                              account_details: userAccount?.account_details || []
+                              account_details: user.accounts || []
                             })}
                             sx={{ 
                               color: '#925a9b',

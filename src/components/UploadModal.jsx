@@ -49,7 +49,7 @@ export default function UploadModal({ open, onClose, onUploadSuccess }) {
     company_name: '',
     description: 'Test',
     run_anomalies: true,
-    anomalies: ['duplicate', 'backdated']
+    anomalies: ['duplicate', 'backdated', 'closing', 'unusual_days', 'holiday', 'user_anomalies']
   });
 
   // Available anomaly options with keys and descriptions

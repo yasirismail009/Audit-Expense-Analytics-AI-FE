@@ -116,12 +116,12 @@ function TableListing() {
                       <TableCell>
                         <span
                           style={{
-                            color: row.status === 'COMPLETED' ? '#9A5FA3' : 
-                                   row.status === 'PROCESSING' ? '#9A5FA3' : '#9A5FA3',
+                            color: row.processing_status === 'COMPLETED' ? '#9A5FA3' : 
+                                   row.processing_status === 'PROCESSING' ? '#9A5FA3' : '#9A5FA3',
                             fontWeight: 700
                           }}
                         >
-                          {row.status}
+                          {row.processing_status}
                         </span>
                       </TableCell>
                       <TableCell>{new Date(row.uploaded_at).toLocaleDateString()}</TableCell>

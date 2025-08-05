@@ -78,7 +78,7 @@ const anomalyTypes = [
     title: 'Holidays',
     icon: <HolidayIcon />,
     description: 'Transactions posted on holidays',
-    apiEndpoint: '/api/holiday-anomalies/analyze/',
+    apiEndpoint: '/api/holiday-analysis/',
     color: '#FF9F40'
   }
 ];
@@ -130,7 +130,8 @@ export default function AnomalyAnalysisAccordion({ sheetId, anomalySummary }) {
     const contentProps = { 
       data,
       distributionData,
-      anomalySummary 
+      anomalySummary,
+      sheetId
     };
 
     switch (anomalyType) {

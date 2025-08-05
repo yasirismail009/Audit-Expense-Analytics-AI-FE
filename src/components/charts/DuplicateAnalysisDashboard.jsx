@@ -33,9 +33,11 @@ export default function DuplicateAnalysisDashboard({ data }) {
 
 			<Grid container spacing={3}>
 				{/* Type Distribution Chart */}
-				<Grid item size={{xs: 12, md: 6}}>
-						<DuplicateTypeChart data={data} currency={currency} />
-				</Grid>
+				{data?.chart_data?.duplicate_distribution && (
+					<Grid item size={{xs: 12, md: 6}}>
+							<DuplicateTypeChart data={data} currency={currency} />
+					</Grid>
+				)}
 
 				{/* Risk Distribution Chart */}
 				<Grid item size={{xs: 12, md: 6}}>
