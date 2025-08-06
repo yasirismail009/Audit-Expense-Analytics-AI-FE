@@ -83,7 +83,7 @@ const anomalyTypes = [
   }
 ];
 
-export default function AnomalyAnalysisAccordion({ sheetId, anomalySummary }) {
+export default function AnomalyAnalysisAccordion({ sheetId, anomalySummary, totalAnomalies }) {
   const [expandedAccordion, setExpandedAccordion] = useState(null);
   const [loadingStates, setLoadingStates] = useState({});
   const [anomalyData, setAnomalyData] = useState({});
@@ -131,7 +131,8 @@ export default function AnomalyAnalysisAccordion({ sheetId, anomalySummary }) {
       data,
       distributionData,
       anomalySummary,
-      sheetId
+      sheetId,
+      totalAnomalies
     };
 
     switch (anomalyType) {
@@ -251,7 +252,7 @@ export default function AnomalyAnalysisAccordion({ sheetId, anomalySummary }) {
                           fontWeight: 'bold',
                           color: anomalyType.color
                         }}>
-                          {getDistributionDataForAnomalyType(anomalyType.id, anomalySummary)?.percentage?.toFixed(1) || 0}%
+                          {((getDistributionDataForAnomalyType(anomalyType.id, anomalySummary)?.count/totalAnomalies)*100).toFixed(2) || 0}%
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
                           of Total

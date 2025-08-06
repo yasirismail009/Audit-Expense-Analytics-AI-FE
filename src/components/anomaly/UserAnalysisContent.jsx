@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -17,7 +17,13 @@ import {
   LinearProgress,
   Avatar,
   Badge,
-  Button
+  Button,
+  Pagination,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Paper
 } from '@mui/material';
 import {
   Visibility as VisibilityIcon,
@@ -67,18 +73,50 @@ import UserAnalysisPDF from './UserAnalysisPDF';
 //   AreaChart
 // } from 'recharts';
 
-export default function UserAnalysisContent({ data, distributionData, anomalySummary }) {
+export default function UserAnalysisContent({ data, distributionData, anomalySummary, sheetId }) {
   const [selectedUser, setSelectedUser] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  
+  // New state for API integration
+  const [userListing, setUserListing] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState({
+    count: 0,
+    next: null,
+    previous: null,
+    currentPage: 1,
+    pageSize: 10
+  });
 
   // Extract currency from data or use default
   const currency = data?.currency || data?.file_info?.currency || 'SAR';
 
-
-
   const handleDrawerOpen = (user) => {
-    setSelectedUser(user);
+    // Transform the user data to match the expected drawer format
+    const transformedUser = {
+      user: user.user,
+      transaction_count: user.transaction_count,
+      total_amount: user.total_amount,
+      avg_amount: user.avg_amount,
+      risk_level: user.risk_level,
+      risk_score: user.risk_score,
+      anomaly_count: user.anomaly_count,
+      accounts: user.accounts || [],
+      accounts_count: user.accounts_count,
+      is_high_activity: user.is_high_activity,
+      activity_category: user.activity_category,
+      user_severity: user.user_severity,
+      amount_formatted: user.amount_formatted,
+      avg_amount_formatted: user.avg_amount_formatted,
+      risk_color: user.risk_color,
+      // Add additional fields for drawer compatibility
+      account_details: user.accounts || [],
+      anomaly_type: user.anomaly_count > 0 ? 'HIGH_ACTIVITY' : 'NORMAL',
+      severity: user.user_severity
+    };
+    setSelectedUser(transformedUser);
     setDrawerOpen(true);
   };
 
@@ -134,6 +172,71 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
       case 'ACCOUNT_CONCENTRATION': return <InfoIcon />;
       default: return <InfoIcon />;
     }
+  };
+
+  // API call to fetch user entries listing
+  const fetchUserListing = async (page = 1, pageSize = 10) => {
+    if (!sheetId) {
+      console.warn('No sheetId provided for user listing API call');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`http://localhost:8000/api/user-list/${sheetId}/?page=${page}&page_size=${pageSize}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      // Handle the specific API response format with better error handling
+      const listingData = result.results || result.data || result.user_entries || [];
+      
+      // Validate that we have an array of data
+      if (!Array.isArray(listingData)) {
+        throw new Error('Invalid response format: expected array of user entries');
+      }
+      
+      setUserListing(listingData);
+      setPagination({
+        count: result.count || listingData.length,
+        next: result.next,
+        previous: result.previous,
+        currentPage: page,
+        pageSize: pageSize
+      });
+    } catch (err) {
+      console.error('Error fetching user listing:', err);
+      setError(err.message || 'Failed to fetch user entries listing');
+      setUserListing([]);
+      setPagination({
+        count: 0,
+        next: null,
+        previous: null,
+        currentPage: 1,
+        pageSize: pageSize
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchUserListing(1, 10);
+  }, [sheetId]);
+
+  // Pagination handlers
+  const handlePageChange = (newPage) => {
+    fetchUserListing(newPage, pagination.pageSize);
+  };
+
+  const handlePageSizeChange = (newPageSize) => {
+    fetchUserListing(1, newPageSize);
   };
 
   // Extract data from the API structure
@@ -769,6 +872,451 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
         userData={selectedUser}
         type="User Analysis"
       />
+
+      {/* API Fetched User Listing */}
+      <Card sx={{ 
+        mb: 4, 
+        background: 'white', 
+        borderRadius: 2,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        border: '1px solid #e9ecef'
+      }}>
+        <CardContent sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h5" sx={{ 
+              fontWeight: 600, 
+              color: '#2c3e50',
+              fontSize: '1.25rem'
+            }}>
+              User Entries Listing
+            </Typography>
+            <Button
+              variant="outlined"
+              onClick={() => fetchUserListing(pagination.currentPage, pagination.pageSize)}
+              disabled={loading}
+              sx={{
+                borderColor: '#925a9b',
+                color: '#925a9b',
+                fontWeight: 600,
+                px: 2,
+                py: 1,
+                borderRadius: 2,
+                textTransform: 'none',
+                fontSize: '0.875rem',
+                '&:hover': {
+                  backgroundColor: '#925a9b',
+                  color: 'white',
+                  borderColor: '#925a9b'
+                }
+              }}
+            >
+              {loading ? 'Refreshing...' : '🔄 Refresh'}
+            </Button>
+          </Box>
+
+          {/* Loading State */}
+          {loading && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
+              <LinearProgress sx={{ width: '100%', mb: 2 }} />
+              <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                Fetching user entries listing...
+              </Typography>
+            </Box>
+          )}
+
+          {/* Error State */}
+          {error && (
+            <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+              <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+                Error Loading User Listing
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                {error}
+              </Typography>
+              <Button
+                variant="contained"
+                onClick={() => fetchUserListing(pagination.currentPage, pagination.pageSize)}
+                sx={{
+                  backgroundColor: '#dc3545',
+                  color: 'white',
+                  fontWeight: 600,
+                  px: 2,
+                  py: 1,
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontSize: '0.875rem',
+                  '&:hover': {
+                    backgroundColor: '#c82333'
+                  }
+                }}
+              >
+                🔄 Retry
+              </Button>
+            </Alert>
+          )}
+
+          {/* Success State - Display Data */}
+          {!loading && !error && userListing.length > 0 && (
+            <Box>
+              <Typography variant="body1" sx={{ 
+                fontWeight: 600, 
+                mb: 2, 
+                color: '#2c3e50',
+                fontSize: '1rem'
+              }}>
+                Found {pagination.count} user entries from API (showing page {pagination.currentPage} of {Math.ceil(pagination.count / pagination.pageSize)})
+              </Typography>
+              
+              <Paper sx={{ 
+                borderRadius: 3, 
+                boxShadow: 2,
+                overflow: 'hidden'
+              }}>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ 
+                        backgroundColor: '#f8f9fa',
+                        '& th': {
+                          borderBottom: '2px solid #e9ecef',
+                          fontWeight: 700,
+                          color: '#2c3e50',
+                          fontSize: '0.875rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }
+                      }}>
+                                                 <TableCell>User</TableCell>
+                         <TableCell>Transaction Count</TableCell>
+                         <TableCell>Total Amount</TableCell>
+                         <TableCell>Avg Amount</TableCell>
+                         <TableCell>Risk Level</TableCell>
+                         <TableCell>Risk Score</TableCell>
+                         <TableCell>Anomaly Count</TableCell>
+                         <TableCell>Accounts</TableCell>
+                         <TableCell>Activity Category</TableCell>
+                         <TableCell>Severity</TableCell>
+                         <TableCell align="center">Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {userListing.map((entry, index) => (
+                        <TableRow 
+                          key={index}
+                          sx={{ 
+                            '&:hover': { 
+                              backgroundColor: '#f8f9fa',
+                              transform: 'scale(1.01)',
+                              transition: 'all 0.2s ease-in-out'
+                            },
+                            '&:nth-of-type(even)': {
+                              backgroundColor: '#fafbfc'
+                            }
+                          }}
+                        >
+                                                     <TableCell sx={{ py: 2 }}>
+                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                               <Avatar sx={{ 
+                                 width: 32, 
+                                 height: 32, 
+                                 backgroundColor: '#925a9b',
+                                 fontSize: '0.875rem',
+                                 fontWeight: 600
+                               }}>
+                                 {entry.user?.charAt(0) || 'U'}
+                               </Avatar>
+                               <Box>
+                                 <Typography variant="body2" sx={{ 
+                                   fontWeight: 600, 
+                                   color: '#2c3e50',
+                                   fontSize: '0.875rem'
+                                 }}>
+                                   {entry.user || `User-${index + 1}`}
+                                 </Typography>
+                                 <Typography variant="caption" sx={{ 
+                                   color: '#6c757d',
+                                   fontSize: '0.75rem'
+                                 }}>
+                                   API Entry #{index + 1}
+                                 </Typography>
+                               </Box>
+                             </Box>
+                           </TableCell>
+                           <TableCell sx={{ py: 2 }}>
+                             <Typography variant="body2" sx={{ 
+                               color: '#6c757d',
+                               fontSize: '0.875rem',
+                               fontWeight: 500
+                             }}>
+                               {entry.transaction_count || 0}
+                             </Typography>
+                           </TableCell>
+                                                     <TableCell align="right" sx={{ py: 2 }}>
+                             <Typography variant="body2" sx={{ 
+                               fontWeight: 700, 
+                               color: '#925a9b',
+                               fontSize: '0.875rem'
+                             }}>
+                               {entry.amount_formatted || formatCurrency(entry.total_amount || 0)}
+                             </Typography>
+                           </TableCell>
+                           <TableCell align="right" sx={{ py: 2 }}>
+                             <Typography variant="body2" sx={{ 
+                               color: '#6c757d',
+                               fontSize: '0.875rem'
+                             }}>
+                               {entry.avg_amount_formatted || formatCurrency(entry.avg_amount || 0)}
+                             </Typography>
+                           </TableCell>
+                                                     <TableCell align="center" sx={{ py: 2 }}>
+                             <Chip 
+                               label={entry.risk_level?.toUpperCase() || 'N/A'} 
+                               size="small"
+                               sx={{ 
+                                 backgroundColor: getRiskColor(entry.risk_level?.toUpperCase()),
+                                 color: 'white',
+                                 fontWeight: 600,
+                                 fontSize: '0.75rem'
+                               }}
+                             />
+                           </TableCell>
+                                                     <TableCell align="center" sx={{ py: 2 }}>
+                             <Typography variant="body2" sx={{ 
+                               color: '#6c757d',
+                               fontSize: '0.875rem',
+                               fontWeight: 500
+                             }}>
+                               {entry.risk_score || 0}
+                             </Typography>
+                           </TableCell>
+                           <TableCell align="center" sx={{ py: 2 }}>
+                             <Chip 
+                               label={entry.anomaly_count || 0} 
+                               size="small"
+                               sx={{ 
+                                 backgroundColor: entry.anomaly_count > 0 ? '#dc3545' : '#6c757d',
+                                 color: 'white',
+                                 fontWeight: 600,
+                                 fontSize: '0.75rem'
+                               }}
+                             />
+                           </TableCell>
+                                                     <TableCell sx={{ py: 2 }}>
+                             <Box>
+                               <Typography variant="body2" sx={{ 
+                                 color: '#6c757d',
+                                 fontSize: '0.875rem',
+                                 fontWeight: 500
+                               }}>
+                                 {entry.accounts_count || 0} accounts
+                               </Typography>
+                               <Typography variant="caption" sx={{ 
+                                 color: '#6c757d',
+                                 fontSize: '0.75rem'
+                               }}>
+                                 {entry.accounts?.slice(0, 3).join(', ')}
+                                 {entry.accounts?.length > 3 ? '...' : ''}
+                               </Typography>
+                             </Box>
+                           </TableCell>
+                                                     <TableCell align="center" sx={{ py: 2 }}>
+                             <Chip 
+                               label={entry.activity_category?.toUpperCase() || 'N/A'} 
+                               size="small"
+                               sx={{ 
+                                 backgroundColor: entry.activity_category === 'HIGH' ? '#dc3545' : 
+                                                  entry.activity_category === 'MEDIUM' ? '#ffc107' : '#28a745',
+                                 color: 'white',
+                                 fontWeight: 600,
+                                 fontSize: '0.75rem'
+                               }}
+                             />
+                           </TableCell>
+                           <TableCell align="center" sx={{ py: 2 }}>
+                             <Chip 
+                               label={entry.user_severity?.toUpperCase() || 'N/A'} 
+                               size="small"
+                               sx={{ 
+                                 backgroundColor: entry.user_severity === 'HIGH' ? '#dc3545' : 
+                                                  entry.user_severity === 'MEDIUM' ? '#ffc107' : '#28a745',
+                                 color: 'white',
+                                 fontWeight: 600,
+                                 fontSize: '0.75rem'
+                               }}
+                             />
+                           </TableCell>
+                           <TableCell align="center" sx={{ py: 2 }}>
+                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                               <IconButton
+                                 size="small"
+                                 onClick={() => handleDrawerOpen(entry)}
+                                 sx={{ 
+                                   color: '#925a9b',
+                                   '&:hover': {
+                                     backgroundColor: '#925a9b',
+                                     color: 'white'
+                                   }
+                                 }}
+                               >
+                                 <VisibilityIcon />
+                               </IconButton>
+                             </Box>
+                           </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Paper>
+              
+              {/* Pagination Controls */}
+              {pagination.count > 0 && (
+                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  mt: 3,
+                  p: 2,
+                  backgroundColor: '#f8f9fa',
+                  borderRadius: 2
+                }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                      Showing {((pagination.currentPage - 1) * pagination.pageSize) + 1} to {Math.min(pagination.currentPage * pagination.pageSize, pagination.count)} of {pagination.count} entries
+                    </Typography>
+                    <FormControl size="small" sx={{ minWidth: 120 }}>
+                      <InputLabel>Page Size</InputLabel>
+                      <Select
+                        value={pagination.pageSize}
+                        label="Page Size"
+                        onChange={(e) => handlePageSizeChange(e.target.value)}
+                        sx={{ fontSize: '0.875rem' }}
+                      >
+                        <MenuItem value={5}>5 per page</MenuItem>
+                        <MenuItem value={10}>10 per page</MenuItem>
+                        <MenuItem value={25}>25 per page</MenuItem>
+                        <MenuItem value={50}>50 per page</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Box>
+                  
+                  <Pagination
+                    count={Math.ceil(pagination.count / pagination.pageSize)}
+                    page={pagination.currentPage}
+                    onChange={(event, newPage) => handlePageChange(newPage)}
+                    color="primary"
+                    size="large"
+                    showFirstButton
+                    showLastButton
+                    sx={{
+                      '& .MuiPaginationItem-root': {
+                        fontSize: '0.875rem',
+                        fontWeight: 600
+                      }
+                    }}
+                  />
+                </Box>
+              )}
+            </Box>
+          )}
+
+          {/* No Data State */}
+          {!loading && !error && userListing.length === 0 && (
+            <Alert severity="info" sx={{ borderRadius: 2 }}>
+              <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+                No User Entries Found
+              </Typography>
+              <Typography variant="body2">
+                The API returned no user entries for this analysis. This could mean either no user entries were found, or the data is still being processed.
+              </Typography>
+            </Alert>
+          )}
+
+          {/* API Data Summary */}
+          {!loading && !error && userListing.length > 0 && (
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="h6" sx={{ 
+                fontWeight: 600, 
+                mb: 2, 
+                color: '#2c3e50',
+                fontSize: '1.1rem'
+              }}>
+                API Data Summary
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item size={{xs: 6, sm: 3}}>
+                  <Box sx={{ p: 2, backgroundColor: '#f8f9fa', borderRadius: 2, textAlign: 'center' }}>
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: 700, 
+                      color: '#925a9b',
+                      fontSize: '1.5rem'
+                    }}>
+                      {pagination.count}
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: '#6c757d',
+                      fontSize: '0.875rem'
+                    }}>
+                      Total Users
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item size={{xs: 6, sm: 3}}>
+                  <Box sx={{ p: 2, backgroundColor: '#f8f9fa', borderRadius: 2, textAlign: 'center' }}>
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: 700, 
+                      color: '#925a9b',
+                      fontSize: '1.5rem'
+                    }}>
+                                             {formatCurrency(userListing.reduce((sum, entry) => sum + (entry.total_amount || 0), 0))}
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: '#6c757d',
+                      fontSize: '0.875rem'
+                    }}>
+                      Total Amount
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item size={{xs: 6, sm: 3}}>
+                  <Box sx={{ p: 2, backgroundColor: '#f8f9fa', borderRadius: 2, textAlign: 'center' }}>
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: 700, 
+                      color: '#925a9b',
+                      fontSize: '1.5rem'
+                    }}>
+                                             {new Set(userListing.map(entry => entry.user)).size}
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: '#6c757d',
+                      fontSize: '0.875rem'
+                    }}>
+                      Unique Users
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item size={{xs: 6, sm: 3}}>
+                  <Box sx={{ p: 2, backgroundColor: '#f8f9fa', borderRadius: 2, textAlign: 'center' }}>
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: 700, 
+                      color: '#925a9b',
+                      fontSize: '1.5rem'
+                    }}>
+                                             {userListing.reduce((sum, entry) => sum + (entry.accounts_count || 0), 0)}
+                    </Typography>
+                                         <Typography variant="body2" sx={{ 
+                       color: '#6c757d',
+                       fontSize: '0.875rem'
+                     }}>
+                       Total Accounts
+                     </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
 
       {/* User Analysis PDF */}
       <UserAnalysisPDF

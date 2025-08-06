@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, Typography, Box } from '@mui/material';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-export default function DuplicateUserChart({ data, currency = 'SAR' }) {
+export default function HolidayUserChart({ data, currency = 'SAR' }) {
   // Helper function to format currency
   const formatCurrency = (amount) => {
     const num = parseFloat(amount || 0);
@@ -18,73 +18,38 @@ export default function DuplicateUserChart({ data, currency = 'SAR' }) {
     }
   };
 
-  // Check for new API response structure first, then fallback to old structure
-  const chartData = data?.visualizations?.slicer_filters?.users ? {
-    labels: data.visualizations.slicer_filters.users,
-    data: data.visualizations.slicer_filters.users.map(user => {
-      const duplicateEntries = data?.detailed_results?.duplicate_entries || data?.duplicate_entries;
-      if (duplicateEntries) {
-        return duplicateEntries.filter(entry => 
-          entry.transaction1.user === user || entry.transaction2.user === user
-        ).length;
-      }
-      return 0;
-    })
-  } : data?.chart_data?.duplicate_activity_by_user || data?.charts_data?.user_breakdown;
+  // Check for holiday data structure
+  const chartData = data?.visualizations?.chart_data?.holiday_by_user;
 
-  if (!data || !chartData || (Array.isArray(chartData) && chartData.length === 0)) {
+  if (!data || !chartData || !chartData.labels || !chartData.data) {
     return (
       <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2 }}>
         <CardContent>
-          <Typography variant="subtitle2" sx={{ mb: 2 }}>Duplicate Activity by User</Typography>
+          <Typography variant="subtitle2" sx={{ mb: 2 }}>Holiday Activity by User</Typography>
           <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Typography variant="body2" color="text.secondary">No user duplicate data available</Typography>
+            <Typography variant="body2" color="text.secondary">No holiday user data available</Typography>
           </Box>
         </CardContent>
       </Card>
     );
   }
 
-  // Transform data based on structure
-  let transformedData;
-  if (chartData.labels && chartData.data) {
-    // New structure: chart_data.duplicate_activity_by_user has labels and data arrays
-    transformedData = chartData.labels.map((user, index) => ({
-      user: user,
-      duplicateCount: chartData.data[index] || 0,
-      totalAmount: 0, // Will be calculated from duplicate entries
-      duplicateTypes: 0 // Will be calculated from duplicate entries
-    }));
-    
-    // Calculate amounts and types from duplicate entries if available
-    const duplicateEntries = data?.detailed_results?.duplicate_entries || data?.duplicate_entries;
-    if (duplicateEntries) {
-      transformedData.forEach(item => {
-        const userDuplicates = duplicateEntries.filter(entry => 
-          entry.transaction1.user === item.user || entry.transaction2.user === item.user
-        );
-        item.totalAmount = userDuplicates.reduce((sum, entry) => 
-          sum + entry.transaction1.amount + entry.transaction2.amount, 0
-        );
-        item.duplicateTypes = new Set(userDuplicates.map(entry => entry.duplicate_type)).size;
-      });
-    }
-  } else if (Array.isArray(chartData)) {
-    // Fallback: chart_data is an array
-    transformedData = chartData.map((user, index) => ({
-      user: user.user,
-      duplicateCount: user.duplicate_groups,
-      totalAmount: user.total_amount,
-      duplicateTypes: user.duplicate_types?.length || 0
-    }));
-  } else {
-    // Old structure: charts_data.user_breakdown is an array
-    transformedData = chartData.map((user, index) => ({
-      user: user.user_name,
-      duplicateCount: user.duplicate_count,
-      totalAmount: user.total_amount,
-      duplicateTypes: user.duplicate_types?.length || 0
-    }));
+  // Transform data for holiday structure
+  const transformedData = chartData.labels.map((user, index) => ({
+    user: user,
+    holidayCount: chartData.data[index] || 0,
+    totalAmount: 0, // Will be calculated from holiday entries
+    uniqueHolidays: 0 // Will be calculated from holiday entries
+  }));
+  
+  // Calculate amounts and holidays from holiday entries if available
+  const holidayEntries = data?.detailed_results?.holiday_postings || [];
+  if (holidayEntries.length > 0) {
+    transformedData.forEach(item => {
+      const userHolidays = holidayEntries.filter(entry => entry.user === item.user);
+      item.totalAmount = userHolidays.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+      item.uniqueHolidays = new Set(userHolidays.map(entry => entry.holiday_name)).size;
+    });
   }
 
   const CustomTooltip = ({ active, payload, label }) => {
@@ -102,13 +67,13 @@ export default function DuplicateUserChart({ data, currency = 'SAR' }) {
             {label}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Count: {data.duplicateCount}
+            Holiday Transactions: {data.holidayCount}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Amount: {formatCurrency(data.totalAmount)}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Types: {data.duplicateTypes}
+            Unique Holidays: {data.uniqueHolidays}
           </Typography>
         </Box>
       );
@@ -119,7 +84,7 @@ export default function DuplicateUserChart({ data, currency = 'SAR' }) {
   return (
     <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2 }}>
       <CardContent>
-        <Typography variant="subtitle2" sx={{ mb: 2 }}>Duplicate Activity by User</Typography>
+        <Typography variant="subtitle2" sx={{ mb: 2 }}>Holiday Activity by User</Typography>
         <Box sx={{ height: 300 }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={transformedData} barGap={8} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
@@ -146,7 +111,7 @@ export default function DuplicateUserChart({ data, currency = 'SAR' }) {
                 </linearGradient>
               </defs>
               <Bar 
-                dataKey="duplicateCount" 
+                dataKey="holidayCount" 
                 radius={[8, 8, 0, 0]}
                 fill="url(#barGradient)"
                 stroke="#ffffff"

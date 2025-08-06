@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -23,7 +23,12 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  Button
+  Button,
+  Pagination,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel
 } from '@mui/material';
 import {
   KeyboardArrowDown as KeyboardArrowDownIcon,
@@ -46,11 +51,23 @@ import DuplicateRiskChart from '../charts/DuplicateRiskChart';
 import DuplicateUserChart from '../charts/DuplicateUserChart';
 import DuplicateAmountChart from '../charts/DuplicateAmountChart';
 
-export default function DuplicateAnalysisContent({ data, distributionData, anomalySummary }) {
+export default function DuplicateAnalysisContent({ data, distributionData, anomalySummary, sheetId }) {
   const [expandedTransactions, setExpandedTransactions] = useState({});
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedDuplicate, setSelectedDuplicate] = useState(null);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  
+  // New state for API integration
+  const [duplicateListing, setDuplicateListing] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState({
+    count: 0,
+    next: null,
+    previous: null,
+    currentPage: 1,
+    pageSize: 10
+  });
 
   // Extract currency from data or use default
   const currency = data?.currency || data?.file_info?.currency || 'SAR';
@@ -68,18 +85,21 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
       type: duplicate.duplicate_type || 'Unknown Type',
       criteria: duplicate.duplicate_type_name || 'No criteria provided',
       risk_score: duplicate.risk_score || 0,
-      amount: duplicate.transaction1.amount + duplicate.transaction2.amount,
-      count: 2, // Always 2 transactions per duplicate
-      gl_account: duplicate.transaction1.account,
-      user_name: duplicate.transaction1.user,
-      posting_date: duplicate.transaction1.date,
+      amount: duplicate.amount || 0,
+      count: 1, // Single transaction per entry
+      gl_account: duplicate.account,
+      user_name: duplicate.user,
+      posting_date: duplicate.posting_date,
       // Add transaction details for the drawer
-      transaction1: duplicate.transaction1,
-      transaction2: duplicate.transaction2,
+      transaction_id: duplicate.transaction_id,
+      document_number: duplicate.document_number,
       duplicate_type: duplicate.duplicate_type,
-      duplicate_type_name: duplicate.duplicate_type_name,
+      duplicate_severity: duplicate.duplicate_severity,
       matching_fields: duplicate.matching_fields,
-      similarity_score: duplicate.similarity_score
+      similarity_score: duplicate.similarity_score,
+      is_high_value: duplicate.is_high_value,
+      amount_category: duplicate.amount_category,
+      duplicate_group_id: duplicate.duplicate_group_id
     };
     setSelectedDuplicate(transformedDuplicate);
     setDrawerOpen(true);
@@ -123,6 +143,71 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
     } else {
       return `${num.toFixed(0)} ${currency}`;
     }
+  };
+
+  // API call to fetch duplicate entries listing
+  const fetchDuplicateListing = async (page = 1, pageSize = 10) => {
+    if (!sheetId) {
+      console.warn('No sheetId provided for duplicate listing API call');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`http://localhost:8000/api/duplicate-list/${sheetId}/?page=${page}&page_size=${pageSize}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      // Handle the specific API response format with better error handling
+      const listingData = result.results || result.data || result.duplicate_entries || [];
+      
+      // Validate that we have an array of data
+      if (!Array.isArray(listingData)) {
+        throw new Error('Invalid response format: expected array of duplicate entries');
+      }
+      
+      setDuplicateListing(listingData);
+      setPagination({
+        count: result.count || listingData.length,
+        next: result.next,
+        previous: result.previous,
+        currentPage: page,
+        pageSize: pageSize
+      });
+    } catch (err) {
+      console.error('Error fetching duplicate listing:', err);
+      setError(err.message || 'Failed to fetch duplicate entries listing');
+      setDuplicateListing([]);
+      setPagination({
+        count: 0,
+        next: null,
+        previous: null,
+        currentPage: 1,
+        pageSize: pageSize
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchDuplicateListing(1, 10);
+  }, [sheetId]);
+
+  // Pagination handlers
+  const handlePageChange = (newPage) => {
+    fetchDuplicateListing(newPage, pagination.pageSize);
+  };
+
+  const handlePageSizeChange = (newPageSize) => {
+    fetchDuplicateListing(1, newPageSize);
   };
 
   // Extract data from the new API structure
@@ -937,168 +1022,7 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
                 </Box>
               )}
 
-              {/* Detailed Duplicates Table */}
-              {duplicateEntries && duplicateEntries.length > 0 && (
-                <Box>
-                  <Typography variant="h6" sx={{ 
-                    fontWeight: 600, 
-                    mb: 3, 
-                    color: '#2c3e50',
-                    fontSize: '1.1rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1
-                  }}>
-                    <WarningIcon sx={{ color: '#925a9b', fontSize: 20 }} />
-                    Detailed Duplicates Analysis
-                  </Typography>
-                  <Paper sx={{ 
-                    borderRadius: 3, 
-                    boxShadow: 2,
-                    overflow: 'hidden'
-                  }}>
-                    <TableContainer>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow sx={{ 
-                            backgroundColor: '#f8f9fa',
-                            '& th': {
-                              borderBottom: '2px solid #e9ecef',
-                              fontWeight: 700,
-                              color: '#2c3e50',
-                              fontSize: '0.875rem',
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.5px'
-                            }
-                          }}>
-                            <TableCell>Type</TableCell>
-                            <TableCell>GL Account</TableCell>
-                            <TableCell>User</TableCell>
-                            <TableCell>Posting Date</TableCell>
-                            <TableCell align="right">Amount</TableCell>
-                            <TableCell align="right">Risk Score</TableCell>
-                            <TableCell align="center">Actions</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {duplicateEntries.map((duplicate, index) => (
-                            <TableRow 
-                              key={index}
-                              sx={{ 
-                                '&:hover': { 
-                                  backgroundColor: '#f8f9fa',
-                                  transform: 'scale(1.01)',
-                                  transition: 'all 0.2s ease-in-out'
-                                },
-                                '&:nth-of-type(even)': {
-                                  backgroundColor: '#fafbfc'
-                                }
-                              }}
-                            >
-                              <TableCell sx={{ py: 2 }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                  <Avatar sx={{ 
-                                    width: 32, 
-                                    height: 32, 
-                                    backgroundColor: '#925a9b',
-                                    fontSize: '0.875rem',
-                                    fontWeight: 600
-                                  }}>
-                                    {duplicate.duplicate_type?.charAt(0) || 'D'}
-                                  </Avatar>
-                                  <Box>
-                                    <Typography variant="body2" sx={{ 
-                                      fontWeight: 600, 
-                                      color: '#2c3e50',
-                                      fontSize: '0.875rem'
-                                    }}>
-                                      {duplicate.duplicate_type}
-                                    </Typography>
-                                    <Typography variant="caption" sx={{ 
-                                      color: '#6c757d',
-                                      fontSize: '0.75rem'
-                                    }}>
-                                      Duplicate #{index + 1}
-                                    </Typography>
-                                  </Box>
-                                </Box>
-                              </TableCell>
-                              <TableCell sx={{ py: 2 }}>
-                                <Chip 
-                                  label={duplicate.transaction1.account}
-                                  size="small"
-                                  variant="outlined"
-                                  sx={{ 
-                                    borderColor: '#925a9b',
-                                    color: '#925a9b',
-                                    fontWeight: 600,
-                                    fontSize: '0.75rem'
-                                  }}
-                                />
-                              </TableCell>
-                              <TableCell sx={{ py: 2 }}>
-                                <Typography variant="body2" sx={{ 
-                                  color: '#6c757d',
-                                  fontSize: '0.875rem',
-                                  fontWeight: 500
-                                }}>
-                                  {duplicate.transaction1.user}
-                                </Typography>
-                              </TableCell>
-                              <TableCell sx={{ py: 2 }}>
-                                <Typography variant="body2" sx={{ 
-                                  color: '#6c757d',
-                                  fontSize: '0.875rem'
-                                }}>
-                                  {new Date(duplicate.transaction1.date).toLocaleDateString()}
-                                </Typography>
-                              </TableCell>
-                              <TableCell align="right" sx={{ py: 2 }}>
-                                <Typography variant="body2" sx={{ 
-                                  fontWeight: 700, 
-                                  color: '#925a9b',
-                                  fontSize: '0.875rem'
-                                }}>
-                                  {formatCurrency(duplicate.transaction1.amount + duplicate.transaction2.amount)}
-                                </Typography>
-                              </TableCell>
-                              <TableCell align="right" sx={{ py: 2 }}>
-                                <Chip 
-                                  label={duplicate.risk_score || 'N/A'} 
-                                  size="small"
-                                  sx={{ 
-                                    backgroundColor: getRiskColor(getRiskLevel(duplicate.risk_score || 0)),
-                                    color: 'white',
-                                    fontWeight: 600,
-                                    fontSize: '0.75rem'
-                                  }}
-                                />
-                              </TableCell>
-                              <TableCell align="center" sx={{ py: 2 }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleDrawerOpen(duplicate)}
-                                    sx={{ 
-                                      color: '#925a9b',
-                                      '&:hover': {
-                                        backgroundColor: '#925a9b',
-                                        color: 'white'
-                                      }
-                                    }}
-                                  >
-                                    <VisibilityIcon />
-                                  </IconButton>
-                                </Box>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  </Paper>
-                </Box>
-              )}
+             
            
             
           </Box>
@@ -1689,6 +1613,472 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
           </Grid>
         )}
       </Grid>
+
+      {/* API Fetched Duplicate Listing */}
+      <Card sx={{ 
+        mb: 4, 
+        background: 'white', 
+        borderRadius: 2,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        border: '1px solid #e9ecef'
+      }}>
+        <CardContent sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h5" sx={{ 
+              fontWeight: 600, 
+              color: '#2c3e50',
+              fontSize: '1.25rem'
+            }}>
+              Duplicate Entries Listing
+            </Typography>
+            <Button
+              variant="outlined"
+              onClick={() => fetchDuplicateListing(pagination.currentPage, pagination.pageSize)}
+              disabled={loading}
+              sx={{
+                borderColor: '#925a9b',
+                color: '#925a9b',
+                fontWeight: 600,
+                px: 2,
+                py: 1,
+                borderRadius: 2,
+                textTransform: 'none',
+                fontSize: '0.875rem',
+                '&:hover': {
+                  backgroundColor: '#925a9b',
+                  color: 'white',
+                  borderColor: '#925a9b'
+                }
+              }}
+            >
+              {loading ? 'Refreshing...' : '🔄 Refresh'}
+            </Button>
+          </Box>
+
+          {/* Loading State */}
+          {loading && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
+              <LinearProgress sx={{ width: '100%', mb: 2 }} />
+              <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                Fetching duplicate entries listing...
+              </Typography>
+            </Box>
+          )}
+
+          {/* Error State */}
+          {error && (
+            <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+              <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+                Error Loading Duplicate Listing
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                {error}
+              </Typography>
+              <Button
+                variant="contained"
+                onClick={() => fetchDuplicateListing(pagination.currentPage, pagination.pageSize)}
+                sx={{
+                  backgroundColor: '#dc3545',
+                  color: 'white',
+                  fontWeight: 600,
+                  px: 2,
+                  py: 1,
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontSize: '0.875rem',
+                  '&:hover': {
+                    backgroundColor: '#c82333'
+                  }
+                }}
+              >
+                🔄 Retry
+              </Button>
+            </Alert>
+          )}
+
+          {/* Success State - Display Data */}
+          {!loading && !error && duplicateListing.length > 0 && (
+            <Box>
+              <Typography variant="body1" sx={{ 
+                fontWeight: 600, 
+                mb: 2, 
+                color: '#2c3e50',
+                fontSize: '1rem'
+              }}>
+                Found {pagination.count} duplicate entries from API (showing page {pagination.currentPage} of {Math.ceil(pagination.count / pagination.pageSize)})
+              </Typography>
+              
+              <Paper sx={{ 
+                borderRadius: 3, 
+                boxShadow: 2,
+                overflow: 'hidden'
+              }}>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ 
+                        backgroundColor: '#f8f9fa',
+                        '& th': {
+                          borderBottom: '2px solid #e9ecef',
+                          fontWeight: 700,
+                          color: '#2c3e50',
+                          fontSize: '0.875rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }
+                      }}>
+                                                 <TableCell>Transaction ID</TableCell>
+                         <TableCell>Type</TableCell>
+                         <TableCell>User</TableCell>
+                         <TableCell>Account</TableCell>
+                         <TableCell>Posting Date</TableCell>
+                         <TableCell>Transaction Details</TableCell>
+                         <TableCell>Group ID</TableCell>
+                         <TableCell>Similarity Score</TableCell>
+                         <TableCell align="right">Amount</TableCell>
+                         <TableCell>Risk Level</TableCell>
+                         <TableCell>Severity</TableCell>
+                         <TableCell align="center">Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {duplicateListing.map((entry, index) => (
+                        <TableRow 
+                          key={index}
+                          sx={{ 
+                            '&:hover': { 
+                              backgroundColor: '#f8f9fa',
+                              transform: 'scale(1.01)',
+                              transition: 'all 0.2s ease-in-out'
+                            },
+                            '&:nth-of-type(even)': {
+                              backgroundColor: '#fafbfc'
+                            }
+                          }}
+                        >
+                                                     <TableCell sx={{ py: 2 }}>
+                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                               <Avatar sx={{ 
+                                 width: 32, 
+                                 height: 32, 
+                                 backgroundColor: '#925a9b',
+                                 fontSize: '0.875rem',
+                                 fontWeight: 600
+                               }}>
+                                 {entry.transaction_id?.charAt(0) || 'T'}
+                               </Avatar>
+                               <Box>
+                                 <Typography variant="body2" sx={{ 
+                                   fontWeight: 600, 
+                                   color: '#2c3e50',
+                                   fontSize: '0.875rem'
+                                 }}>
+                                   {entry.transaction_id || `Transaction-${index + 1}`}
+                                 </Typography>
+                                 <Typography variant="caption" sx={{ 
+                                   color: '#6c757d',
+                                   fontSize: '0.75rem'
+                                 }}>
+                                   API Entry #{index + 1}
+                                 </Typography>
+                               </Box>
+                             </Box>
+                           </TableCell>
+                                                     <TableCell sx={{ py: 2 }}>
+                             <Chip 
+                               label={entry.duplicate_type?.toUpperCase() || 'N/A'}
+                               size="small"
+                               sx={{ 
+                                 backgroundColor: entry.duplicate_type ? '#925a9b' : '#6c757d',
+                                 color: 'white',
+                                 fontWeight: 600,
+                                 fontSize: '0.75rem'
+                               }}
+                             />
+                           </TableCell>
+                          <TableCell sx={{ py: 2 }}>
+                            <Typography variant="body2" sx={{ 
+                              color: '#6c757d',
+                              fontSize: '0.875rem',
+                              fontWeight: 500
+                            }}>
+                              {entry.user || entry.transaction1?.user || 'N/A'}
+                            </Typography>
+                          </TableCell>
+                                                     <TableCell sx={{ py: 2 }}>
+                             <Chip 
+                               label={entry.account || 'N/A'}
+                               size="small"
+                               variant="outlined"
+                               sx={{ 
+                                 borderColor: '#925a9b',
+                                 color: '#925a9b',
+                                 fontWeight: 600,
+                                 fontSize: '0.75rem'
+                               }}
+                             />
+                           </TableCell>
+                           <TableCell sx={{ py: 2 }}>
+                             <Typography variant="body2" sx={{ 
+                               color: '#6c757d',
+                               fontSize: '0.875rem'
+                             }}>
+                               {entry.posting_date ? new Date(entry.posting_date).toLocaleDateString() : 'N/A'}
+                             </Typography>
+                           </TableCell>
+                                                     <TableCell sx={{ py: 2 }}>
+                             <Box>
+                               <Typography variant="body2" sx={{ 
+                                 color: '#6c757d',
+                                 fontSize: '0.875rem',
+                                 fontWeight: 500
+                               }}>
+                                 {entry.transaction_id || 'N/A'}
+                               </Typography>
+                               <Typography variant="caption" sx={{ 
+                                 color: '#6c757d',
+                                 fontSize: '0.75rem'
+                               }}>
+                                 {entry.amount_formatted || formatCurrency(entry.amount || 0)}
+                               </Typography>
+                             </Box>
+                           </TableCell>
+                           <TableCell sx={{ py: 2 }}>
+                             <Box>
+                               <Typography variant="body2" sx={{ 
+                                 color: '#6c757d',
+                                 fontSize: '0.875rem',
+                                 fontWeight: 500
+                               }}>
+                                 {entry.duplicate_group_id || 'N/A'}
+                               </Typography>
+                               <Typography variant="caption" sx={{ 
+                                 color: '#6c757d',
+                                 fontSize: '0.75rem'
+                               }}>
+                                 Group ID
+                               </Typography>
+                             </Box>
+                           </TableCell>
+                          <TableCell sx={{ py: 2 }}>
+                            <Chip 
+                              label={`${entry.similarity_score || 0}%`} 
+                              size="small"
+                              sx={{ 
+                                backgroundColor: (entry.similarity_score || 0) > 90 ? '#28a745' : 
+                                                 (entry.similarity_score || 0) > 70 ? '#ffc107' : '#dc3545',
+                                color: 'white',
+                                fontWeight: 600,
+                                fontSize: '0.75rem'
+                              }}
+                            />
+                          </TableCell>
+                                                     <TableCell align="right" sx={{ py: 2 }}>
+                             <Typography variant="body2" sx={{ 
+                               fontWeight: 700, 
+                               color: '#925a9b',
+                               fontSize: '0.875rem'
+                             }}>
+                               {entry.amount_formatted || formatCurrency(entry.amount || 0)}
+                             </Typography>
+                           </TableCell>
+                           <TableCell align="center" sx={{ py: 2 }}>
+                             <Chip 
+                               label={entry.risk_level?.toUpperCase() || 'N/A'} 
+                               size="small"
+                               sx={{ 
+                                 backgroundColor: getRiskColor(entry.risk_level?.toUpperCase()),
+                                 color: 'white',
+                                 fontWeight: 600,
+                                 fontSize: '0.75rem'
+                               }}
+                             />
+                           </TableCell>
+                           <TableCell align="center" sx={{ py: 2 }}>
+                             <Chip 
+                               label={entry.duplicate_severity?.toUpperCase() || 'N/A'} 
+                               size="small"
+                               sx={{ 
+                                 backgroundColor: entry.duplicate_severity === 'HIGH' ? '#dc3545' : 
+                                                  entry.duplicate_severity === 'MEDIUM' ? '#ffc107' : '#28a745',
+                                 color: 'white',
+                                 fontWeight: 600,
+                                 fontSize: '0.75rem'
+                               }}
+                             />
+                           </TableCell>
+                          <TableCell align="center" sx={{ py: 2 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleDrawerOpen(entry)}
+                                sx={{ 
+                                  color: '#925a9b',
+                                  '&:hover': {
+                                    backgroundColor: '#925a9b',
+                                    color: 'white'
+                                  }
+                                }}
+                              >
+                                <VisibilityIcon />
+                              </IconButton>
+                            </Box>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Paper>
+              
+              {/* Pagination Controls */}
+              {pagination.count > 0 && (
+                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  mt: 3,
+                  p: 2,
+                  backgroundColor: '#f8f9fa',
+                  borderRadius: 2
+                }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                      Showing {((pagination.currentPage - 1) * pagination.pageSize) + 1} to {Math.min(pagination.currentPage * pagination.pageSize, pagination.count)} of {pagination.count} entries
+                    </Typography>
+                    <FormControl size="small" sx={{ minWidth: 120 }}>
+                      <InputLabel>Page Size</InputLabel>
+                      <Select
+                        value={pagination.pageSize}
+                        label="Page Size"
+                        onChange={(e) => handlePageSizeChange(e.target.value)}
+                        sx={{ fontSize: '0.875rem' }}
+                      >
+                        <MenuItem value={5}>5 per page</MenuItem>
+                        <MenuItem value={10}>10 per page</MenuItem>
+                        <MenuItem value={25}>25 per page</MenuItem>
+                        <MenuItem value={50}>50 per page</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Box>
+                  
+                  <Pagination
+                    count={Math.ceil(pagination.count / pagination.pageSize)}
+                    page={pagination.currentPage}
+                    onChange={(event, newPage) => handlePageChange(newPage)}
+                    color="primary"
+                    size="large"
+                    showFirstButton
+                    showLastButton
+                    sx={{
+                      '& .MuiPaginationItem-root': {
+                        fontSize: '0.875rem',
+                        fontWeight: 600
+                      }
+                    }}
+                  />
+                </Box>
+              )}
+            </Box>
+          )}
+
+          {/* No Data State */}
+          {!loading && !error && duplicateListing.length === 0 && (
+            <Alert severity="info" sx={{ borderRadius: 2 }}>
+              <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+                No Duplicate Entries Found
+              </Typography>
+              <Typography variant="body2">
+                The API returned no duplicate entries for this analysis. This could mean either no duplicate entries were found, or the data is still being processed.
+              </Typography>
+            </Alert>
+          )}
+
+          {/* API Data Summary */}
+          {!loading && !error && duplicateListing.length > 0 && (
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="h6" sx={{ 
+                fontWeight: 600, 
+                mb: 2, 
+                color: '#2c3e50',
+                fontSize: '1.1rem'
+              }}>
+                API Data Summary
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item size={{xs: 6, sm: 3}}>
+                  <Box sx={{ p: 2, backgroundColor: '#f8f9fa', borderRadius: 2, textAlign: 'center' }}>
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: 700, 
+                      color: '#925a9b',
+                      fontSize: '1.5rem'
+                    }}>
+                      {pagination.count}
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: '#6c757d',
+                      fontSize: '0.875rem'
+                    }}>
+                      Total Duplicates
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item size={{xs: 6, sm: 3}}>
+                  <Box sx={{ p: 2, backgroundColor: '#f8f9fa', borderRadius: 2, textAlign: 'center' }}>
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: 700, 
+                      color: '#925a9b',
+                      fontSize: '1.5rem'
+                    }}>
+                                             {formatCurrency(duplicateListing.reduce((sum, entry) => sum + (entry.amount || 0), 0))}
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: '#6c757d',
+                      fontSize: '0.875rem'
+                    }}>
+                      Total Amount
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item size={{xs: 6, sm: 3}}>
+                  <Box sx={{ p: 2, backgroundColor: '#f8f9fa', borderRadius: 2, textAlign: 'center' }}>
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: 700, 
+                      color: '#925a9b',
+                      fontSize: '1.5rem'
+                    }}>
+                      {Math.round(duplicateListing.reduce((sum, entry) => sum + (entry.similarity_score || 0), 0) / duplicateListing.length)}
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: '#6c757d',
+                      fontSize: '0.875rem'
+                    }}>
+                      Avg Similarity
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item size={{xs: 6, sm: 3}}>
+                  <Box sx={{ p: 2, backgroundColor: '#f8f9fa', borderRadius: 2, textAlign: 'center' }}>
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: 700, 
+                      color: '#925a9b',
+                      fontSize: '1.5rem'
+                    }}>
+                                             {new Set(duplicateListing.map(entry => entry.user)).size}
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: '#6c757d',
+                      fontSize: '0.875rem'
+                    }}>
+                      Unique Users
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Show raw data for debugging if no structured data */}
       {(!duplicateEntries || duplicateEntries.length === 0) && 

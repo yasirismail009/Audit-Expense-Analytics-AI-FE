@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Grid, 
@@ -16,7 +16,11 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper
+  Paper,
+  CircularProgress,
+  Alert,
+  Pagination,
+  Button
 } from '@mui/material';
 import { 
   TrendingUp, 
@@ -37,7 +41,7 @@ import {
   Receipt
 } from '@mui/icons-material';
 import { colorScheme, getRiskColor } from '../utils/colorScheme';
-
+import axios from 'axios';
 
 // Import chart widgets
 import RiskDistributionChart from './charts/RiskDistributionChart';
@@ -50,7 +54,97 @@ import DepartmentExpensesChart from './charts/DepartmentExpensesChart';
 import AnomalyAnalysisAccordion from './AnomalyAnalysisAccordion';
 import DetailedRiskAnalysis from './DetailedRiskAnalysis';
 
-export default function ExpenseAnalysisDashboard({ sheetData }) {
+export default function ExpenseAnalysisDashboard({ sheetData, fileId }) {
+  // State for GL accounts data
+  const [glAccountsData, setGlAccountsData] = useState([]);
+  const [glAccountsLoading, setGlAccountsLoading] = useState(false);
+  const [glAccountsError, setGlAccountsError] = useState(null);
+  const [glAccountsPagination, setGlAccountsPagination] = useState({
+    currentPage: 1,
+    pageSize: 10,
+    total: 0,
+    hasNext: false,
+    hasPrevious: false
+  });
+  const [glAccountsSummary, setGlAccountsSummary] = useState(null);
+
+  // Fetch GL accounts data
+  useEffect(() => {
+    const fetchGlAccounts = async (page = 1, pageSize = 10) => {
+      if (!fileId) return;
+      
+      try {
+        setGlAccountsLoading(true);
+        setGlAccountsError(null);
+        
+        const response = await axios.get(`http://localhost:8000/api/file-gl-accounts/${fileId}/?page=${page}&page_size=${pageSize}`);
+        
+        if (response.data && response.data.results) {
+          setGlAccountsData(response.data.results.accounts || []);
+          setGlAccountsSummary(response.data.results.summary || null);
+          setGlAccountsPagination({
+            currentPage: page,
+            pageSize: pageSize,
+            total: response.data.results.total_accounts || 0,
+            hasNext: !!response.data.next,
+            hasPrevious: !!response.data.previous
+          });
+        } else {
+          setGlAccountsData([]);
+          setGlAccountsSummary(null);
+          setGlAccountsPagination({
+            currentPage: 1,
+            pageSize: 10,
+            total: 0,
+            hasNext: false,
+            hasPrevious: false
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching GL accounts:', error);
+        setGlAccountsError(error.response?.data?.message || 'Failed to fetch GL accounts data');
+      } finally {
+        setGlAccountsLoading(false);
+      }
+    };
+
+    fetchGlAccounts(1, 10);
+  }, [fileId]);
+
+  // Function to handle pagination
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= Math.ceil(glAccountsPagination.total / glAccountsPagination.pageSize)) {
+      const fetchGlAccounts = async () => {
+        if (!fileId) return;
+        
+        try {
+          setGlAccountsLoading(true);
+          setGlAccountsError(null);
+          
+          const response = await axios.get(`http://localhost:8000/api/file-gl-accounts/${fileId}/?page=${newPage}&page_size=${glAccountsPagination.pageSize}`);
+          
+          if (response.data && response.data.results) {
+            setGlAccountsData(response.data.results.accounts || []);
+            setGlAccountsSummary(response.data.results.summary || null);
+            setGlAccountsPagination(prev => ({
+              ...prev,
+              currentPage: newPage,
+              hasNext: !!response.data.next,
+              hasPrevious: !!response.data.previous
+            }));
+          }
+        } catch (error) {
+          console.error('Error fetching GL accounts:', error);
+          setGlAccountsError(error.response?.data?.message || 'Failed to fetch GL accounts data');
+        } finally {
+          setGlAccountsLoading(false);
+        }
+      };
+
+      fetchGlAccounts();
+    }
+  };
+
   if (!sheetData) {
     return (
       <Box sx={{ p: 4, textAlign: 'center' }}>
@@ -186,14 +280,14 @@ console.log(sheetData)
     backdatedEntries: sheetData?.detailed_risk_analysis?.risk_factors?.backdated_risk?.count || sheetData?.anomalies_data?.anomaly_summary?.backdated_entries || anomaliesAccordion?.backdatedEntries || 0,
     closingEntries: sheetData?.detailed_risk_analysis?.risk_factors?.closing_entries_risk?.count || sheetData?.anomalies_data?.anomaly_summary?.closing_entries || anomaliesAccordion?.closingEntries || 0,
     unusualDays: sheetData?.detailed_risk_analysis?.risk_factors?.unusual_days_risk?.count || sheetData?.anomalies_data?.anomaly_summary?.unusual_days || anomaliesAccordion?.unusualDays || 0,
-    holidayEntries: sheetData?.anomalies_data?.anomaly_summary?.holiday_entries || anomaliesAccordion?.holidayEntries || 0,
+    holidayEntries: sheetData?.detailed_risk_analysis?.risk_factors?.holiday_risk?.count || sheetData?.anomalies_data?.anomaly_summary?.holiday_entries || anomaliesAccordion?.holidayEntries || 0,
     totalAnomalies: sheetData?.detailed_risk_analysis?.risk_calculations?.total_flagged || sheetData?.analysis_summary?.total_flagged_expenses || anomaliesAccordion?.totalAnomalies || 
                    (sheetData?.detailed_risk_analysis?.risk_factors?.duplicate_risk?.count || 0) + 
                    (sheetData?.detailed_risk_analysis?.user_anomalies?.total_user_anomalies || 0) + 
                    (sheetData?.detailed_risk_analysis?.risk_factors?.backdated_risk?.count || 0) + 
                    (sheetData?.detailed_risk_analysis?.risk_factors?.closing_entries_risk?.count || 0) + 
                    (sheetData?.detailed_risk_analysis?.risk_factors?.unusual_days_risk?.count || 0) + 
-                   (sheetData?.anomalies_data?.anomaly_summary?.holiday_entries || 0),
+                   (sheetData?.detailed_risk_analysis?.risk_factors?.holiday_risk?.count || sheetData?.anomalies_data?.anomaly_summary?.holiday_entries || 0),
     highRiskUsers: sheetData?.detailed_risk_analysis?.user_anomalies?.high_risk_users_count || 0
   };
 
@@ -1507,7 +1601,7 @@ console.log(sheetData)
                 </Typography>
                 
                 {/* GL Account Summary */}
-                {glSummary?.summaryStatistics && (
+                {glAccountsSummary && (
                 <Box sx={{ 
                   mb: 4, 
                   p: 4, 
@@ -1550,7 +1644,7 @@ console.log(sheetData)
                           mb: 0.5,
                           fontSize: '1.5rem'
                         }}>
-                          {glSummary.summaryStatistics.totalAccounts}
+                          {glAccountsSummary.total_accounts}
                         </Typography>
                         <Typography variant="body2" sx={{ 
                           color: 'rgba(255,255,255,0.8)',
@@ -1571,13 +1665,13 @@ console.log(sheetData)
                           mb: 0.5,
                           fontSize: '1.5rem'
                         }}>
-                          {formatCurrency(glSummary.summaryStatistics.totalTrialBalance)}
+                          {formatCurrency(glAccountsSummary.total_amount)}
                         </Typography>
                         <Typography variant="body2" sx={{ 
                           color: 'rgba(255,255,255,0.8)',
                           fontSize: '0.875rem'
                         }}>
-                          Total Trial Balance
+                          Total Amount
                         </Typography>
                       </Box>
                     </Grid>
@@ -1592,7 +1686,7 @@ console.log(sheetData)
                           mb: 0.5,
                           fontSize: '1.5rem'
                         }}>
-                          {glSummary.summaryStatistics.avgRiskScore?.toFixed(1) || '0.0'}
+                          {glAccountsSummary.avg_risk_score?.toFixed(1) || '0.0'}
                         </Typography>
                         <Typography variant="body2" sx={{ 
                           color: 'rgba(255,255,255,0.8)',
@@ -1613,7 +1707,7 @@ console.log(sheetData)
                           mb: 0.5,
                           fontSize: '1.5rem'
                         }}>
-                          {glSummary.summaryStatistics.accountsWithAnomalies || 0}
+                          {glAccountsSummary.accounts_with_anomalies || 0}
                         </Typography>
                         <Typography variant="body2" sx={{ 
                           color: 'rgba(255,255,255,0.8)',
@@ -1627,7 +1721,7 @@ console.log(sheetData)
                   
                   {/* Detailed Stats Grid */}
                   <Grid container spacing={2} sx={{ mt: 3, position: 'relative', zIndex: 1 }}>
-                    <Grid item size={{xs: 12, md: 6}}>
+                    <Grid item size={{xs: 12, md: 4}}>
                       <Box sx={{ 
                         p: 2, 
                         background: 'rgba(255,255,255,0.05)', 
@@ -1648,7 +1742,7 @@ console.log(sheetData)
                               Total Debits
                             </Typography>
                             <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem' }}>
-                              {formatCurrency(glSummary.summaryStatistics.totalDebits)}
+                              {formatCurrency(glAccountsSummary.total_debits)}
                             </Typography>
                           </Box>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1656,7 +1750,7 @@ console.log(sheetData)
                               Total Credits
                             </Typography>
                             <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem' }}>
-                              {formatCurrency(glSummary.summaryStatistics.totalCredits)}
+                              {formatCurrency(glAccountsSummary.total_credits)}
                             </Typography>
                           </Box>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1664,7 +1758,7 @@ console.log(sheetData)
                               Trading Equity
                             </Typography>
                             <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem' }}>
-                              {formatCurrency(glSummary.summaryStatistics.totalTradingEquity)}
+                              {formatCurrency(glAccountsSummary.trading_equity)}
                             </Typography>
                           </Box>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1672,14 +1766,14 @@ console.log(sheetData)
                               Currency
                             </Typography>
                             <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem' }}>
-                              {glSummary.summaryStatistics.currency}
+                              {glAccountsSummary.currency}
                             </Typography>
                           </Box>
                         </Box>
                       </Box>
                     </Grid>
                     
-                    <Grid item size={{xs: 12, md: 6}}>
+                    <Grid item size={{xs: 12, md: 4}}>
                       <Box sx={{ 
                         p: 2, 
                         background: 'rgba(255,255,255,0.05)', 
@@ -1700,7 +1794,7 @@ console.log(sheetData)
                               High Risk Accounts
                             </Typography>
                             <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem' }}>
-                              {glSummary.summaryStatistics.highRiskAccounts || 0}
+                              {glAccountsSummary.high_risk_accounts || 0}
                             </Typography>
                           </Box>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1708,7 +1802,7 @@ console.log(sheetData)
                               Total Transactions
                             </Typography>
                             <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem' }}>
-                              {glSummary.summaryStatistics.totalTransactions || 0}
+                              {glAccountsSummary.total_transactions || 0}
                             </Typography>
                           </Box>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1716,8 +1810,7 @@ console.log(sheetData)
                               Anomaly Rate
                             </Typography>
                             <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem' }}>
-                              {glSummary.summaryStatistics.totalAccounts ? 
-                                ((glSummary.summaryStatistics.accountsWithAnomalies / glSummary.summaryStatistics.totalAccounts) * 100).toFixed(1) : 0}%
+                              {glAccountsSummary.anomaly_rate?.toFixed(1) || 0}%
                             </Typography>
                           </Box>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1725,15 +1818,68 @@ console.log(sheetData)
                               Avg Amount per Account
                             </Typography>
                             <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem' }}>
-                              {glSummary.summaryStatistics.totalAccounts ? 
-                                formatCurrency(glSummary.summaryStatistics.totalTrialBalance / glSummary.summaryStatistics.totalAccounts) : 
-                                formatCurrency(0)}
+                              {formatCurrency(glAccountsSummary.avg_amount_per_account)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Box>
+                    </Grid>
+                    
+                    <Grid item size={{xs: 12, md: 4}}>
+                      <Box sx={{ 
+                        p: 2, 
+                        background: 'rgba(255,255,255,0.05)', 
+                        borderRadius: 2,
+                        border: '1px solid rgba(255,255,255,0.1)'
+                      }}>
+                        <Typography variant="subtitle2" sx={{ 
+                          color: 'rgba(255,255,255,0.9)', 
+                          mb: 1.5,
+                          fontWeight: 600,
+                          fontSize: '0.9rem'
+                        }}>
+                          Anomaly Distribution
+                        </Typography>
+                        <Box sx={{ display: 'grid', gap: 1 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.8rem' }}>
+                              Duplicate Transactions
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem' }}>
+                              {glAccountsSummary.anomaly_distribution?.duplicate_transactions || 0}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.8rem' }}>
+                              Backdated Transactions
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem' }}>
+                              {glAccountsSummary.anomaly_distribution?.backdated_transactions || 0}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.8rem' }}>
+                              Holiday Transactions
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem' }}>
+                              {glAccountsSummary.anomaly_distribution?.holiday_transactions || 0}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.8rem' }}>
+                              Unusual Days Transactions
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem' }}>
+                              {glAccountsSummary.anomaly_distribution?.unusual_days_transactions || 0}
                             </Typography>
                           </Box>
                         </Box>
                       </Box>
                     </Grid>
                   </Grid>
+                  
+                  {/* Additional Metrics Grid */}
+               
                 </Box>
                 )}
                 
@@ -1796,100 +1942,249 @@ console.log(sheetData)
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {(glChartsData?.topAccountsByAmount || []).map((account, index) => (
-                      <TableRow key={index} sx={{ '&:last-child td': { border: 0 } }}>
-                        <TableCell sx={{ border: 'none', py: 1 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                              <Avatar sx={{ 
-                                width: 32, 
-                                height: 32, 
-                                mr: 2, 
-                              backgroundColor: colorScheme.primary,
-                              fontSize: '0.75rem',
-                              fontWeight: 600
-                              }}>
-                                {account.accountId?.slice(-2) || 'AC'}
-                              </Avatar>
-                              <Box>
-                              <Typography variant="body2" sx={{ 
-                                fontWeight: 600, 
-                                color: colorScheme.textPrimary,
-                                fontSize: '0.875rem'
-                              }}>
-                                  Account {account.accountId}
-                                </Typography>
-                              <Typography variant="caption" sx={{ 
-                                color: colorScheme.textSecondary,
-                                fontSize: '0.75rem'
-                              }}>
-                                  {account.accountType || 'Unknown Type'}
-                                </Typography>
-                              </Box>
+                      {glAccountsLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={6} sx={{ border: 'none', py: 3 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                              <CircularProgress size={24} />
+                              <Typography variant="body2" sx={{ ml: 2, color: colorScheme.textSecondary }}>
+                                Loading GL accounts data...
+                              </Typography>
                             </Box>
                           </TableCell>
-                        <TableCell align="right" sx={{ border: 'none', py: 1 }}>
-                          <Typography variant="body2" sx={{ 
-                            fontWeight: 600, 
-                            color: colorScheme.primary,
-                            fontSize: '0.875rem'
-                          }}>
-                              {formatCurrency(account.totalAmount)}
-                            </Typography>
+                        </TableRow>
+                      ) : glAccountsError ? (
+                        <TableRow>
+                          <TableCell colSpan={6} sx={{ border: 'none', py: 3 }}>
+                            <Alert severity="error" sx={{ mb: 0 }}>
+                              {glAccountsError}
+                            </Alert>
                           </TableCell>
-                        <TableCell align="right" sx={{ border: 'none', py: 1 }}>
-                          <Typography variant="body2" sx={{ 
-                            color: colorScheme.textSecondary,
-                            fontSize: '0.875rem'
-                          }}>
-                              {account.transactionCount}
-                            </Typography>
-                          </TableCell>
-                        <TableCell align="right" sx={{ border: 'none', py: 1 }}>
-                          <Chip 
-                            label={account.riskLevel || 'LOW'} 
-                            size="small"
-                            sx={{ 
-                              backgroundColor: account.riskColor || '#4BC0C0',
-                              color: 'white',
-                              fontWeight: 600,
-                              fontSize: '0.7rem',
-                              px: 1,
-                              py: 0.2,
-                              border: '1px solid rgba(255,255,255,0.3)'
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell align="right" sx={{ border: 'none', py: 1 }}>
-                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                            <Typography variant="body2" sx={{ 
-                              color: colorScheme.textSecondary,
-                              fontSize: '0.75rem',
-                              fontWeight: 600
-                            }}>
-                              {account.anomalyCounts?.total_anomalies || 0}
-                            </Typography>
-                            <Typography variant="caption" sx={{ 
-                              color: colorScheme.textSecondary,
-                              fontSize: '0.65rem'
-                            }}>
-                              D: {account.anomalyCounts?.duplicate || 0} | B: {account.anomalyCounts?.backdated || 0} | H: {account.anomalyCounts?.high_value || 0}
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell align="right" sx={{ border: 'none', py: 1 }}>
-                          <Typography variant="body2" sx={{ 
-                            color: colorScheme.primary, 
-                            fontWeight: 600,
-                            fontSize: '0.875rem'
-                          }}>
-                              {formatCurrency(account.trialBalance)}
+                        </TableRow>
+                      ) : glAccountsData.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} sx={{ border: 'none', py: 3 }}>
+                            <Typography variant="body2" sx={{ textAlign: 'center', color: colorScheme.textSecondary }}>
+                              No GL accounts data available
                             </Typography>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      ) : (
+                        glAccountsData.map((account, index) => (
+                          <TableRow key={index} sx={{ '&:last-child td': { border: 0 } }}>
+                            <TableCell sx={{ border: 'none', py: 1 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                <Avatar sx={{ 
+                                  width: 32, 
+                                  height: 32, 
+                                  mr: 2, 
+                                  backgroundColor: colorScheme.primary,
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600
+                                }}>
+                                  {account.gl_account?.slice(-2) || 'AC'}
+                                </Avatar>
+                                <Box>
+                                  <Typography variant="body2" sx={{ 
+                                    fontWeight: 600, 
+                                    color: colorScheme.textPrimary,
+                                    fontSize: '0.875rem'
+                                  }}>
+                                    Account {account.gl_account}
+                                  </Typography>
+                                  <Typography variant="caption" sx={{ 
+                                    color: colorScheme.textSecondary,
+                                    fontSize: '0.75rem'
+                                  }}>
+                                    {account.account_name || account.account_type || 'Unknown Type'}
+                                  </Typography>
+                                  <Typography variant="caption" sx={{ 
+                                    color: colorScheme.textSecondary,
+                                    fontSize: '0.65rem',
+                                    display: 'block'
+                                  }}>
+                                    {account.account_category}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            </TableCell>
+                            <TableCell align="right" sx={{ border: 'none', py: 1 }}>
+                              <Typography variant="body2" sx={{ 
+                                fontWeight: 600, 
+                                color: colorScheme.primary,
+                                fontSize: '0.875rem'
+                              }}>
+                                {formatCurrency(account.total_amount)}
+                              </Typography>
+                              <Typography variant="caption" sx={{ 
+                                color: colorScheme.textSecondary,
+                                fontSize: '0.65rem',
+                                display: 'block'
+                              }}>
+                                Avg: {formatCurrency(account.avg_amount)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="right" sx={{ border: 'none', py: 1 }}>
+                              <Typography variant="body2" sx={{ 
+                                color: colorScheme.textSecondary,
+                                fontSize: '0.875rem'
+                              }}>
+                                {account.transaction_count}
+                              </Typography>
+                              <Typography variant="caption" sx={{ 
+                                color: colorScheme.textSecondary,
+                                fontSize: '0.65rem',
+                                display: 'block'
+                              }}>
+                                {account.unique_users} users
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="right" sx={{ border: 'none', py: 1 }}>
+                              <Chip 
+                                label={account.risk_level || 'LOW'} 
+                                size="small"
+                                sx={{ 
+                                  backgroundColor: getRiskColor(account.risk_level || 'LOW'),
+                                  color: 'white',
+                                  fontWeight: 600,
+                                  fontSize: '0.7rem',
+                                  px: 1,
+                                  py: 0.2,
+                                  border: '1px solid rgba(255,255,255,0.3)'
+                                }}
+                              />
+                              <Typography variant="caption" sx={{ 
+                                color: colorScheme.textSecondary,
+                                fontSize: '0.65rem',
+                                display: 'block',
+                                mt: 0.5
+                              }}>
+                                Score: {account.avg_risk_score?.toFixed(1) || '0.0'}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="right" sx={{ border: 'none', py: 1 }}>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                                <Typography variant="body2" sx={{ 
+                                  color: colorScheme.textSecondary,
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600
+                                }}>
+                                  {account.anomaly_counts?.duplicate_transactions+account.anomaly_counts?.backdated_transactions+account.anomaly_counts?.high_risk_transactions+account.anomaly_counts?.unusual_days_transactions+account.anomaly_counts?.closing_entries_transactions+account.anomaly_counts?.holiday_transactions || 0}
+                                </Typography>
+                                <Typography variant="caption" sx={{ 
+                                  color: colorScheme.textSecondary,
+                                  fontSize: '0.65rem'
+                                }}>
+                                  D: {account.anomaly_counts?.duplicate_transactions || 0} | B: {account.anomaly_counts?.backdated_transactions || 0} | H: {account.anomaly_counts?.high_risk_transactions || 0}
+                                </Typography>
+                                <Typography variant="caption" sx={{ 
+                                  color: colorScheme.textSecondary,
+                                  fontSize: '0.65rem'
+                                }}>
+                                  U: {account.anomaly_counts?.unusual_days_transactions || 0} | C: {account.anomaly_counts?.closing_entries_transactions || 0} | H: {account.anomaly_counts?.holiday_transactions || 0}
+                                </Typography>
+                              </Box>
+                            </TableCell>
+                            <TableCell align="right" sx={{ border: 'none', py: 1 }}>
+                              <Typography variant="body2" sx={{ 
+                                color: colorScheme.primary, 
+                                fontWeight: 600,
+                                fontSize: '0.875rem'
+                              }}>
+                                {formatCurrency(account.balance)}
+                              </Typography>
+                              <Typography variant="caption" sx={{ 
+                                color: account.is_balanced ? colorScheme.success : colorScheme.warning,
+                                fontSize: '0.65rem',
+                                display: 'block'
+                              }}>
+                                {account.is_balanced ? 'Balanced' : 'Unbalanced'}
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </TableContainer>
+                
+                {/* Pagination Controls */}
+                {glAccountsData.length > 0 && !glAccountsLoading && !glAccountsError && (
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center', 
+                    mt: 2,
+                    px: 2,
+                    py: 1
+                  }}>
+                    <Typography variant="body2" sx={{ color: colorScheme.textSecondary }}>
+                      Showing {((glAccountsPagination.currentPage - 1) * glAccountsPagination.pageSize) + 1} to{' '}
+                      {Math.min(glAccountsPagination.currentPage * glAccountsPagination.pageSize, glAccountsPagination.total)} of{' '}
+                      {glAccountsPagination.total} accounts
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        disabled={!glAccountsPagination.hasPrevious}
+                        onClick={() => handlePageChange(glAccountsPagination.currentPage - 1)}
+                        sx={{
+                          borderColor: colorScheme.primary,
+                          color: colorScheme.primary,
+                          '&:hover': {
+                            borderColor: colorScheme.primary,
+                            backgroundColor: 'rgba(146, 90, 155, 0.04)'
+                          },
+                          '&:disabled': {
+                            borderColor: colorScheme.border,
+                            color: colorScheme.textSecondary
+                          }
+                        }}
+                      >
+                        Previous
+                      </Button>
+                      <Pagination
+                        count={Math.ceil(glAccountsPagination.total / glAccountsPagination.pageSize)}
+                        page={glAccountsPagination.currentPage}
+                        onChange={(event, page) => handlePageChange(page)}
+                        size="small"
+                        sx={{
+                          '& .MuiPaginationItem-root': {
+                            color: colorScheme.textSecondary,
+                            '&.Mui-selected': {
+                              backgroundColor: colorScheme.primary,
+                              color: 'white',
+                              '&:hover': {
+                                backgroundColor: colorScheme.primary,
+                              }
+                            }
+                          }
+                        }}
+                      />
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        disabled={!glAccountsPagination.hasNext}
+                        onClick={() => handlePageChange(glAccountsPagination.currentPage + 1)}
+                        sx={{
+                          borderColor: colorScheme.primary,
+                          color: colorScheme.primary,
+                          '&:hover': {
+                            borderColor: colorScheme.primary,
+                            backgroundColor: 'rgba(146, 90, 155, 0.04)'
+                          },
+                          '&:disabled': {
+                            borderColor: colorScheme.border,
+                            color: colorScheme.textSecondary
+                          }
+                        }}
+                      >
+                        Next
+                      </Button>
+                    </Box>
+                  </Box>
+                )}
                 
               {/* Chart component */}
               <Box sx={{ 
@@ -1932,7 +2227,7 @@ console.log(sheetData)
 
           {/* Anomaly Analysis Accordion */}
         <Grid item size={{xs: 12, md: 12}}>
-            <AnomalyAnalysisAccordion sheetId={sheetData?.sheet_id} anomalySummary={sheetData?.anomaliesAccordion} />
+            <AnomalyAnalysisAccordion sheetId={sheetData?.sheet_id} anomalySummary={sheetData?.anomaliesAccordion} totalAnomalies={comprehensiveStats?.anomaliesDetected} />
           </Grid>
         </Grid>
     </Box>

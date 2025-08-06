@@ -51,27 +51,33 @@ export default function MonthlyTrendChart({ data }) {
         <Box sx={{ height: 300 }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <defs>
+                <linearGradient id="lineGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.9}/>
+                  <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.1}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
               <XAxis 
                 dataKey="month" 
-                tick={{ fontSize: 12 }} 
+                tick={{ fontSize: 12, fill: '#6B7280' }} 
                 axisLine={false} 
                 tickLine={false}
               />
               <YAxis 
-                tick={{ fontSize: 12 }} 
+                tick={{ fontSize: 12, fill: '#6B7280' }} 
                 axisLine={false} 
                 tickLine={false}
-                tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
               />
               <Tooltip content={<CustomTooltip />} />
               <Line 
                 type="monotone" 
                 dataKey="amount" 
-                stroke={colorScheme.secondary}
+                stroke="#8B5CF6"
                 strokeWidth={3}
-                dot={{ fill: colorScheme.secondary, strokeWidth: 2, r: 4 }}
-                activeDot={{ r: 6, stroke: colorScheme.secondary, strokeWidth: 2 }}
+                dot={{ fill: '#8B5CF6', strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6, stroke: '#8B5CF6', strokeWidth: 2, fill: '#8B5CF6' }}
               />
             </LineChart>
           </ResponsiveContainer>

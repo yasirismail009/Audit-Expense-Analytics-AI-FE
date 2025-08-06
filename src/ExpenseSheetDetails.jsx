@@ -649,6 +649,12 @@ export default function ExpenseSheetDetails() {
                 ((closingEntriesAnalysis?.closing_entries_count || 0) / transactionSummary.total_transactions) * 100 : 0,
               description: 'Risk associated with closing entries'
             },
+            holiday_risk: {
+              count: holidayAnalysis?.holiday_postings_count || 0,
+              percentage: transactionSummary?.total_transactions ? 
+                ((holidayAnalysis?.holiday_postings_count || 0) / transactionSummary.total_transactions) * 100 : 0,
+              description: 'Risk associated with holiday transactions'
+            },
           },
           scoring_criteria: {
             low_risk: {
@@ -1263,7 +1269,7 @@ export default function ExpenseSheetDetails() {
 
             {/* Dashboard Content */}
             {dashboardView === 'analysis' ? (
-              <ExpenseAnalysisDashboard sheetData={sheetData} />
+              <ExpenseAnalysisDashboard sheetData={sheetData} fileId={sheetId} />
             ) : (
               <ListingDashboard sheetData={sheetData} />
             )}

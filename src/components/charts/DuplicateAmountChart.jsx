@@ -149,12 +149,24 @@ export default function DuplicateAmountChart({ data, currency = 'SAR' }) {
     }));
   }
 
-  // Generate gradient colors based on #925a9b
+  // Generate gradient colors based on purple theme
   const generateGradientColors = (count) => {
+    const purpleColors = [
+      '#8B5CF6', // Primary Purple
+      '#A855F7', // Secondary Purple
+      '#C084FC', // Light Purple
+      '#DDD6FE', // Very Light Purple
+      '#7C3AED', // Dark Purple
+      '#9333EA', // Medium Purple
+      '#A78BFA', // Medium Light Purple
+      '#EDE9FE', // Pale Purple
+      '#6D28D9', // Dark Purple
+      '#5B21B6'  // Deep Purple
+    ];
+    
     const colors = [];
     for (let i = 0; i < count; i++) {
-      const intensity = 0.3 + (i * 0.15); // Vary from 30% to 90% opacity
-      colors.push(`rgba(146, 90, 155, ${intensity})`);
+      colors.push(purpleColors[i % purpleColors.length]);
     }
     return colors;
   };

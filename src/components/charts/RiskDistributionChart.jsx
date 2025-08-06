@@ -4,7 +4,32 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tool
 import { colorScheme, getColorByIndex } from '../../utils/colorScheme';
 
 export default function RiskDistributionChart({ data, title = "Risk Distribution", subtitle }) {
-  if (!data || !data.labels || !data.data) {
+  console.log("data", data);
+  
+  // Transform data to handle both formats
+  let chartData = [];
+  
+  if (data && typeof data === 'object') {
+    if (data.labels && data.data) {
+      // Format: { labels: [...], data: [...] }
+      chartData = data.labels.map((label, index) => ({
+        name: label,
+        value: data.data[index],
+        color: getColorByIndex(index)
+      }));
+    } else {
+      // Format: { "low_risk": 0, "high_risk": 364, "medium_risk": 0 }
+      chartData = Object.entries(data)
+        .filter(([key, value]) => value > 0) // Only show categories with data
+        .map(([key, value], index) => ({
+          name: key.replace('_risk', '').toUpperCase(),
+          value: value,
+          color: getColorByIndex(index)
+        }));
+    }
+  }
+
+  if (!data || chartData.length === 0) {
     return (
       <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 2, width: '100%' }}>
         <CardContent>
@@ -23,12 +48,6 @@ export default function RiskDistributionChart({ data, title = "Risk Distribution
       </Card>
     );
   }
-
-  const chartData = data.labels.map((label, index) => ({
-    name: label,
-    value: data.data[index],
-    color: getColorByIndex(index)
-  }));
 
 
   const CustomTooltip = ({ active, payload, label }) => {
@@ -70,19 +89,19 @@ export default function RiskDistributionChart({ data, title = "Risk Distribution
               <AreaChart data={chartData} height={200}>
                 <defs>
                   <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={colorScheme.primary} stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor={colorScheme.primary} stopOpacity={0.1}/>
+                    <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.9}/>
+                    <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.1}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                 <XAxis 
                   dataKey="name" 
-                  tick={{ fontSize: 12 }}
+                  tick={{ fontSize: 12, fill: '#6B7280' }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis 
-                  tick={{ fontSize: 12 }}
+                  tick={{ fontSize: 12, fill: '#6B7280' }}
                   axisLine={false}
                   tickLine={false}
                 />
@@ -93,11 +112,11 @@ export default function RiskDistributionChart({ data, title = "Risk Distribution
                 <Area 
                   type="monotone" 
                   dataKey="value" 
-                  stroke={colorScheme.primary}
+                  stroke="#8B5CF6"
                   strokeWidth={3}
                   fill="url(#colorGradient)"
-                  dot={{ fill: colorScheme.primary, strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6, stroke: colorScheme.primary, strokeWidth: 2, fill: colorScheme.primary }}
+                  dot={{ fill: '#8B5CF6', strokeWidth: 2, r: 4 }}
+                  activeDot={{ r: 6, stroke: '#8B5CF6', strokeWidth: 2, fill: '#8B5CF6' }}
                 />
               </AreaChart>
             ) : (
