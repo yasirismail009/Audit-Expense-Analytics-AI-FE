@@ -40,8 +40,8 @@ import {
   Error as ErrorIcon,
   Info as InfoIcon
 } from '@mui/icons-material';
-import { getRiskColor } from '../../utils/colorScheme';
-import DuplicateDetailDrawer from '../FlaggedExpenseDrawer';
+import { getRiskColor, formatCurrency } from '../../utils/colorScheme';
+import UnifiedAnomalyDrawer from '../FlaggedExpenseDrawer';
 
 // Import chart components
 import RiskDistributionChart from '../charts/RiskDistributionChart';
@@ -97,21 +97,6 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
     if (score >= 60) return 'HIGH';
     if (score >= 40) return 'MEDIUM';
     return 'LOW';
-  };
-
-  // Helper function to format currency
-  const formatCurrency = (amount) => {
-    const num = parseFloat(amount || 0);
-    
-    if (num >= 1000000000000) {
-      return `${(num / 1000000000000).toFixed(1)}T ${currency}`;
-    } else if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1)}M ${currency}`;
-    } else if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}K ${currency}`;
-    } else {
-      return `${num.toFixed(0)} ${currency}`;
-    }
   };
 
   // Extract data from the new API structure
@@ -1375,17 +1360,13 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
                            letterSpacing: '0.5px'
                          }
                        }}>
-                         <TableCell>Transaction ID</TableCell>
-                         <TableCell>User</TableCell>
-                         <TableCell>Account</TableCell>
-                         <TableCell>Posting Date</TableCell>
-                         <TableCell>Document Date</TableCell>
-                         <TableCell>Days Difference</TableCell>
-                         <TableCell align="right">Amount</TableCell>
-                         <TableCell>Risk Level</TableCell>
-                         <TableCell>Severity</TableCell>
-                         <TableCell>Document Number</TableCell>
-                         <TableCell align="center">Actions</TableCell>
+                        <TableCell>Transaction ID</TableCell>
+                        <TableCell>User</TableCell>
+                        <TableCell>Account</TableCell>
+                        <TableCell>Days Difference</TableCell>
+                        <TableCell align="right">Amount</TableCell>
+                        <TableCell>Risk Level</TableCell>
+                        <TableCell align="center">Actions</TableCell>
                        </TableRow>
                      </TableHead>
                     <TableBody>
@@ -1453,22 +1434,7 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
                                }}
                              />
                            </TableCell>
-                           <TableCell sx={{ py: 2 }}>
-                             <Typography variant="body2" sx={{ 
-                               color: '#6c757d',
-                               fontSize: '0.875rem'
-                             }}>
-                               {entry.posting_date ? new Date(entry.posting_date).toLocaleDateString() : 'N/A'}
-                             </Typography>
-                           </TableCell>
-                           <TableCell sx={{ py: 2 }}>
-                             <Typography variant="body2" sx={{ 
-                               color: '#6c757d',
-                               fontSize: '0.875rem'
-                             }}>
-                               {entry.document_date ? new Date(entry.document_date).toLocaleDateString() : 'N/A'}
-                             </Typography>
-                           </TableCell>
+
                            <TableCell sx={{ py: 2 }}>
                              <Chip 
                                label={`${entry.days_difference || 0} days`} 
@@ -1502,28 +1468,7 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
                                }}
                              />
                            </TableCell>
-                           <TableCell align="center" sx={{ py: 2 }}>
-                             <Chip 
-                               label={entry.backdated_severity?.toUpperCase() || 'N/A'} 
-                               size="small"
-                               sx={{ 
-                                 backgroundColor: entry.backdated_severity === 'CRITICAL' ? '#dc3545' : 
-                                                  entry.backdated_severity === 'HIGH' ? '#fd7e14' : 
-                                                  entry.backdated_severity === 'MEDIUM' ? '#ffc107' : '#28a745',
-                                 color: 'white',
-                                 fontWeight: 600,
-                                 fontSize: '0.75rem'
-                               }}
-                             />
-                           </TableCell>
-                           <TableCell sx={{ py: 2 }}>
-                             <Typography variant="body2" sx={{ 
-                               color: '#6c757d',
-                               fontSize: '0.875rem'
-                             }}>
-                               {entry.document_number || 'N/A'}
-                             </Typography>
-                           </TableCell>
+
                            <TableCell align="center" sx={{ py: 2 }}>
                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                <IconButton
@@ -1908,10 +1853,10 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
         </Alert>
               )}
 
-      <DuplicateDetailDrawer
+      <UnifiedAnomalyDrawer
         open={drawerOpen}
         onClose={handleDrawerClose}
-        duplicate={selectedBackdated}
+        anomaly={selectedBackdated}
         type="Backdated Analysis"
       />
 

@@ -36,7 +36,7 @@ import {
   Receipt,
   List as ListIcon
 } from '@mui/icons-material';
-import { colorScheme, getRiskColor } from '../utils/colorScheme';
+import { colorScheme, getRiskColor, formatCurrency } from '../utils/colorScheme';
 import DetailedRiskAnalysis from './DetailedRiskAnalysis';
 
 export default function ListingDashboard({ sheetData }) {
@@ -58,21 +58,6 @@ export default function ListingDashboard({ sheetData }) {
   const anomaliesStats = sheetData.anomaliesStats;
   const flaggedExpenses = sheetData.flagged_expenses;
   const glChartsData = sheetData.glChartsData;
-
-  // Helper function to format currency
-  const formatCurrency = (amount) => {
-    const num = parseFloat(amount || 0);
-    
-    if (num >= 1000000000000) {
-      return `${(num / 1000000000000).toFixed(1)}T SAR`;
-    } else if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1)}M SAR`;
-    } else if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}K SAR`;
-    } else {
-      return `${num.toFixed(0)} SAR`;
-    }
-  };
 
   // Helper function to format date
   const formatDate = (dateString) => {

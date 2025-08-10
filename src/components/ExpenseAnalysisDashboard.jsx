@@ -40,7 +40,7 @@ import {
   Business,
   Receipt
 } from '@mui/icons-material';
-import { colorScheme, getRiskColor } from '../utils/colorScheme';
+import { colorScheme, getRiskColor, formatCurrency } from '../utils/colorScheme';
 import axios from 'axios';
 
 // Import chart widgets
@@ -175,21 +175,6 @@ export default function ExpenseAnalysisDashboard({ sheetData, fileId }) {
 
 
 console.log(sheetData)
-
-  // Helper function to format currency
-  const formatCurrency = (amount) => {
-    const num = parseFloat(amount || 0);
-    
-    if (num >= 1000000000000) {
-      return `${(num / 1000000000000).toFixed(1)}T SAR`;
-    } else if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1)}M SAR`;
-    } else if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}K SAR`;
-    } else {
-      return `${num.toFixed(0)} SAR`;
-    }
-  };
 
   // Helper function to format date
   const formatDate = (dateString) => {

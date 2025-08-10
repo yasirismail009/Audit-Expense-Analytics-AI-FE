@@ -1,6 +1,6 @@
 import React from 'react';
-import { Card, CardContent, Typography, Box, Grid, Divider } from '@mui/material';
-import { colorScheme } from '../../utils/colorScheme';
+import { Card, CardContent, Typography, Grid, Box } from '@mui/material';
+import { colorScheme, formatCurrency } from '../../utils/colorScheme';
 
 export default function BasicMetricsWidget({ basicMetrics }) {
   if (!basicMetrics) {
@@ -25,15 +25,6 @@ export default function BasicMetricsWidget({ basicMetrics }) {
     smallest_expense,
     date_range_days
   } = basicMetrics;
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'SAR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
 
   const metrics = [
     {

@@ -17,7 +17,7 @@ import {
   Error as ErrorIcon,
   Info as InfoIcon
 } from '@mui/icons-material';
-import { getRiskColor } from '../../utils/colorScheme';
+import { colorScheme, getRiskColor, formatCurrency } from '../../utils/colorScheme';
 
   // Import Recharts for custom charts
 import { 
@@ -46,20 +46,6 @@ export default function UserAnalysisDashboard({ data }) {
 
   // Extract currency from data or use default
   const currency = data?.currency || data?.file_info?.currency || 'SAR';
-
-  const formatCurrency = (amount) => {
-    const num = parseFloat(amount || 0);
-    
-    if (num >= 1000000000000) {
-      return `${(num / 1000000000000).toFixed(1)}T ${currency}`;
-    } else if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1)}M ${currency}`;
-    } else if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}K ${currency}`;
-    } else {
-      return `${num.toFixed(0)} ${currency}`;
-    }
-  };
 
   // Prepare chart data
   const userAmountsData = Object.entries(chartData.user_amounts || {}).map(([user, amount]) => ({

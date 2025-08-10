@@ -22,24 +22,9 @@ import {
   AccountBalance as AccountIcon
 } from '@mui/icons-material';
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart } from 'recharts';
-import { getRiskColor, getColorByIndex } from '../../../utils/colorScheme';
+import { getRiskColor, formatCurrency,getColorByIndex } from '../../../utils/colorScheme';
 
 export default function ColorCodedDuplicateList({ data, currency = 'SAR' }) {
-  // Helper function to format currency
-  const formatCurrency = (amount) => {
-    const num = parseFloat(amount || 0);
-    
-    if (num >= 1000000000000) {
-      return `${(num / 1000000000000).toFixed(1)}T ${currency}`;
-    } else if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1)}M ${currency}`;
-    } else if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}K ${currency}`;
-    } else {
-      return `${num.toFixed(0)} ${currency}`;
-    }
-  };
-
   if (!data || !data.duplicates || data.duplicates.length === 0) {
     return null;
   }

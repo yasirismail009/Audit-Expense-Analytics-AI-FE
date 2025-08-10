@@ -1,24 +1,9 @@
 import React from 'react';
 import { Card, CardContent, Typography, Box } from '@mui/material';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { colorScheme, formatCurrency } from '../../utils/colorScheme';
 
 export default function DuplicateUserChart({ data, currency = 'SAR' }) {
-  // Helper function to format currency
-  const formatCurrency = (amount) => {
-    const num = parseFloat(amount || 0);
-    
-    if (num >= 1000000000000) {
-      return `${(num / 1000000000000).toFixed(1)}T ${currency}`;
-    } else if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1)}M ${currency}`;
-    } else if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}K ${currency}`;
-    } else {
-      return `${num.toFixed(0)} ${currency}`;
-    }
-  };
-
-  // Check for new API response structure first, then fallback to old structure
   const chartData = data?.visualizations?.slicer_filters?.users ? {
     labels: data.visualizations.slicer_filters.users,
     data: data.visualizations.slicer_filters.users.map(user => {
@@ -105,7 +90,7 @@ export default function DuplicateUserChart({ data, currency = 'SAR' }) {
             Count: {data.duplicateCount}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Amount: {formatCurrency(data.totalAmount)}
+            Amount: {formatCurrency(data.totalAmount, currency)}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Types: {data.duplicateTypes}

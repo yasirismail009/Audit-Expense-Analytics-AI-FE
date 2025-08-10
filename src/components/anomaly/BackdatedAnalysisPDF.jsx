@@ -12,6 +12,7 @@ import AnomaliesDistributionChart from '../charts/AnomaliesDistributionChart';
 
 // Import Recharts for custom gradient charts
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Legend, Area, AreaChart } from 'recharts';
+import { formatCurrency } from '../../utils/colorScheme';
 
 const RiskValue = {
   1: "Low",
@@ -87,19 +88,6 @@ class ErrorBoundary extends React.Component {
 
 // Fallback Chart Content with Simple HTML Visualization
 const FallbackChartContent = ({ title, data, currency = 'SAR' }) => {
-  const formatCurrency = (amount) => {
-    const num = parseFloat(amount || 0);
-    if (num >= 1000000000000) {
-      return `${(num / 1000000000000).toFixed(1)}T ${currency}`;
-    } else if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1)}M ${currency}`;
-    } else if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}K ${currency}`;
-    } else {
-      return `${num.toFixed(0)} ${currency}`;
-    }
-  };
-
   // Create simple HTML-based chart visualization
   const renderSimpleChart = () => {
     if (!data || typeof data !== 'object') {
@@ -137,7 +125,7 @@ const FallbackChartContent = ({ title, data, currency = 'SAR' }) => {
                 fontSize: '11px'
               }}>
                 <span style={{ fontWeight: 'bold' }}>{key}</span>
-                <span>{formatCurrency(numericValue)}</span>
+                <span>{formatCurrency(numericValue, currency)}</span>
               </div>
               <div style={{
                 width: '100%',
@@ -194,21 +182,6 @@ const BackdatedAnalysisPDF = ({
   currency = 'SAR'
 }) => {
   const printRef = useRef();
-
-  // Helper function to format currency
-  const formatCurrency = (amount) => {
-    const num = parseFloat(amount || 0);
-    
-    if (num >= 1000000000000) {
-      return `${(num / 1000000000000).toFixed(1)}T ${currency}`;
-    } else if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1)}M ${currency}`;
-    } else if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}K ${currency}`;
-    } else {
-      return `${num.toFixed(0)} ${currency}`;
-    }
-  };
 
   // Helper function to format date
   const formatDate = (dateString) => {

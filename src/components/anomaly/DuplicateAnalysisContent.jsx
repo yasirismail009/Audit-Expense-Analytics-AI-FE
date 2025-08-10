@@ -41,9 +41,9 @@ import {
 } from '@mui/icons-material';
 import DuplicateAnalysisDashboard from '../charts/DuplicateAnalysisDashboard';
 import ColorCodedDuplicateList from './shared/ColorCodedDuplicateList';
-import DuplicateDetailDrawer from '../FlaggedExpenseDrawer';
+import UnifiedAnomalyDrawer from '../FlaggedExpenseDrawer';
 import DuplicateAnalysisPDF from './DuplicateAnalysisPDF';
-import { getRiskColor } from '../../utils/colorScheme';
+import { getRiskColor, formatCurrency } from '../../utils/colorScheme';
 
 // Import chart components
 import DuplicateTypeChart from '../charts/DuplicateTypeChart';
@@ -80,28 +80,7 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
   };
 
   const handleDrawerOpen = (duplicate) => {
-    // Transform the duplicate data to match the expected drawer format
-    const transformedDuplicate = {
-      type: duplicate.duplicate_type || 'Unknown Type',
-      criteria: duplicate.duplicate_type_name || 'No criteria provided',
-      risk_score: duplicate.risk_score || 0,
-      amount: duplicate.amount || 0,
-      count: 1, // Single transaction per entry
-      gl_account: duplicate.account,
-      user_name: duplicate.user,
-      posting_date: duplicate.posting_date,
-      // Add transaction details for the drawer
-      transaction_id: duplicate.transaction_id,
-      document_number: duplicate.document_number,
-      duplicate_type: duplicate.duplicate_type,
-      duplicate_severity: duplicate.duplicate_severity,
-      matching_fields: duplicate.matching_fields,
-      similarity_score: duplicate.similarity_score,
-      is_high_value: duplicate.is_high_value,
-      amount_category: duplicate.amount_category,
-      duplicate_group_id: duplicate.duplicate_group_id
-    };
-    setSelectedDuplicate(transformedDuplicate);
+    setSelectedDuplicate(duplicate);
     setDrawerOpen(true);
   };
 
@@ -128,21 +107,6 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
       'type_6': 'Account Number + Effective Date + Posted Date + User + Source + Amount'
     };
     return typeDescriptions[type] || 'Unknown Type';
-  };
-
-  // Helper function to format currency
-  const formatCurrency = (amount) => {
-    const num = parseFloat(amount || 0);
-    
-    if (num >= 1000000000000) {
-      return `${(num / 1000000000000).toFixed(1)}T ${currency}`;
-    } else if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1)}M ${currency}`;
-    } else if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}K ${currency}`;
-    } else {
-      return `${num.toFixed(0)} ${currency}`;
-    }
   };
 
   // API call to fetch duplicate entries listing
@@ -224,42 +188,36 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
     total_transactions: summary.total_duplicates * 2 || 0, // Each duplicate has 2 transactions
     total_duplicate_amount: summary.total_amount || 0,
     avg_duplicate_amount: summary.total_amount ? summary.total_amount / summary.total_duplicates : 0,
-    avg_risk_score: 0 // Calculate from detailed results
+    avg_risk_score: summary.overall_risk_score || 0
   };
   
   const riskAssessment = {
-    risk_level: Object.keys(summary.risk_distribution || {}).length > 0 ? 
-      Object.keys(summary.risk_distribution).find(level => summary.risk_distribution[level] > 0)?.toUpperCase() || 'LOW' : 'LOW',
+    risk_level: summary.overall_risk_level || 'LOW',
     risk_distribution: summary.risk_distribution || {}
   };
   
+  // Map chart data from new structure
   const chartData = {
     duplicate_types_distribution: {
-      labels: Object.keys(visualizations.chart_data?.duplicate_distribution || {}).filter(type => 
-        visualizations.chart_data.duplicate_distribution[type] > 0
+      labels: Object.keys(detailedResults.duplicate_by_type || {}).filter(type => 
+        detailedResults.duplicate_by_type[type] && detailedResults.duplicate_by_type[type].length > 0
       ),
-      data: Object.keys(visualizations.chart_data?.duplicate_distribution || {}).filter(type => 
-        visualizations.chart_data.duplicate_distribution[type] > 0
-      ).map(type => visualizations.chart_data.duplicate_distribution[type]),
+      data: Object.keys(detailedResults.duplicate_by_type || {}).filter(type => 
+        detailedResults.duplicate_by_type[type] && detailedResults.duplicate_by_type[type].length > 0
+      ).map(type => detailedResults.duplicate_by_type[type].length),
       colors: ['#925a9b', '#e74c3c', '#f39c12', '#27ae60', '#3498db', '#9b59b6']
     },
     duplicate_activity_by_user: {
-      labels: visualizations.slicer_filters?.users || [],
-      data: visualizations.slicer_filters?.users?.map(user => {
-        const userDuplicates = detailedResults.duplicate_entries?.filter(entry => 
-          entry.transaction1.user === user || entry.transaction2.user === user
-        ) || [];
-        return userDuplicates.length;
-      }) || []
+      labels: Object.keys(detailedResults.duplicate_patterns?.user_activity_patterns || {}),
+      data: Object.keys(detailedResults.duplicate_patterns?.user_activity_patterns || {}).map(user => 
+        detailedResults.duplicate_patterns.user_activity_patterns[user].count || 0
+      )
     },
     financial_statement_line_breakdown: {
-      labels: visualizations.slicer_filters?.accounts || [],
-      data: visualizations.slicer_filters?.accounts?.map(account => {
-        const accountDuplicates = detailedResults.duplicate_entries?.filter(entry => 
-          entry.transaction1.account === account || entry.transaction2.account === account
-        ) || [];
-        return accountDuplicates.length;
-      }) || []
+      labels: Object.keys(detailedResults.duplicate_patterns?.account_patterns || {}),
+      data: Object.keys(detailedResults.duplicate_patterns?.account_patterns || {}).map(account => 
+        detailedResults.duplicate_patterns.account_patterns[account].count || 0
+      )
     }
   };
   
@@ -275,9 +233,8 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
   const totalDuplicates = summaryStats.duplicate_transactions || 0;
   const totalTransactions = summaryStats.total_transactions || 0;
   
-  // Calculate average risk score from duplicate entries
-  const overallRiskScore = duplicateEntries.length > 0 ? 
-    duplicateEntries.reduce((sum, entry) => sum + (entry.risk_score || 0), 0) / duplicateEntries.length : 0;
+  // Use the overall risk score from the API response
+  const overallRiskScore = summary.overall_risk_score || 0;
   
   const riskLevel = riskAssessment.risk_level || 'LOW';
   return (
@@ -667,7 +624,8 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
             {chartData.duplicate_types_distribution.labels.map((type, index) => {
               const count = chartData.duplicate_types_distribution.data[index] || 0;
               const color = chartData.duplicate_types_distribution.colors[index] || '#925a9b';
-              const duplicateEntry = duplicateEntries.find(entry => entry.duplicate_type === type);
+              // Since the new response doesn't have duplicate_type, we'll use the first entry for this type
+              const duplicateEntry = duplicateEntries[index] || duplicateEntries[0];
               const amount = duplicateEntry ? 
                 (duplicateEntry.transaction1.amount + duplicateEntry.transaction2.amount) : 0;
               const transactions = duplicateEntry ? 2 : 0;
@@ -844,13 +802,13 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
                   data={{
                     ...data,
                     duplicates: duplicateEntries.map((entry, index) => ({
-                      type: entry.duplicate_type,
+                      type: entry.duplicate_type || `Type ${index + 1}`,
                       amount: entry.transaction1.amount + entry.transaction2.amount,
                       count: 2,
-                      risk_score: entry.risk_score,
-                      criteria: entry.duplicate_type_name,
+                      risk_score: entry.risk_level === 'HIGH' ? 70 : entry.risk_level === 'MEDIUM' ? 50 : 30,
+                      criteria: `Account: ${entry.transaction1.account}, Amount: ${entry.transaction1.amount}`,
                       gl_account: entry.transaction1.account,
-                      duplicate_type: entry.duplicate_type,
+                      duplicate_type: entry.duplicate_type || `Type ${index + 1}`,
                       transactions: 2,
                       debit_amount: entry.transaction1.amount,
                       credit_amount: entry.transaction2.amount
@@ -906,7 +864,8 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
                         <TableBody>
                           {chartData.duplicate_types_distribution.labels.map((type, index) => {
                             const count = chartData.duplicate_types_distribution.data[index] || 0;
-                            const duplicateEntry = duplicateEntries.find(entry => entry.duplicate_type === type);
+                            // Since the new response doesn't have duplicate_type, we'll use the first entry for this type
+                            const duplicateEntry = duplicateEntries[index] || duplicateEntries[0];
                             const amount = duplicateEntry ? 
                               (duplicateEntry.transaction1.amount + duplicateEntry.transaction2.amount) : 0;
                             const transactions = duplicateEntry ? 2 : 0;
@@ -1727,18 +1686,12 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
                           letterSpacing: '0.5px'
                         }
                       }}>
-                                                 <TableCell>Transaction ID</TableCell>
-                         <TableCell>Type</TableCell>
-                         <TableCell>User</TableCell>
-                         <TableCell>Account</TableCell>
-                         <TableCell>Posting Date</TableCell>
-                         <TableCell>Transaction Details</TableCell>
-                         <TableCell>Group ID</TableCell>
-                         <TableCell>Similarity Score</TableCell>
-                         <TableCell align="right">Amount</TableCell>
-                         <TableCell>Risk Level</TableCell>
-                         <TableCell>Severity</TableCell>
-                         <TableCell align="center">Actions</TableCell>
+                        <TableCell>Transaction ID</TableCell>
+                        <TableCell>User</TableCell>
+                        <TableCell>Account</TableCell>
+                        <TableCell align="right">Amount</TableCell>
+                        <TableCell>Risk Level</TableCell>
+                        <TableCell align="center">Actions</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -1756,46 +1709,34 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
                             }
                           }}
                         >
-                                                     <TableCell sx={{ py: 2 }}>
-                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                               <Avatar sx={{ 
-                                 width: 32, 
-                                 height: 32, 
-                                 backgroundColor: '#925a9b',
-                                 fontSize: '0.875rem',
-                                 fontWeight: 600
-                               }}>
-                                 {entry.transaction_id?.charAt(0) || 'T'}
-                               </Avatar>
-                               <Box>
-                                 <Typography variant="body2" sx={{ 
-                                   fontWeight: 600, 
-                                   color: '#2c3e50',
-                                   fontSize: '0.875rem'
-                                 }}>
-                                   {entry.transaction_id || `Transaction-${index + 1}`}
-                                 </Typography>
-                                 <Typography variant="caption" sx={{ 
-                                   color: '#6c757d',
-                                   fontSize: '0.75rem'
-                                 }}>
-                                   API Entry #{index + 1}
-                                 </Typography>
-                               </Box>
-                             </Box>
-                           </TableCell>
-                                                     <TableCell sx={{ py: 2 }}>
-                             <Chip 
-                               label={entry.duplicate_type?.toUpperCase() || 'N/A'}
-                               size="small"
-                               sx={{ 
-                                 backgroundColor: entry.duplicate_type ? '#925a9b' : '#6c757d',
-                                 color: 'white',
-                                 fontWeight: 600,
-                                 fontSize: '0.75rem'
-                               }}
-                             />
-                           </TableCell>
+                          <TableCell sx={{ py: 2 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                              <Avatar sx={{ 
+                                width: 32, 
+                                height: 32, 
+                                backgroundColor: '#925a9b',
+                                fontSize: '0.875rem',
+                                fontWeight: 600
+                              }}>
+                                {entry.transaction_id?.charAt(0) || 'T'}
+                              </Avatar>
+                              <Box>
+                                <Typography variant="body2" sx={{ 
+                                  fontWeight: 600, 
+                                  color: '#2c3e50',
+                                  fontSize: '0.875rem'
+                                }}>
+                                  {entry.transaction_id || `Transaction-${index + 1}`}
+                                </Typography>
+                                <Typography variant="caption" sx={{ 
+                                  color: '#6c757d',
+                                  fontSize: '0.75rem'
+                                }}>
+                                  {entry.duplicate_type || 'N/A'}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </TableCell>
                           <TableCell sx={{ py: 2 }}>
                             <Typography variant="body2" sx={{ 
                               color: '#6c757d',
@@ -1818,68 +1759,14 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
                                }}
                              />
                            </TableCell>
-                           <TableCell sx={{ py: 2 }}>
-                             <Typography variant="body2" sx={{ 
-                               color: '#6c757d',
-                               fontSize: '0.875rem'
-                             }}>
-                               {entry.posting_date ? new Date(entry.posting_date).toLocaleDateString() : 'N/A'}
-                             </Typography>
-                           </TableCell>
-                                                     <TableCell sx={{ py: 2 }}>
-                             <Box>
-                               <Typography variant="body2" sx={{ 
-                                 color: '#6c757d',
-                                 fontSize: '0.875rem',
-                                 fontWeight: 500
-                               }}>
-                                 {entry.transaction_id || 'N/A'}
-                               </Typography>
-                               <Typography variant="caption" sx={{ 
-                                 color: '#6c757d',
-                                 fontSize: '0.75rem'
-                               }}>
-                                 {entry.amount_formatted || formatCurrency(entry.amount || 0)}
-                               </Typography>
-                             </Box>
-                           </TableCell>
-                           <TableCell sx={{ py: 2 }}>
-                             <Box>
-                               <Typography variant="body2" sx={{ 
-                                 color: '#6c757d',
-                                 fontSize: '0.875rem',
-                                 fontWeight: 500
-                               }}>
-                                 {entry.duplicate_group_id || 'N/A'}
-                               </Typography>
-                               <Typography variant="caption" sx={{ 
-                                 color: '#6c757d',
-                                 fontSize: '0.75rem'
-                               }}>
-                                 Group ID
-                               </Typography>
-                             </Box>
-                           </TableCell>
-                          <TableCell sx={{ py: 2 }}>
-                            <Chip 
-                              label={`${entry.similarity_score || 0}%`} 
-                              size="small"
-                              sx={{ 
-                                backgroundColor: (entry.similarity_score || 0) > 90 ? '#28a745' : 
-                                                 (entry.similarity_score || 0) > 70 ? '#ffc107' : '#dc3545',
-                                color: 'white',
-                                fontWeight: 600,
-                                fontSize: '0.75rem'
-                              }}
-                            />
-                          </TableCell>
+
                                                      <TableCell align="right" sx={{ py: 2 }}>
                              <Typography variant="body2" sx={{ 
                                fontWeight: 700, 
                                color: '#925a9b',
                                fontSize: '0.875rem'
                              }}>
-                               {entry.amount_formatted || formatCurrency(entry.amount || 0)}
+                               {formatCurrency(entry.amount || 0)}
                              </Typography>
                            </TableCell>
                            <TableCell align="center" sx={{ py: 2 }}>
@@ -1894,19 +1781,7 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
                                }}
                              />
                            </TableCell>
-                           <TableCell align="center" sx={{ py: 2 }}>
-                             <Chip 
-                               label={entry.duplicate_severity?.toUpperCase() || 'N/A'} 
-                               size="small"
-                               sx={{ 
-                                 backgroundColor: entry.duplicate_severity === 'HIGH' ? '#dc3545' : 
-                                                  entry.duplicate_severity === 'MEDIUM' ? '#ffc107' : '#28a745',
-                                 color: 'white',
-                                 fontWeight: 600,
-                                 fontSize: '0.75rem'
-                               }}
-                             />
-                           </TableCell>
+
                           <TableCell align="center" sx={{ py: 2 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                               <IconButton
@@ -2089,10 +1964,10 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
         </Alert>
       )}
 
-      <DuplicateDetailDrawer
+      <UnifiedAnomalyDrawer
         open={drawerOpen}
         onClose={handleDrawerClose}
-        duplicate={selectedDuplicate}
+        anomaly={selectedDuplicate}
         type="Duplicate Analysis"
       />
 

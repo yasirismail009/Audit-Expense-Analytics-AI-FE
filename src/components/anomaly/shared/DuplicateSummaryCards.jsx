@@ -16,27 +16,12 @@ import {
   AccountBalance as AccountIcon,
   People as PeopleIcon
 } from '@mui/icons-material';
-import { getRiskColor, getColorByIndex } from '../../../utils/colorScheme';
+import { colorScheme, getRiskColor, formatCurrency } from '../../../utils/colorScheme';
 
 export default function DuplicateSummaryCards({ data, distributionData, anomalySummary, currency = 'SAR' }) {
   if (!data) {
     return null;
   }
-
-  // Helper function to format currency
-  const formatCurrency = (amount) => {
-    const num = parseFloat(amount || 0);
-    
-    if (num >= 1000000000000) {
-      return `${(num / 1000000000000).toFixed(1)}T ${currency}`;
-    } else if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1)}M ${currency}`;
-    } else if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}K ${currency}`;
-    } else {
-      return `${num.toFixed(0)} ${currency}`;
-    }
-  };
 
   const getRiskLevel = (score) => {
     if (score >= 80) return 'CRITICAL';
@@ -71,7 +56,7 @@ export default function DuplicateSummaryCards({ data, distributionData, anomalyS
     },
     {
       title: 'Total Amount',
-      value: formatCurrency(totalAmount),
+      value: formatCurrency(totalAmount, currency),
       icon: <AccountIcon />,
       color: '#1565c0',
       bgColor: '#e3f2fd',

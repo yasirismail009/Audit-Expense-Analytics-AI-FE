@@ -34,6 +34,7 @@ import {
   Visibility as VisibilityIcon
 } from '@mui/icons-material';
 import { getRiskColor, formatCurrency } from '../../utils/colorScheme';
+import UnifiedAnomalyDrawer from '../FlaggedExpenseDrawer';
 
 // Import chart components
 import DuplicateTypeChart from '../charts/DuplicateTypeChart';
@@ -62,6 +63,10 @@ export default function HolidayAnalysisContent({ data, distributionData, anomaly
     currentPage: 1,
     pageSize: 10
   });
+
+  // Drawer state
+  const [selectedHoliday, setSelectedHoliday] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // API call to fetch holiday entries listing
   const fetchHolidayListing = async (page = 1, pageSize = 10) => {
@@ -126,6 +131,17 @@ export default function HolidayAnalysisContent({ data, distributionData, anomaly
 
   const handlePageSizeChange = (newPageSize) => {
     fetchHolidayListing(1, newPageSize);
+  };
+
+  // Drawer handlers
+  const handleDrawerOpen = (holiday) => {
+    setSelectedHoliday(holiday);
+    setDrawerOpen(true);
+  };
+
+  const handleDrawerClose = () => {
+    setDrawerOpen(false);
+    setSelectedHoliday(null);
   };
 
   // Extract currency from data or use default
@@ -758,8 +774,6 @@ export default function HolidayAnalysisContent({ data, distributionData, anomaly
                       <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
                         <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>User</TableCell>
                         <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>Account</TableCell>
-                        <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>Posting Date</TableCell>
-                        <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>Transaction ID</TableCell>
                         <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>Holiday Name</TableCell>
                         <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>Amount</TableCell>
                         <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>Risk Level</TableCell>
@@ -791,31 +805,7 @@ export default function HolidayAnalysisContent({ data, distributionData, anomaly
                               }}
                             />
                           </TableCell>
-                          <TableCell sx={{ py: 2 }}>
-                            <Typography variant="body2" sx={{ 
-                              color: '#6c757d',
-                              fontSize: '0.875rem'
-                            }}>
-                              {entry.posting_date ? new Date(entry.posting_date).toLocaleDateString() : 'N/A'}
-                            </Typography>
-                          </TableCell>
-                          <TableCell sx={{ py: 2 }}>
-                            <Box>
-                              <Typography variant="body2" sx={{ 
-                                color: '#6c757d',
-                                fontSize: '0.875rem',
-                                fontWeight: 500
-                              }}>
-                                {entry.transaction_id || 'N/A'}
-                              </Typography>
-                              <Typography variant="caption" sx={{ 
-                                color: '#6c757d',
-                                fontSize: '0.75rem'
-                              }}>
-                                {entry.document_number || 'No Doc'}
-                              </Typography>
-                            </Box>
-                          </TableCell>
+
                           <TableCell sx={{ py: 2 }}>
                             <Chip 
                               label={entry.holiday_name || 'Unknown'} 
@@ -861,6 +851,7 @@ export default function HolidayAnalysisContent({ data, distributionData, anomaly
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                               <IconButton
                                 size="small"
+                                onClick={() => handleDrawerOpen(entry)}
                                 sx={{ 
                                   color: '#925a9b',
                                   '&:hover': {
@@ -1488,10 +1479,18 @@ export default function HolidayAnalysisContent({ data, distributionData, anomaly
               )}
             </Grid>
           </Box>
-        )}
+                  )}
           </CardContent>
         </Card>
       </Box>
+
+      {/* Unified Anomaly Drawer */}
+      <UnifiedAnomalyDrawer
+        open={drawerOpen}
+        onClose={handleDrawerClose}
+        anomaly={selectedHoliday}
+        type="Holiday Analysis"
+      />
     </Box>
   );
 } 

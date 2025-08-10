@@ -39,15 +39,18 @@ import {
   Timeline as TimelineIcon,
   AccountBalance as AccountBalanceIcon
 } from '@mui/icons-material';
-import { getRiskColor } from '../../utils/colorScheme';
+import { colorScheme, getRiskColor, formatCurrency } from '../../utils/colorScheme';
 
 // Import chart dashboard
 import UnusualDaysDashboard from '../charts/UnusualDaysDashboard';
 
 // Import PDF component
 import UnusualDaysAnalysisPDF from './UnusualDaysAnalysisPDF';
+import UnifiedAnomalyDrawer from '../FlaggedExpenseDrawer';
 
 export default function UnusualDaysAnalysisContent({ data, distributionData, anomalySummary, sheetId }) {
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [unusualDaysListing, setUnusualDaysListing] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -68,6 +71,49 @@ export default function UnusualDaysAnalysisContent({ data, distributionData, ano
     setPdfModalOpen(false);
   };
 
+  const handleDrawerOpen = (item) => {
+    // Handle both user data (from user patterns table) and transaction data (from listing table)
+    if (item.user && item.total_transactions) {
+      // User data from user patterns table
+      const transformedUser = {
+        user: item.user,
+        total_transactions: item.total_transactions,
+        total_amount: item.total_amount,
+        average_amount: item.average_amount,
+        high_value_count: item.high_value_count,
+        high_value_percentage: item.high_value_percentage,
+        days_activity: item.days_activity,
+        risk_level: getRiskLevel(item.high_value_percentage || 0),
+        risk_score: item.high_value_percentage || 0
+      };
+      setSelectedUser(transformedUser);
+    } else {
+      // Transaction data from listing table
+      const transformedTransaction = {
+        transaction_id: item.transaction_id,
+        user: item.user,
+        account: item.account,
+        amount: item.amount,
+        posting_date: item.posting_date,
+        document_number: item.document_number,
+        day_of_week: item.day_of_week,
+        day_type: item.day_type,
+        is_high_value: item.is_high_value,
+        risk_level: item.risk_level || getRiskLevel(item.risk_score || 0),
+        risk_score: item.risk_score || 0,
+        amount_formatted: item.amount_formatted,
+        amount_category: item.amount_category
+      };
+      setSelectedUser(transformedTransaction);
+    }
+    setDrawerOpen(true);
+  };
+
+  const handleDrawerClose = () => {
+    setDrawerOpen(false);
+    setSelectedUser(null);
+  };
+
   // Extract currency from data or use default
   const currency = data?.currency || data?.file_info?.currency || 'SAR';
 
@@ -76,20 +122,6 @@ export default function UnusualDaysAnalysisContent({ data, distributionData, ano
     if (score >= 60) return 'HIGH';
     if (score >= 40) return 'MEDIUM';
     return 'LOW';
-  };
-
-  const formatCurrency = (amount) => {
-    const num = parseFloat(amount || 0);
-    
-    if (num >= 1000000000000) {
-      return `${(num / 1000000000000).toFixed(1)}T ${currency}`;
-    } else if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1)}M ${currency}`;
-    } else if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}K ${currency}`;
-    } else {
-      return `${num.toFixed(0)} ${currency}`;
-    }
   };
 
   const getSeverityColor = (severity) => {
@@ -969,15 +1001,12 @@ export default function UnusualDaysAnalysisContent({ data, distributionData, ano
                   <TableHead>
                     <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
                       <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>Transaction ID</TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>Document Number</TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>Posting Date</TableCell>
                       <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>User</TableCell>
                       <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>Account</TableCell>
                       <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>Amount</TableCell>
                       <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>Day of Week</TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>Day Type</TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>High Value</TableCell>
                       <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>Risk Level</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -992,19 +1021,6 @@ export default function UnusualDaysAnalysisContent({ data, distributionData, ano
                           }}>
                             {transaction.transaction_id ? 
                               `${transaction.transaction_id.substring(0, 8)}...` : 
-                              'N/A'
-                            }
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" sx={{ color: '#2c3e50' }}>
-                            {transaction.document_number || 'N/A'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" sx={{ fontWeight: 600, color: '#2c3e50' }}>
-                            {transaction.posting_date ? 
-                              new Date(transaction.posting_date).toLocaleDateString() : 
                               'N/A'
                             }
                           </Typography>
@@ -1070,30 +1086,6 @@ export default function UnusualDaysAnalysisContent({ data, distributionData, ano
                         </TableCell>
                         <TableCell>
                           <Chip 
-                            label={transaction.day_type || 'Unknown'} 
-                            size="small"
-                            sx={{
-                              backgroundColor: transaction.day_type === 'WEEKEND' ? '#dc3545' : '#6c757d',
-                              color: 'white',
-                              fontWeight: 600,
-                              fontSize: '0.7rem'
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Chip 
-                            label={transaction.is_high_value ? 'Yes' : 'No'} 
-                            size="small"
-                            sx={{
-                              backgroundColor: transaction.is_high_value ? '#dc3545' : '#28a745',
-                              color: 'white',
-                              fontWeight: 600,
-                              fontSize: '0.7rem'
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Chip 
                             label={transaction.risk_level || getRiskLevel(transaction.risk_score || 0)} 
                             size="small"
                             sx={{
@@ -1103,6 +1095,23 @@ export default function UnusualDaysAnalysisContent({ data, distributionData, ano
                               fontSize: '0.7rem'
                             }}
                           />
+                        </TableCell>
+                        <TableCell align="center" sx={{ py: 2 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDrawerOpen(transaction)}
+                              sx={{ 
+                                color: '#925a9b',
+                                '&:hover': {
+                                  backgroundColor: '#925a9b',
+                                  color: 'white'
+                                }
+                              }}
+                            >
+                              <VisibilityIcon />
+                            </IconButton>
+                          </Box>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -1264,10 +1273,7 @@ export default function UnusualDaysAnalysisContent({ data, distributionData, ano
                     <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>User</TableCell>
                     <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>Total Transactions</TableCell>
                     <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>Total Amount</TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>Average Amount</TableCell>
                     <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>High Value %</TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>Saturday Activity</TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: '#2c3e50' }}>Sunday Activity</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -1300,51 +1306,10 @@ export default function UnusualDaysAnalysisContent({ data, distributionData, ano
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" sx={{ color: '#2c3e50' }}>
-                          {formatCurrency(safeParseFloat(user?.average_amount, 0))}
+                          {safeParseFloat(user?.high_value_percentage, 0).toFixed(1)}%
                         </Typography>
                       </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <LinearProgress
-                            variant="determinate"
-                            value={safeParseFloat(user?.high_value_percentage, 0)}
-                            sx={{ 
-                              width: 60, 
-                              mr: 1,
-                              height: 6,
-                              borderRadius: 3,
-                              backgroundColor: '#e9ecef',
-                              '& .MuiLinearProgress-bar': {
-                                bgcolor: getRiskColor(getRiskLevel(safeParseFloat(user?.high_value_percentage, 0))),
-                                borderRadius: 3
-                              }
-                            }}
-                          />
-                          <Typography variant="body2" sx={{ fontWeight: 600, color: '#2c3e50' }}>
-                            {safeParseFloat(user?.high_value_percentage, 0).toFixed(1)}%
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="body2" sx={{ fontWeight: 600, color: '#2c3e50' }}>
-                            {safeParseFloat(user?.days_activity?.Saturday?.count, 0)}
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: '#6c757d' }}>
-                            {formatCurrency(safeParseFloat(user?.days_activity?.Saturday?.amount, 0))}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="body2" sx={{ fontWeight: 600, color: '#2c3e50' }}>
-                            {safeParseFloat(user?.days_activity?.Sunday?.count, 0)}
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: '#6c757d' }}>
-                            {formatCurrency(safeParseFloat(user?.days_activity?.Sunday?.amount, 0))}
-                          </Typography>
-                        </Box>
-                      </TableCell>
+                     
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1467,6 +1432,14 @@ export default function UnusualDaysAnalysisContent({ data, distributionData, ano
           )}
         </CardContent>
       </Card>
+
+      {/* Unified Anomaly Drawer */}
+      <UnifiedAnomalyDrawer
+        open={drawerOpen}
+        onClose={handleDrawerClose}
+        anomaly={selectedUser}
+        type="Unusual Days Analysis"
+      />
 
       {/* PDF Modal */}
       <UnusualDaysAnalysisPDF

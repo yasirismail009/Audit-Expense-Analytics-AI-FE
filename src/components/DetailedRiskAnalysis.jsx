@@ -301,7 +301,7 @@ console.log("riskAnalysis", riskAnalysis);
                             {key.replace(/_/g, ' ')}
                           </Typography>
                           <Chip
-                            label={`${factor.count} (${factor.percentage?.toFixed(1)}%)`}
+                            label={`${factor.count} (${factor.percentage?.toFixed(2)}%)`}
                             size="small"
                             sx={{
                               backgroundColor: factor.count > 0 ? '#d32f2f' : '#388e3c',

@@ -1,19 +1,9 @@
 import React from 'react';
 import { Card, CardContent, Typography, Box } from '@mui/material';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { formatCurrency } from '../../utils/colorScheme';
 
-export default function HolidayDistributionLineChart({ data, currency = 'SAR' }) {
-  // Helper function to format currency
-  const formatCurrency = (value) => {
-    if (typeof value !== 'number') return '0';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
-
+export default function HolidayDistributionLineChart({ data }) {
   // Transform the distribution data into chart format
   const transformData = () => {
     if (!data) return [];
@@ -29,9 +19,9 @@ export default function HolidayDistributionLineChart({ data, currency = 'SAR' })
     return chartData;
   };
 
-  const chartData = transformData();
+  const areaChartData = transformData();
 
-  if (!chartData || chartData.length === 0) {
+  if (!areaChartData || areaChartData.length === 0) {
     return (
       <Card sx={{ 
         height: 300, 
@@ -66,7 +56,7 @@ export default function HolidayDistributionLineChart({ data, currency = 'SAR' })
         
         <Box sx={{ height: 300, width: '100%' }}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+            <AreaChart data={areaChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.8}/>

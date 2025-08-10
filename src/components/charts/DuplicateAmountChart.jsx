@@ -1,24 +1,9 @@
 import React from 'react';
 import { Card, CardContent, Typography, Box } from '@mui/material';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { colorScheme, formatCurrency } from '../../utils/colorScheme';
 
 export default function DuplicateAmountChart({ data, currency = 'SAR' }) {
-  // Helper function to format currency
-  const formatCurrency = (amount) => {
-    const num = parseFloat(amount || 0);
-    
-    if (num >= 1000000000000) {
-      return `${(num / 1000000000000).toFixed(1)}T ${currency}`;
-    } else if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1)}M ${currency}`;
-    } else if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}K ${currency}`;
-    } else {
-      return `${num.toFixed(0)} ${currency}`;
-    }
-  };
-
-  // Check for new API response structure first, then fallback to old structure
   const chartData = data?.visualizations?.slicer_filters?.amount_ranges ? {
     labels: data.visualizations.slicer_filters.amount_ranges.map(range => {
       // Convert range format to display format (e.g., "0-1000" -> "0-1K SAR")

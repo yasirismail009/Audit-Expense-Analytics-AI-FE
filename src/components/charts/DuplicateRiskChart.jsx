@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, CardContent, Typography, Box } from '@mui/material';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { colorScheme, formatCurrency } from '../../utils/colorScheme';
 
 export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
   // Helper function to get risk level from score
@@ -9,21 +10,6 @@ export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
     if (score >= 70) return 'HIGH';
     if (score >= 40) return 'MEDIUM';
     return 'LOW';
-  };
-
-  // Helper function to format currency
-  const formatCurrency = (amount) => {
-    const num = parseFloat(amount || 0);
-    
-    if (num >= 1000000000000) {
-      return `${(num / 1000000000000).toFixed(1)}T ${currency}`;
-    } else if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1)}M ${currency}`;
-    } else if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}K ${currency}`;
-    } else {
-      return `${num.toFixed(0)} ${currency}`;
-    }
   };
 
   // Check for new API response structure first, then fallback to old structure
@@ -224,7 +210,7 @@ export default function DuplicateRiskChart({ data, currency = 'SAR' }) {
             Count: {data.count}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Amount: {formatCurrency(data.amount)}
+            Amount: {formatCurrency(data.amount, currency)}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Transactions: {data.transactions}

@@ -38,7 +38,7 @@ import {
   Assessment as AssessmentIcon,
   PictureAsPdf as PictureAsPdfIcon
 } from '@mui/icons-material';
-import { getRiskColor } from '../../utils/colorScheme';
+import { colorScheme, getRiskColor, formatCurrency } from '../../utils/colorScheme';
 
 // Import chart components (if needed for future use)
 // import RiskDistributionChart from '../charts/RiskDistributionChart';
@@ -46,7 +46,7 @@ import { getRiskColor } from '../../utils/colorScheme';
 // import BasicMetricsWidget from '../charts/BasicMetricsWidget';
 
 // Import drawer component
-import UserAnalysisDrawer from '../UserAnalysisDrawer';
+import UnifiedAnomalyDrawer from '../FlaggedExpenseDrawer';
 
 // Import dashboard component
 import UserAnalysisDashboard from '../charts/UserAnalysisDashboard';
@@ -138,20 +138,6 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
     if (score >= 60) return 'HIGH';
     if (score >= 40) return 'MEDIUM';
     return 'LOW';
-  };
-
-  const formatCurrency = (amount) => {
-    const num = parseFloat(amount || 0);
-    
-    if (num >= 1000000000000) {
-      return `${(num / 1000000000000).toFixed(1)}T ${currency}`;
-    } else if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1)}M ${currency}`;
-    } else if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}K ${currency}`;
-    } else {
-      return `${num.toFixed(0)} ${currency}`;
-    }
   };
 
   const getSeverityColor = (severity) => {
@@ -865,11 +851,11 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
         </CardContent>
       </Card>
 
-      {/* User Analysis Drawer */}
-      <UserAnalysisDrawer
+      {/* Unified Anomaly Drawer */}
+      <UnifiedAnomalyDrawer
         open={drawerOpen}
         onClose={handleDrawerClose}
-        userData={selectedUser}
+        anomaly={selectedUser}
         type="User Analysis"
       />
 
@@ -986,17 +972,12 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
                           letterSpacing: '0.5px'
                         }
                       }}>
-                                                 <TableCell>User</TableCell>
-                         <TableCell>Transaction Count</TableCell>
-                         <TableCell>Total Amount</TableCell>
-                         <TableCell>Avg Amount</TableCell>
-                         <TableCell>Risk Level</TableCell>
-                         <TableCell>Risk Score</TableCell>
-                         <TableCell>Anomaly Count</TableCell>
-                         <TableCell>Accounts</TableCell>
-                         <TableCell>Activity Category</TableCell>
-                         <TableCell>Severity</TableCell>
-                         <TableCell align="center">Actions</TableCell>
+                        <TableCell>User</TableCell>
+                        <TableCell>Transaction Count</TableCell>
+                        <TableCell>Total Amount</TableCell>
+                        <TableCell>Risk Level</TableCell>
+                        <TableCell>Anomaly Count</TableCell>
+                        <TableCell align="center">Actions</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -1060,15 +1041,7 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
                                {entry.amount_formatted || formatCurrency(entry.total_amount || 0)}
                              </Typography>
                            </TableCell>
-                           <TableCell align="right" sx={{ py: 2 }}>
-                             <Typography variant="body2" sx={{ 
-                               color: '#6c757d',
-                               fontSize: '0.875rem'
-                             }}>
-                               {entry.avg_amount_formatted || formatCurrency(entry.avg_amount || 0)}
-                             </Typography>
-                           </TableCell>
-                                                     <TableCell align="center" sx={{ py: 2 }}>
+                                                      <TableCell align="center" sx={{ py: 2 }}>
                              <Chip 
                                label={entry.risk_level?.toUpperCase() || 'N/A'} 
                                size="small"
@@ -1079,15 +1052,6 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
                                  fontSize: '0.75rem'
                                }}
                              />
-                           </TableCell>
-                                                     <TableCell align="center" sx={{ py: 2 }}>
-                             <Typography variant="body2" sx={{ 
-                               color: '#6c757d',
-                               fontSize: '0.875rem',
-                               fontWeight: 500
-                             }}>
-                               {entry.risk_score || 0}
-                             </Typography>
                            </TableCell>
                            <TableCell align="center" sx={{ py: 2 }}>
                              <Chip 
@@ -1101,50 +1065,7 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
                                }}
                              />
                            </TableCell>
-                                                     <TableCell sx={{ py: 2 }}>
-                             <Box>
-                               <Typography variant="body2" sx={{ 
-                                 color: '#6c757d',
-                                 fontSize: '0.875rem',
-                                 fontWeight: 500
-                               }}>
-                                 {entry.accounts_count || 0} accounts
-                               </Typography>
-                               <Typography variant="caption" sx={{ 
-                                 color: '#6c757d',
-                                 fontSize: '0.75rem'
-                               }}>
-                                 {entry.accounts?.slice(0, 3).join(', ')}
-                                 {entry.accounts?.length > 3 ? '...' : ''}
-                               </Typography>
-                             </Box>
-                           </TableCell>
-                                                     <TableCell align="center" sx={{ py: 2 }}>
-                             <Chip 
-                               label={entry.activity_category?.toUpperCase() || 'N/A'} 
-                               size="small"
-                               sx={{ 
-                                 backgroundColor: entry.activity_category === 'HIGH' ? '#dc3545' : 
-                                                  entry.activity_category === 'MEDIUM' ? '#ffc107' : '#28a745',
-                                 color: 'white',
-                                 fontWeight: 600,
-                                 fontSize: '0.75rem'
-                               }}
-                             />
-                           </TableCell>
-                           <TableCell align="center" sx={{ py: 2 }}>
-                             <Chip 
-                               label={entry.user_severity?.toUpperCase() || 'N/A'} 
-                               size="small"
-                               sx={{ 
-                                 backgroundColor: entry.user_severity === 'HIGH' ? '#dc3545' : 
-                                                  entry.user_severity === 'MEDIUM' ? '#ffc107' : '#28a745',
-                                 color: 'white',
-                                 fontWeight: 600,
-                                 fontSize: '0.75rem'
-                               }}
-                             />
-                           </TableCell>
+
                            <TableCell align="center" sx={{ py: 2 }}>
                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                <IconButton

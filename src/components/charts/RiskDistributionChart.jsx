@@ -89,8 +89,8 @@ export default function RiskDistributionChart({ data, title = "Risk Distribution
               <AreaChart data={chartData} height={200}>
                 <defs>
                   <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.9}/>
-                    <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.1}/>
+                    <stop offset="5%" stopColor="#835090" stopOpacity={0.9}/>
+                    <stop offset="95%" stopColor="#835090" stopOpacity={0.1}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
@@ -112,10 +112,10 @@ export default function RiskDistributionChart({ data, title = "Risk Distribution
                 <Area 
                   type="monotone" 
                   dataKey="value" 
-                  stroke="#8B5CF6"
+                  stroke="#835090"
                   strokeWidth={3}
                   fill="url(#colorGradient)"
-                  dot={{ fill: '#8B5CF6', strokeWidth: 2, r: 4 }}
+                  dot={{ fill: '#835090', strokeWidth: 2, r: 4 }}
                   activeDot={{ r: 6, stroke: '#8B5CF6', strokeWidth: 2, fill: '#8B5CF6' }}
                 />
               </AreaChart>

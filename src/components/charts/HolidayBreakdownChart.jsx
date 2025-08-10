@@ -1,24 +1,9 @@
 import React from 'react';
 import { Card, CardContent, Typography, Box } from '@mui/material';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { getColorByIndex } from '../../utils/colorScheme';
+import { colorScheme, formatCurrency } from '../../utils/colorScheme';
 
 export default function HolidayBreakdownChart({ data, currency = 'SAR' }) {
-  // Helper function to format currency
-  const formatCurrency = (amount) => {
-    const num = parseFloat(amount || 0);
-    
-    if (num >= 1000000000000) {
-      return `${(num / 1000000000000).toFixed(1)}T ${currency}`;
-    } else if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1)}M ${currency}`;
-    } else if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}K ${currency}`;
-    } else {
-      return `${num.toFixed(0)} ${currency}`;
-    }
-  };
-
   // Check for holiday data structure
   const chartData = data?.visualizations?.chart_data?.holiday_breakdown_chart;
 
@@ -41,7 +26,7 @@ export default function HolidayBreakdownChart({ data, currency = 'SAR' }) {
     count: chartData.data[index] || 0,
     amount: 0, // Will be calculated from holiday entries
     transactions: chartData.data[index] || 0,
-    color: getColorByIndex(index)
+    color: colorScheme.chartColors[index % colorScheme.chartColors.length] // Use colorScheme for colors
   }));
   
   // Calculate amounts from holiday entries if available
@@ -75,7 +60,7 @@ export default function HolidayBreakdownChart({ data, currency = 'SAR' }) {
             Count: {data.count}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Amount: {formatCurrency(data.amount)}
+            Amount: {formatCurrency(data.amount, currency)}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Transactions: {data.transactions}

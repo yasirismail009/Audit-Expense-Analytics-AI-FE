@@ -221,7 +221,7 @@ const DuplicateAnalysisPDF = ({
     return date.toLocaleDateString();
   };
 
-  // Extract data from the new API structure
+  // Extract data from the new API structure - Updated to match DuplicateAnalysisContent.jsx
   const fileInfo = data?.file_info || {};
   const analysisInfo = data?.analysis_info || {};
   
@@ -229,42 +229,51 @@ const DuplicateAnalysisPDF = ({
   const summary = data?.summary || {};
   const detailedResults = data?.detailed_results || {};
   const visualizations = data?.visualizations || {};
+  const exportData = data?.export_data || {};
   
   // Map chart data to match DuplicateAnalysisContent.jsx structure
   const chartData = {
     duplicate_types_distribution: {
-      labels: Object.keys(visualizations.chart_data?.duplicate_distribution || {}).filter(type => 
-        visualizations.chart_data.duplicate_distribution[type] > 0
+      labels: Object.keys(detailedResults.duplicate_by_type || {}).filter(type => 
+        detailedResults.duplicate_by_type[type] && detailedResults.duplicate_by_type[type].length > 0
       ),
-      data: Object.keys(visualizations.chart_data?.duplicate_distribution || {}).filter(type => 
-        visualizations.chart_data.duplicate_distribution[type] > 0
-      ).map(type => visualizations.chart_data.duplicate_distribution[type]),
+      data: Object.keys(detailedResults.duplicate_by_type || {}).filter(type => 
+        detailedResults.duplicate_by_type[type] && detailedResults.duplicate_by_type[type].length > 0
+      ).map(type => detailedResults.duplicate_by_type[type].length),
       colors: ['#925a9b', '#e74c3c', '#f39c12', '#27ae60', '#3498db', '#9b59b6']
     },
+    risk_level_distribution: {
+      labels: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+      data: [0, 0, 0, 0], // Will be calculated from duplicate entries
+      colors: ['#40b159', '#ffc516', '#dc3545', '#ff0000']
+    },
     duplicate_activity_by_user: {
-      labels: visualizations.slicer_filters?.users || [],
-      data: visualizations.slicer_filters?.users?.map(user => {
-        const userDuplicates = detailedResults.duplicate_entries?.filter(entry => 
-          entry.transaction1.user === user || entry.transaction2.user === user
-        ) || [];
-        return userDuplicates.length;
-      }) || []
+      labels: Object.keys(detailedResults.duplicate_patterns?.user_activity_patterns || {}),
+      data: Object.keys(detailedResults.duplicate_patterns?.user_activity_patterns || {}).map(user => 
+        detailedResults.duplicate_patterns.user_activity_patterns[user].count || 0
+      )
+    },
+    duplicate_amount_distribution: {
+      labels: ['Low Amount', 'Medium Amount', 'High Amount', 'Critical Amount'],
+      data: [0, 0, 0, 0], // Will be calculated from duplicate entries
+      colors: ['#40b159', '#ffc516', '#dc3545', '#ff0000']
     },
     financial_statement_line_breakdown: {
-      labels: visualizations.slicer_filters?.accounts || [],
-      data: visualizations.slicer_filters?.accounts?.map(account => {
-        const accountDuplicates = detailedResults.duplicate_entries?.filter(entry => 
-          entry.transaction1.account === account || entry.transaction2.account === account
-        ) || [];
-        return accountDuplicates.length;
-      }) || []
+      labels: Object.keys(detailedResults.duplicate_patterns?.account_patterns || {}),
+      data: Object.keys(detailedResults.duplicate_patterns?.account_patterns || {}).map(account => 
+        detailedResults.duplicate_patterns.account_patterns[account].count || 0
+      )
+    },
+    monthly_duplicate_trend: {
+      labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+      data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] // Will be calculated from duplicate entries
     }
   };
   
   const duplicateEntries = detailedResults.duplicate_entries || [];
-  const duplicatePatterns = data?.duplicate_patterns || {};
+  const duplicatePatterns = detailedResults.duplicate_patterns || {};
   
-  // Extract recommendations from the correct path
+  // Extract recommendations from the correct path - Updated to match content structure
   const recommendations = summary.high_priority_recommendations || [];
   const auditImplications = {
     immediate_actions: summary.compliance_issues?.map(issue => issue.description) || []
@@ -277,12 +286,11 @@ const DuplicateAnalysisPDF = ({
     total_transactions: summary.total_duplicates * 2 || 0, // Each duplicate has 2 transactions
     total_duplicate_amount: summary.total_amount || 0,
     avg_duplicate_amount: summary.total_amount ? summary.total_amount / summary.total_duplicates : 0,
-    avg_risk_score: 0 // Calculate from detailed results
+    avg_risk_score: summary.overall_risk_score || 0
   };
   
   const riskAssessment = {
-    risk_level: Object.keys(summary.risk_distribution || {}).length > 0 ? 
-      Object.keys(summary.risk_distribution).find(level => summary.risk_distribution[level] > 0)?.toUpperCase() || 'LOW' : 'LOW',
+    risk_level: summary.overall_risk_level || 'LOW',
     risk_distribution: summary.risk_distribution || {}
   };
   
@@ -290,9 +298,8 @@ const DuplicateAnalysisPDF = ({
   const totalDuplicates = summaryStats.duplicate_transactions || 0;
   const totalTransactions = summaryStats.total_transactions || 0;
   
-  // Calculate average risk score from duplicate entries
-  const overallRiskScore = duplicateEntries.length > 0 ? 
-    duplicateEntries.reduce((sum, entry) => sum + (entry.risk_score || 0), 0) / duplicateEntries.length : 0;
+  // Use the overall risk score from the API response
+  const overallRiskScore = summary.overall_risk_score || 0;
   
   const riskLevel = riskAssessment.risk_level || 'LOW';
 
@@ -532,6 +539,35 @@ const DuplicateAnalysisPDF = ({
 
                     <div className='sections'>
                       <h5 style={{ margin: "10px 0" }}>Duplicate Analysis Overview</h5>
+                      
+                      {/* Analysis Status Alert */}
+                      <div style={{ 
+                        padding: "15px", 
+                        backgroundColor: totalDuplicates > 0 ? "#fff3cd" : "#d4edda", 
+                        border: `1px solid ${totalDuplicates > 0 ? "#ffeaa7" : "#c3e6cb"}`, 
+                        borderRadius: "8px",
+                        marginBottom: "20px"
+                      }}>
+                        <div style={{ 
+                          fontWeight: "bold", 
+                          color: totalDuplicates > 0 ? "#856404" : "#155724",
+                          fontSize: "14px",
+                          marginBottom: "5px"
+                        }}>
+                          {totalDuplicates > 0 
+                            ? `Found ${duplicateEntries.length} duplicate groups involving ${totalDuplicates} transactions`
+                            : "No duplicate transactions found"
+                          }
+                        </div>
+                        {totalDuplicates > 0 && (
+                          <div style={{ 
+                            color: totalDuplicates > 0 ? "#856404" : "#155724",
+                            fontSize: "12px"
+                          }}>
+                            Total amount involved: {formatCurrency(summaryStats.total_duplicate_amount || 0)}
+                          </div>
+                        )}
+                      </div>
                       <div style={{ 
                         padding: "15px", 
                         backgroundColor: "#f8f9fa", 
@@ -620,6 +656,186 @@ const DuplicateAnalysisPDF = ({
 
 
                       <h5 style={{ margin: "20px 0 10px 0" }}>Analysis Summary</h5>
+                      
+                      {/* Top Summary Banner */}
+                      <div style={{ 
+                        padding: "20px", 
+                        backgroundColor: "white", 
+                        border: "1px solid #e9ecef", 
+                        borderRadius: "8px",
+                        marginBottom: "20px",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
+                      }}>
+                        <div style={{ 
+                          display: "grid", 
+                          gridTemplateColumns: "1fr 1fr", 
+                          gap: "20px",
+                          alignItems: "center"
+                        }}>
+                          {/* Left Section - File Information */}
+                          <div>
+                            <h4 style={{ 
+                              fontWeight: "bold", 
+                              color: "#2c3e50", 
+                              marginBottom: "10px",
+                              fontSize: "18px"
+                            }}>
+                              Duplicate Analysis
+                            </h4>
+                            <div style={{ color: "#6c757d", marginBottom: "5px" }}>
+                              Analysis Date: {formatDate(analysisInfo.analysis_date)}
+                            </div>
+                            <div style={{ color: "#6c757d", marginBottom: "15px" }}>
+                              Status: {analysisInfo.status || 'COMPLETED'} • Duplicates: {duplicateEntries.length}
+                            </div>
+                            <div style={{ 
+                              display: "flex", 
+                              alignItems: "center", 
+                              gap: "15px"
+                            }}>
+                              <div style={{ 
+                                width: "80px",
+                                height: "80px", 
+                                borderRadius: "50%", 
+                                background: "#925a9b",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                boxShadow: "0 4px 16px rgba(146, 90, 155, 0.3)"
+                              }}>
+                                <div style={{ 
+                                  fontWeight: "bold", 
+                                  color: "white",
+                                  fontSize: "16px"
+                                }}>
+                                  {overallRiskScore}%
+                                </div>
+                              </div>
+                              <div>
+                                <div style={{ 
+                                  fontWeight: "bold", 
+                                  marginBottom: "5px", 
+                                  color: "#2c3e50",
+                                  fontSize: "14px"
+                                }}>
+                                  Final Result
+                                </div>
+                                <div style={{ 
+                                  padding: "4px 12px", 
+                                  backgroundColor: RiskColor[riskLevelNumber],
+                                  color: "white",
+                                  borderRadius: "12px",
+                                  fontSize: "12px",
+                                  fontWeight: "bold",
+                                  display: "inline-block"
+                                }}>
+                                  {riskLevel}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Right Section - Analysis Results & Statistics */}
+                          <div>
+                            <div style={{ 
+                              display: "grid", 
+                              gridTemplateColumns: "repeat(3, 1fr)", 
+                              gap: "10px"
+                            }}>
+                              <div style={{ textAlign: "center" }}>
+                                <div style={{ 
+                                  fontWeight: "bold", 
+                                  color: "#2c3e50",
+                                  fontSize: "16px"
+                                }}>
+                                  {duplicateEntries.length}
+                                </div>
+                                <div style={{ 
+                                  color: "#6c757d",
+                                  fontSize: "10px"
+                                }}>
+                                  Total Duplicates
+                                </div>
+                              </div>
+                              <div style={{ textAlign: "center" }}>
+                                <div style={{ 
+                                  fontWeight: "bold", 
+                                  color: "#2c3e50",
+                                  fontSize: "16px"
+                                }}>
+                                  {formatCurrency(summaryStats.total_duplicate_amount || 0)}
+                                </div>
+                                <div style={{ 
+                                  color: "#6c757d",
+                                  fontSize: "10px"
+                                }}>
+                                  Total Amount
+                                </div>
+                              </div>
+                              <div style={{ textAlign: "center" }}>
+                                <div style={{ 
+                                  fontWeight: "bold", 
+                                  color: "#2c3e50",
+                                  fontSize: "16px"
+                                }}>
+                                  {totalDuplicates}
+                                </div>
+                                <div style={{ 
+                                  color: "#6c757d",
+                                  fontSize: "10px"
+                                }}>
+                                  Transactions
+                                </div>
+                              </div>
+                              <div style={{ textAlign: "center" }}>
+                                <div style={{ 
+                                  fontWeight: "bold", 
+                                  color: "#2c3e50",
+                                  fontSize: "16px"
+                                }}>
+                                  {chartData.duplicate_types_distribution?.labels?.length || 0}
+                                </div>
+                                <div style={{ 
+                                  color: "#6c757d",
+                                  fontSize: "10px"
+                                }}>
+                                  Duplicate Types
+                                </div>
+                              </div>
+                              <div style={{ textAlign: "center" }}>
+                                <div style={{ 
+                                  fontWeight: "bold", 
+                                  color: "#2c3e50",
+                                  fontSize: "16px"
+                                }}>
+                                  {chartData.duplicate_activity_by_user?.labels?.length || 0}
+                                </div>
+                                <div style={{ 
+                                  color: "#6c757d",
+                                  fontSize: "10px"
+                                }}>
+                                  Users Involved
+                                </div>
+                              </div>
+                              <div style={{ textAlign: "center" }}>
+                                <div style={{ 
+                                  fontWeight: "bold", 
+                                  color: "#2c3e50",
+                                  fontSize: "16px"
+                                }}>
+                                  {chartData.financial_statement_line_breakdown?.labels?.length || 0}
+                                </div>
+                                <div style={{ 
+                                  color: "#6c757d",
+                                  fontSize: "10px"
+                                }}>
+                                  GL Accounts
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                       <table
                         width='100%'
                         style={{ height: "100%" }}
@@ -781,7 +997,12 @@ const DuplicateAnalysisPDF = ({
                             />
                           }
                         >
-                          <DuplicateTypeChart data={data} currency={currency} />
+                          <DuplicateTypeChart data={{
+                            ...data,
+                            chart_data: {
+                              duplicate_types_distribution: chartData.duplicate_types_distribution
+                            }
+                          }} currency={currency} />
                         </PDFChartWrapper>
 
                         {/* Risk Distribution Chart */}
@@ -795,7 +1016,12 @@ const DuplicateAnalysisPDF = ({
                             />
                           }
                         >
-                          <DuplicateRiskChart data={data} currency={currency} />
+                          <DuplicateRiskChart data={{
+                            ...data,
+                            chart_data: {
+                              risk_level_distribution: chartData.risk_level_distribution
+                            }
+                          }} currency={currency} />
                         </PDFChartWrapper>
 
                         {/* User Activity Chart */}
@@ -809,7 +1035,12 @@ const DuplicateAnalysisPDF = ({
                             />
                           }
                         >
-                          <DuplicateUserChart data={data} currency={currency} />
+                          <DuplicateUserChart data={{
+                            ...data,
+                            chart_data: {
+                              duplicate_activity_by_user: chartData.duplicate_activity_by_user
+                            }
+                          }} currency={currency} />
                         </PDFChartWrapper>
 
                         {/* Amount Distribution Chart */}
@@ -823,7 +1054,12 @@ const DuplicateAnalysisPDF = ({
                             />
                           }
                         >
-                          <DuplicateAmountChart data={data} currency={currency} />
+                          <DuplicateAmountChart data={{
+                            ...data,
+                            chart_data: {
+                              duplicate_amount_distribution: chartData.duplicate_amount_distribution
+                            }
+                          }} currency={currency} />
                         </PDFChartWrapper>
 
                         {/* Financial Statement Line Chart */}
@@ -837,7 +1073,12 @@ const DuplicateAnalysisPDF = ({
                             />
                           }
                         >
-                          <DuplicateFSLineChart data={data} currency={currency} />
+                          <DuplicateFSLineChart data={{
+                            ...data,
+                            chart_data: {
+                              financial_statement_line_breakdown: chartData.financial_statement_line_breakdown
+                            }
+                          }} currency={currency} />
                         </PDFChartWrapper>
 
                         {/* Monthly Trend Chart */}
@@ -851,7 +1092,12 @@ const DuplicateAnalysisPDF = ({
                             />
                           }
                         >
-                          <DuplicateMonthlyTrendChart data={data} currency={currency} />
+                          <DuplicateMonthlyTrendChart data={{
+                            ...data,
+                            chart_data: {
+                              monthly_duplicate_trend: chartData.monthly_duplicate_trend
+                            }
+                          }} currency={currency} />
                         </PDFChartWrapper>
 
                       </div>
@@ -896,13 +1142,13 @@ const DuplicateAnalysisPDF = ({
                             data={{
                               ...data,
                               duplicates: duplicateEntries.map((entry, index) => ({
-                                type: entry.duplicate_type,
+                                type: entry.duplicate_type || `Type ${index + 1}`,
                                 amount: entry.transaction1.amount + entry.transaction2.amount,
                                 count: 2,
-                                risk_score: entry.risk_score,
-                                criteria: entry.duplicate_type_name || entry.duplicate_type,
+                                risk_score: entry.risk_level === 'HIGH' ? 70 : entry.risk_level === 'MEDIUM' ? 50 : 30,
+                                criteria: `Account: ${entry.transaction1.account}, Amount: ${entry.transaction1.amount}`,
                                 gl_account: entry.transaction1.account,
-                                duplicate_type: entry.duplicate_type,
+                                duplicate_type: entry.duplicate_type || `Type ${index + 1}`,
                                 transactions: 2,
                                 debit_amount: entry.transaction1.amount,
                                 credit_amount: entry.transaction2.amount
@@ -915,6 +1161,177 @@ const DuplicateAnalysisPDF = ({
                     )}
 
 
+
+                    {/* Duplicate Type Summary Cards */}
+                    {chartData.duplicate_types_distribution && chartData.duplicate_types_distribution.labels.length > 0 && (
+                      <div className='sections'>
+                        <h5 style={{ margin: "10px 0" }}>Duplicate Type Summary</h5>
+                        <div style={{ 
+                          display: "grid", 
+                          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", 
+                          gap: "15px",
+                          marginBottom: "20px"
+                        }}>
+                          {chartData.duplicate_types_distribution.labels.map((type, index) => {
+                            const count = chartData.duplicate_types_distribution.data[index] || 0;
+                            const color = chartData.duplicate_types_distribution.colors[index] || '#925a9b';
+                            // Since the new response doesn't have duplicate_type, we'll use the first entry for this type
+                            const duplicateEntry = duplicateEntries[index] || duplicateEntries[0];
+                            const amount = duplicateEntry ? 
+                              (duplicateEntry.transaction1.amount + duplicateEntry.transaction2.amount) : 0;
+                            const transactions = duplicateEntry ? 2 : 0;
+                            
+                            return (
+                              <div key={type} style={{ 
+                                padding: "15px", 
+                                backgroundColor: "white", 
+                                border: "1px solid #e9ecef", 
+                                borderRadius: "8px",
+                                boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
+                              }}>
+                                <div style={{ 
+                                  display: "flex", 
+                                  alignItems: "center", 
+                                  marginBottom: "10px" 
+                                }}>
+                                  <div style={{ 
+                                    width: "40px", 
+                                    height: "40px", 
+                                    backgroundColor: color,
+                                    borderRadius: "50%",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    color: "white",
+                                    fontWeight: "bold",
+                                    fontSize: "16px",
+                                    marginRight: "10px"
+                                  }}>
+                                    {type.charAt(0)}
+                                  </div>
+                                  <div>
+                                    <div style={{ 
+                                      fontWeight: "bold", 
+                                      color: "#2c3e50",
+                                      fontSize: "14px"
+                                    }}>
+                                      {type}
+                                    </div>
+                                    <div style={{ 
+                                      padding: "2px 8px", 
+                                      backgroundColor: amount > 10000000 ? '#dc3545' : amount > 5000000 ? '#ffc107' : '#28a745',
+                                      color: "white",
+                                      borderRadius: "12px",
+                                      fontSize: "10px",
+                                      fontWeight: "bold",
+                                      display: "inline-block",
+                                      marginTop: "2px"
+                                    }}>
+                                      {amount > 10000000 ? 'HIGH' : amount > 5000000 ? 'MEDIUM' : 'LOW'}
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <div style={{ 
+                                  display: "grid", 
+                                  gridTemplateColumns: "1fr 1fr", 
+                                  gap: "10px",
+                                  marginBottom: "10px"
+                                }}>
+                                  <div style={{ textAlign: "center" }}>
+                                    <div style={{ 
+                                      fontWeight: "bold", 
+                                      color: color,
+                                      fontSize: "18px"
+                                    }}>
+                                      {count}
+                                    </div>
+                                    <div style={{ 
+                                      color: "#6c757d",
+                                      fontSize: "10px"
+                                    }}>
+                                      Groups
+                                    </div>
+                                  </div>
+                                  <div style={{ textAlign: "center" }}>
+                                    <div style={{ 
+                                      fontWeight: "bold", 
+                                      color: color,
+                                      fontSize: "18px"
+                                    }}>
+                                      {transactions}
+                                    </div>
+                                    <div style={{ 
+                                      color: "#6c757d",
+                                      fontSize: "10px"
+                                    }}>
+                                      Transactions
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <div style={{ 
+                                  borderTop: "1px solid #e9ecef", 
+                                  paddingTop: "10px",
+                                  textAlign: "center"
+                                }}>
+                                  <div style={{ 
+                                    fontWeight: "bold", 
+                                    color: "#2c3e50",
+                                    fontSize: "16px"
+                                  }}>
+                                    {formatCurrency(amount)}
+                                  </div>
+                                  <div style={{ 
+                                    color: "#6c757d",
+                                    fontSize: "10px"
+                                  }}>
+                                    Total Amount
+                                  </div>
+                                </div>
+                                
+                                <div style={{ 
+                                  display: "flex", 
+                                  justifyContent: "space-between", 
+                                  marginTop: "10px"
+                                }}>
+                                  <div style={{ textAlign: "center", flex: 1 }}>
+                                    <div style={{ 
+                                      fontWeight: "bold", 
+                                      color: "#28a745",
+                                      fontSize: "12px"
+                                    }}>
+                                      {formatCurrency(amount / 2)}
+                                    </div>
+                                    <div style={{ 
+                                      color: "#6c757d",
+                                      fontSize: "9px"
+                                    }}>
+                                      Debit
+                                    </div>
+                                  </div>
+                                  <div style={{ textAlign: "center", flex: 1 }}>
+                                    <div style={{ 
+                                      fontWeight: "bold", 
+                                      color: "#dc3545",
+                                      fontSize: "12px"
+                                    }}>
+                                      {formatCurrency(amount / 2)}
+                                    </div>
+                                    <div style={{ 
+                                      color: "#6c757d",
+                                      fontSize: "9px"
+                                    }}>
+                                      Credit
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Duplicate Type Breakdown */}
                     {chartData.duplicate_types_distribution && (
@@ -939,7 +1356,8 @@ const DuplicateAnalysisPDF = ({
                           <tbody style={{ textAlign: "center" }}>
                             {chartData.duplicate_types_distribution.labels.map((type, index) => {
                               const count = chartData.duplicate_types_distribution.data[index] || 0;
-                              const duplicateEntry = duplicateEntries.find(entry => entry.duplicate_type === type);
+                              // Since the new response doesn't have duplicate_type, we'll use the first entry for this type
+                              const duplicateEntry = duplicateEntries[index] || duplicateEntries[0];
                               const amount = duplicateEntry ? 
                                 (duplicateEntry.transaction1.amount + duplicateEntry.transaction2.amount) : 0;
                               const transactions = duplicateEntry ? 2 : 0;
@@ -997,6 +1415,14 @@ const DuplicateAnalysisPDF = ({
                               userData.amount = userDuplicates.reduce((sum, entry) => 
                                 sum + entry.transaction1.amount + entry.transaction2.amount, 0
                               );
+                              
+                              // Calculate unique accounts for this user
+                              const uniqueAccounts = new Set();
+                              userDuplicates.forEach(entry => {
+                                uniqueAccounts.add(entry.transaction1.account);
+                                uniqueAccounts.add(entry.transaction2.account);
+                              });
+                              userData.unique_accounts = uniqueAccounts.size;
                               
                               return (
                               <tr key={index}>
@@ -1156,10 +1582,10 @@ const DuplicateAnalysisPDF = ({
                           <tbody style={{ textAlign: "center" }}>
                             {duplicateEntries.map((duplicate, index) => (
                               <tr key={index}>
-                                <td>{duplicate.duplicate_type}</td>
+                                <td>{duplicate.duplicate_type || 'Unknown'}</td>
                                 <td>{duplicate.transaction1.account}</td>
                                 <td>{duplicate.transaction1.user}</td>
-                                <td>{formatDate(duplicate.transaction1.date)}</td>
+                                <td>{formatDate(duplicate.transaction1.posting_date || duplicate.transaction1.date)}</td>
                                 <td>{formatCurrency(duplicate.transaction1.amount + duplicate.transaction2.amount)}</td>
                                 <td>
                                   <span
@@ -1293,12 +1719,12 @@ const DuplicateAnalysisPDF = ({
                                       fontSize: "10px", 
                                       fontWeight: "bold" 
                                     }}>
-                                      {duplicate.duplicate_type}
+                                      {duplicate.duplicate_type || 'Unknown'}
                                     </span>
                                   </td>
                                   <td>{duplicate.transaction1.account}</td>
                                   <td>{duplicate.transaction1.user}</td>
-                                  <td>{formatDate(duplicate.transaction1.date)}</td>
+                                  <td>{formatDate(duplicate.transaction1.posting_date || duplicate.transaction1.date)}</td>
                                   <td style={{ color: "#28a745", fontWeight: "bold" }}>
                                     {formatCurrency(duplicate.transaction1.amount)}
                                   </td>
@@ -1391,7 +1817,7 @@ const DuplicateAnalysisPDF = ({
                                       <td style={{ fontWeight: "bold" }}>{index + 1}</td>
                                       <td>{item.transaction1.account}</td>
                                       <td>{item.transaction1.user}</td>
-                                      <td>{formatDate(item.transaction1.date)}</td>
+                                      <td>{formatDate(item.transaction1.posting_date || item.transaction1.date)}</td>
                                       <td style={{ color: "#925a9b", fontWeight: "bold" }}>
                                         {formatCurrency(item.transaction1.amount + item.transaction2.amount)}
                                       </td>
@@ -1494,6 +1920,185 @@ const DuplicateAnalysisPDF = ({
                       </div>
                     )}
 
+                    {/* API Duplicate Listing Data */}
+                    {data?.duplicate_listing && data.duplicate_listing.length > 0 && (
+                      <div className='sections'>
+                        <h5 style={{ margin: "20px 0" }}>API Duplicate Listing Data</h5>
+                        
+                        {/* API Data Overview */}
+                        <div style={{ 
+                          padding: "15px", 
+                          backgroundColor: "#f8f9fa", 
+                          border: "1px solid #e9ecef", 
+                          borderRadius: "8px",
+                          marginBottom: "20px"
+                        }}>
+                          <h6 style={{ margin: "10px 0", color: "#925a9b", fontWeight: "bold" }}>
+                            API Duplicate Entries Overview
+                          </h6>
+                          <p style={{ 
+                            margin: "0 0 15px 0", 
+                            fontSize: "14px", 
+                            lineHeight: "1.5",
+                            color: "#333"
+                          }}>
+                            This section displays the duplicate entries fetched from the API endpoint, providing detailed information about each duplicate transaction including transaction ID, type, user, account, posting date, and risk assessment.
+                          </p>
+                          <div style={{ 
+                            display: "grid", 
+                            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
+                            gap: "15px",
+                            fontSize: "12px"
+                          }}>
+                            <div style={{ 
+                              padding: "10px", 
+                              backgroundColor: "white", 
+                              border: "1px solid #dee2e6", 
+                              borderRadius: "6px",
+                              textAlign: "center"
+                            }}>
+                              <strong style={{ color: "#925a9b" }}>Total API Entries</strong><br/>
+                              {data.duplicate_listing.length}
+                            </div>
+                            <div style={{ 
+                              padding: "10px", 
+                              backgroundColor: "white", 
+                              border: "1px solid #dee2e6", 
+                              borderRadius: "6px",
+                              textAlign: "center"
+                            }}>
+                              <strong style={{ color: "#925a9b" }}>Total Amount</strong><br/>
+                              {formatCurrency(data.duplicate_listing.reduce((sum, entry) => sum + (entry.amount || 0), 0))}
+                            </div>
+                            <div style={{ 
+                              padding: "10px", 
+                              backgroundColor: "white", 
+                              border: "1px solid #dee2e6", 
+                              borderRadius: "6px",
+                              textAlign: "center"
+                            }}>
+                              <strong style={{ color: "#925a9b" }}>Avg Similarity</strong><br/>
+                              {Math.round(data.duplicate_listing.reduce((sum, entry) => sum + (entry.similarity_score || 0), 0) / data.duplicate_listing.length)}
+                            </div>
+                            <div style={{ 
+                              padding: "10px", 
+                              backgroundColor: "white", 
+                              border: "1px solid #dee2e6", 
+                              borderRadius: "6px",
+                              textAlign: "center"
+                            }}>
+                              <strong style={{ color: "#925a9b" }}>Unique Users</strong><br/>
+                              {new Set(data.duplicate_listing.map(entry => entry.user)).size}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* API Duplicate Listing Table */}
+                        <div style={{ marginBottom: "20px" }}>
+                          <h6 style={{ margin: "10px 0", color: "#925a9b", fontWeight: "bold" }}>
+                            API Duplicate Entries Listing
+                          </h6>
+                          <table
+                            width='100%'
+                            border='1'
+                            className='border'
+                            cellSpacing='0'>
+                            <thead>
+                              <tr>
+                                <th>Transaction ID</th>
+                                <th>Type</th>
+                                <th>User</th>
+                                <th>Account</th>
+                                <th>Posting Date</th>
+                                <th>Group ID</th>
+                                <th>Similarity Score</th>
+                                <th>Amount</th>
+                                <th>Risk Level</th>
+                                <th>Severity</th>
+                              </tr>
+                            </thead>
+                            <tbody style={{ textAlign: "center" }}>
+                              {data.duplicate_listing.map((entry, index) => (
+                                <tr key={index} style={{ 
+                                  backgroundColor: index % 2 === 0 ? "#f8f9fa" : "white"
+                                }}>
+                                  <td style={{ fontWeight: "bold" }}>{entry.transaction_id || `Transaction-${index + 1}`}</td>
+                                  <td>
+                                    <span style={{ 
+                                      padding: "2px 8px", 
+                                      backgroundColor: "#925a9b", 
+                                      color: "white", 
+                                      borderRadius: "12px", 
+                                      fontSize: "10px", 
+                                      fontWeight: "bold" 
+                                    }}>
+                                      {entry.duplicate_type?.toUpperCase() || 'N/A'}
+                                    </span>
+                                  </td>
+                                  <td>{entry.user || entry.transaction1?.user || 'N/A'}</td>
+                                  <td>
+                                    <span style={{ 
+                                      padding: "2px 6px", 
+                                      backgroundColor: "#17a2b8", 
+                                      color: "white", 
+                                      borderRadius: "8px", 
+                                      fontSize: "10px", 
+                                      fontWeight: "bold" 
+                                    }}>
+                                      {entry.account || 'N/A'}
+                                    </span>
+                                  </td>
+                                  <td>{formatDate(entry.posting_date)}</td>
+                                  <td>{entry.duplicate_group_id || 'N/A'}</td>
+                                  <td>
+                                    <span style={{ 
+                                      padding: "2px 6px", 
+                                      backgroundColor: (entry.similarity_score || 0) > 90 ? '#28a745' : 
+                                                       (entry.similarity_score || 0) > 70 ? '#ffc107' : '#dc3545', 
+                                      color: "white", 
+                                      borderRadius: "8px", 
+                                      fontSize: "10px", 
+                                      fontWeight: "bold" 
+                                    }}>
+                                      {entry.similarity_score || 0}%
+                                    </span>
+                                  </td>
+                                  <td style={{ color: "#925a9b", fontWeight: "bold" }}>
+                                    {entry.amount_formatted || formatCurrency(entry.amount || 0)}
+                                  </td>
+                                  <td>
+                                    <span style={{ 
+                                      padding: "2px 6px", 
+                                      backgroundColor: RiskColor[getRiskLevelNumber(entry.risk_score || 0)], 
+                                      color: "white", 
+                                      borderRadius: "8px", 
+                                      fontSize: "10px", 
+                                      fontWeight: "bold" 
+                                    }}>
+                                      {entry.risk_level?.toUpperCase() || 'N/A'}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    <span style={{ 
+                                      padding: "2px 6px", 
+                                      backgroundColor: entry.duplicate_severity === 'HIGH' ? '#dc3545' : 
+                                                   entry.duplicate_severity === 'MEDIUM' ? '#ffc107' : '#28a745', 
+                                      color: "white", 
+                                      borderRadius: "8px", 
+                                      fontSize: "10px", 
+                                      fontWeight: "bold" 
+                                    }}>
+                                      {entry.duplicate_severity?.toUpperCase() || 'N/A'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Additional Duplicate Items Analysis */}
                     {duplicateEntries && duplicateEntries.length > 0 && (
                       <div className='sections'>
@@ -1554,7 +2159,7 @@ const DuplicateAnalysisPDF = ({
                                       <td style={{ fontWeight: "bold" }}>{index + 1}</td>
                                       <td>{item.duplicate_type}</td>
                                       <td>{item.transaction1.account}</td>
-                                      <td>{formatDate(item.transaction1.date)}</td>
+                                      <td>{formatDate(item.transaction1.posting_date || item.transaction1.date)}</td>
                                       <td style={{ color: "#925a9b", fontWeight: "bold" }}>
                                         {formatCurrency(item.transaction1.amount + item.transaction2.amount)}
                                       </td>
@@ -1633,7 +2238,7 @@ const DuplicateAnalysisPDF = ({
                                       <td style={{ fontWeight: "bold" }}>{index + 1}</td>
                                       <td>{item.duplicate_type}</td>
                                       <td>{item.transaction1.user}</td>
-                                      <td>{formatDate(item.transaction1.date)}</td>
+                                      <td>{formatDate(item.transaction1.posting_date || item.transaction1.date)}</td>
                                       <td style={{ color: "#925a9b", fontWeight: "bold" }}>
                                         {formatCurrency(item.transaction1.amount + item.transaction2.amount)}
                                       </td>

@@ -60,7 +60,7 @@ export const colorScheme = {
 };
 
 // Get color by index with fallback
-export const getColorByIndex = (index) => {
+export const getColorByIndex= (index) => {
   return colorScheme.chartColors[index % colorScheme.chartColors.length];
 };
 
@@ -75,16 +75,18 @@ export const getRiskColor = (riskLevel) => {
 };
 
 // Shared currency formatting function
-export const formatCurrency = (amount) => {
+export const formatCurrency = (amount, currency = 'SAR') => {
   const num = parseFloat(amount || 0);
   
   if (num >= 1000000000000) {
-    return `${(num / 1000000000000).toFixed(1)}T SAR`;
+    return `${(num / 1000000000000).toFixed(1)}T ${currency}`;
+  } else if (num >= 1000000000) {
+    return `${(num / 1000000000).toFixed(1)}B ${currency}`;
   } else if (num >= 1000000) {
-    return `${(num / 1000000).toFixed(1)}M SAR`;
+    return `${(num / 1000000).toFixed(1)}M ${currency}`;
   } else if (num >= 1000) {
-    return `${(num / 1000).toFixed(1)}K SAR`;
+    return `${(num / 1000).toFixed(1)}K ${currency}`;
   } else {
-    return `${num.toFixed(0)} SAR`;
+    return `${num.toFixed(0)} ${currency}`;
   }
 }; 

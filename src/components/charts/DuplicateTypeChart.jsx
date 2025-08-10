@@ -1,24 +1,9 @@
 import React from 'react';
 import { Card, CardContent, Typography, Box } from '@mui/material';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { colorScheme, getColorByIndex } from '../../utils/colorScheme';
+import { colorScheme, formatCurrency } from '../../utils/colorScheme';
 
 export default function DuplicateTypeChart({ data, currency = 'SAR' }) {
-  // Helper function to format currency
-  const formatCurrency = (amount) => {
-    const num = parseFloat(amount || 0);
-    
-    if (num >= 1000000000000) {
-      return `${(num / 1000000000000).toFixed(1)}T ${currency}`;
-    } else if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1)}M ${currency}`;
-    } else if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}K ${currency}`;
-    } else {
-      return `${num.toFixed(0)} ${currency}`;
-    }
-  };
-
   // Check for new API response structure first, then fallback to old structure
   const chartData = data?.visualizations?.chart_data?.duplicate_distribution || 
                    data?.chart_data?.duplicate_types_distribution || 
@@ -48,7 +33,7 @@ export default function DuplicateTypeChart({ data, currency = 'SAR' }) {
       count: chartData.data[index] || 0,
       amount: 0, // Will be calculated from duplicate entries
       transactions: (chartData.data[index] || 0) * 2,
-      color: chartData.colors ? chartData.colors[index] : getColorByIndex(index)
+      color: chartData.colors ? chartData.colors[index] : colorScheme.chartColors[index % colorScheme.chartColors.length]
     }));
     
     // Calculate amounts from duplicate entries if available
@@ -70,7 +55,7 @@ export default function DuplicateTypeChart({ data, currency = 'SAR' }) {
       count: item.groups,
       amount: item.total_amount,
       transactions: item.transactions,
-      color: getColorByIndex(index)
+      color: colorScheme.chartColors[index % colorScheme.chartColors.length]
     }));
   } else if (typeof chartData === 'object' && !Array.isArray(chartData)) {
     // New API structure: duplicate_distribution is an object like {"type_1": 0, "type_2": 0, "type_3": 1}
@@ -81,7 +66,7 @@ export default function DuplicateTypeChart({ data, currency = 'SAR' }) {
         count: count,
         amount: 0, // Will be calculated from duplicate entries
         transactions: count * 2,
-        color: getColorByIndex(index)
+        color: colorScheme.chartColors[index % colorScheme.chartColors.length]
       }));
     
     // Calculate amounts from duplicate entries if available
@@ -103,7 +88,7 @@ export default function DuplicateTypeChart({ data, currency = 'SAR' }) {
       count: details.count,
       amount: details.total_amount,
       transactions: details.total_transactions,
-      color: getColorByIndex(index)
+      color: colorScheme.chartColors[index % colorScheme.chartColors.length]
     }));
   }
 
@@ -125,7 +110,7 @@ export default function DuplicateTypeChart({ data, currency = 'SAR' }) {
             Count: {data.count}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Amount: {formatCurrency(data.amount)}
+            Amount: {formatCurrency(data.amount, currency)}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Transactions: {data.transactions}
