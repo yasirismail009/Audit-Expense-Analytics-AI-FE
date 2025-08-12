@@ -221,17 +221,21 @@ const DuplicateAnalysisPDF = ({
     return date.toLocaleDateString();
   };
 
-  // Extract data from the new API structure - Updated to match DuplicateAnalysisContent.jsx
-  const fileInfo = data?.file_info || {};
+  // Extract data from the sheet structure - Map real file info from sheet
+  const fileInfo = data?.fileInfo || data?.file_info || {};
   const analysisInfo = data?.analysis_info || {};
-  
-  // Map data structure to match DuplicateAnalysisContent.jsx
   const summary = data?.summary || {};
   const detailedResults = data?.detailed_results || {};
-  const visualizations = data?.visualizations || {};
-  const exportData = data?.export_data || {};
   
-  // Map chart data to match DuplicateAnalysisContent.jsx structure
+  // Extract company and client information from sheet data
+  const companyInfo = {
+    company_name: data?.company_name || fileInfo?.company_name || data?.company_name || 'N/A',
+    client_name: data?.client_name || fileInfo?.client_name || data?.client_name || 'N/A',
+    engagement_id: data?.engagement_id || fileInfo?.engagement_id || data?.engagement_id || 'N/A',
+    fiscal_year: data?.fiscal_year || fileInfo?.fiscal_year || data?.fiscal_year || 'N/A'
+  };
+  
+  // Simplified chart data structure
   const chartData = {
     duplicate_types_distribution: {
       labels: Object.keys(detailedResults.duplicate_by_type || {}).filter(type => 
@@ -244,7 +248,7 @@ const DuplicateAnalysisPDF = ({
     },
     risk_level_distribution: {
       labels: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
-      data: [0, 0, 0, 0], // Will be calculated from duplicate entries
+      data: [0, 0, 0, 0],
       colors: ['#40b159', '#ffc516', '#dc3545', '#ff0000']
     },
     duplicate_activity_by_user: {
@@ -255,7 +259,7 @@ const DuplicateAnalysisPDF = ({
     },
     duplicate_amount_distribution: {
       labels: ['Low Amount', 'Medium Amount', 'High Amount', 'Critical Amount'],
-      data: [0, 0, 0, 0], // Will be calculated from duplicate entries
+      data: [0, 0, 0, 0],
       colors: ['#40b159', '#ffc516', '#dc3545', '#ff0000']
     },
     financial_statement_line_breakdown: {
@@ -266,42 +270,23 @@ const DuplicateAnalysisPDF = ({
     },
     monthly_duplicate_trend: {
       labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-      data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] // Will be calculated from duplicate entries
+      data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     }
   };
   
+  // Core data extraction
   const duplicateEntries = detailedResults.duplicate_entries || [];
   const duplicatePatterns = detailedResults.duplicate_patterns || {};
-  
-  // Extract recommendations from the correct path - Updated to match content structure
   const recommendations = summary.high_priority_recommendations || [];
-  const auditImplications = {
-    immediate_actions: summary.compliance_issues?.map(issue => issue.description) || []
-  };
   const criticalAlerts = summary.compliance_issues?.filter(issue => issue.severity === 'HIGH') || [];
 
-  // Map summary statistics to match DuplicateAnalysisContent.jsx structure
-  const summaryStats = {
-    duplicate_transactions: summary.total_duplicates || 0,
-    total_transactions: summary.total_duplicates * 2 || 0, // Each duplicate has 2 transactions
-    total_duplicate_amount: summary.total_amount || 0,
-    avg_duplicate_amount: summary.total_amount ? summary.total_amount / summary.total_duplicates : 0,
-    avg_risk_score: summary.overall_risk_score || 0
-  };
+  // Calculate derived values
+  const totalDuplicates = summary.total_duplicates || 0;
+  const totalDuplicateAmount = summary.total_amount || 0;
   
-  const riskAssessment = {
-    risk_level: summary.overall_risk_level || 'LOW',
-    risk_distribution: summary.risk_distribution || {}
-  };
-  
-  // Calculate overall risk score based on new data structure
-  const totalDuplicates = summaryStats.duplicate_transactions || 0;
-  const totalTransactions = summaryStats.total_transactions || 0;
-  
-  // Use the overall risk score from the API response
+  // Risk assessment
   const overallRiskScore = summary.overall_risk_score || 0;
-  
-  const riskLevel = riskAssessment.risk_level || 'LOW';
+  const riskLevel = summary.overall_risk_level || 'LOW';
 
   const getRiskLevel = (score) => {
     if (score >= 80) return 'CRITICAL';
@@ -436,6 +421,23 @@ const DuplicateAnalysisPDF = ({
       ".chart-content { min-height: 200px; display: flex; align-items: center; justify-content: center; }" +
       ".chart-placeholder { color: #666; font-style: italic; }" +
       ".chart-fallback { padding: 20px; text-align: center; color: #666; border: 2px dashed #ddd; border-radius: 8px; background-color: #f9f9f9; }" +
+      // Professional header styles for PDF
+      ".professional-header { page-break-inside: avoid; margin-bottom: 30px; }" +
+      ".header-banner { background: linear-gradient(135deg, #925a9b 0%, #7a4a82 100%) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }" +
+      ".header-stats { page-break-inside: avoid; margin-bottom: 25px; }" +
+      ".stat-card { background: white !important; border: 1px solid #e9ecef !important; border-radius: 10px !important; box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }" +
+      // Page header styles for printing
+      "@media print { " +
+      "  .page-header { position: running(header); }" +
+      "  .page-footer { position: running(footer); }" +
+      "  .professional-header { page-break-after: avoid; }" +
+      "  .header-banner { background: linear-gradient(135deg, #925a9b 0%, #7a4a82 100%) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }" +
+      "  .header-stats { page-break-inside: avoid; }" +
+      "  @page { " +
+      "    @top-center { content: element(header); }" +
+      "    @bottom-center { content: element(footer); }" +
+      "  }" +
+      "}" +
       "</style>";
 
     var divToPrint = document.getElementById("DuplicateAnalysisPDF");
@@ -443,7 +445,7 @@ const DuplicateAnalysisPDF = ({
 
     let newWin = window.open("", "_blank");
     newWin.document.write(htmlToPrint);
-    newWin.document.title = "Duplicate Analysis Report";
+    newWin.document.title = `${companyInfo.company_name} - Duplicate Analysis Report`;
     setTimeout(() => {
       newWin.focus(); // necessary for IE >= 10
       newWin.print(); // change window to winPrint
@@ -493,52 +495,296 @@ const DuplicateAnalysisPDF = ({
           style={{ padding: "20px 10px" }}>
           <div className='modal-dialog modal-xl modal-dialog-centered'>
             <div id='DuplicateAnalysisPDF' className='modal-content'>
+              {/* Page Header for Printing */}
+              <div className='page-header' style={{ 
+                display: "none",
+                padding: "10px 20px",
+                backgroundColor: "#f8f9fa",
+                borderBottom: "1px solid #dee2e6",
+                fontSize: "12px",
+                color: "#6c757d"
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span><strong>{companyInfo.company_name}</strong> - Duplicate Analysis Report</span>
+                  <span>Analysis ID: {fileInfo?.fileName || fileInfo?.file_id || analysisInfo?.analysis_id || data?.analysis_id || "N/A"}</span>
+                </div>
+              </div>
+              
               <div className='modal-body bg-white text-dark'>
                 <div style={{ padding: "20px" }}>
                   <div className='content-section'>
-                    <div className='sections'>
-                      <table
-                        width='100%'
-                        style={{ borderBottom: "4px solid #925a9b" }}>
-                        <tbody>
-                          <tr>
-                            <td
-                              align='left'
-                              style={{ verticalAlign: "top", width: "33%" }}>
-                              <h2 style={{ fontWeight: "bold" }}>Duplicate Analysis</h2>
-                              <b>Analysis ID:</b> {fileInfo.file_id || "N/A"}
-                              <br />
-                              <b>Status:</b> {fileInfo.status || "COMPLETED"}
-                              <br />
-                              <b>Currency:</b> {currency}
-                            </td>
-                            <td
-                              align='center'
-                              style={{ verticalAlign: "center", width: "33%" }}>
-                              <a href='javascript:;'>
-                                <img src={logoFull} width={200} />
-                              </a>
-                            </td>
-                            <td
-                              align='right'
-                              style={{ verticalAlign: "bottom", width: "33%" }}>
-                              Generated on {currentDateTime}
-                              <br />
-                              Analysis Date: {formatDate(analysisInfo.analysis_date)}
-                              <br />
-                              <b>Risk Level:</b> {riskLevel}
-                              <br />
-                              <p style={{ maxWidth: "90%" }}>
-                                Total Duplicates: {totalDuplicates}
-                              </p>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
+                    {/* Professional Header Section */}
+                    <div className='sections professional-header' style={{ marginBottom: "30px" }}>
+                      {/* Main Header Banner */}
+                      <div className='header-banner' style={{ 
+                        background: "linear-gradient(135deg, #925a9b 0%, #7a4a82 100%)",
+                        color: "white",
+                        padding: "30px 25px",
+                        borderRadius: "12px",
+                        boxShadow: "0 8px 32px rgba(146, 90, 155, 0.15)",
+                        marginBottom: "25px"
+                      }}>
+                      <div style={{ 
+                          display: "flex", 
+                          justifyContent: "space-between", 
+                          alignItems: "center",
+                          flexWrap: "wrap"
+                        }}>
+                          {/* Left Section - Company Info */}
+                          <div style={{ flex: "1", minWidth: "300px" }}>
+                            <div style={{ 
+                              fontSize: "28px", 
+                              fontWeight: "700", 
+                              marginBottom: "8px",
+                              letterSpacing: "0.5px"
+                            }}>
+                              {companyInfo.company_name}
+                            </div>
+                            <div style={{ 
+                              fontSize: "16px", 
+                              opacity: "0.9",
+                              marginBottom: "4px"
+                            }}>
+                              {companyInfo.client_name}
+                            </div>
+                            <div style={{ 
+                              fontSize: "14px", 
+                              opacity: "0.8",
+                              marginBottom: "8px"
+                            }}>
+                              Engagement ID: {companyInfo.engagement_id} | Fiscal Year: {companyInfo.fiscal_year}
+                            </div>
+                            <div style={{ 
+                              display: "flex", 
+                              alignItems: "center", 
+                              gap: "15px",
+                              marginTop: "12px"
+                            }}>
+                              <div style={{ 
+                                padding: "6px 12px", 
+                                backgroundColor: "rgba(255,255,255,0.2)", 
+                                borderRadius: "20px",
+                                fontSize: "12px",
+                                fontWeight: "600"
+                              }}>
+                                Analysis ID: {fileInfo?.fileName || fileInfo?.file_id || analysisInfo?.analysis_id || data?.analysis_id || "N/A"}
+                              </div>
+                              <div style={{ 
+                                padding: "6px 12px", 
+                                backgroundColor: "rgba(255,255,255,0.2)", 
+                                borderRadius: "20px",
+                                fontSize: "12px",
+                                fontWeight: "600"
+                              }}>
+                                Status: {fileInfo?.status || "COMPLETED"}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Center Section - Logo */}
+                          <div style={{ 
+                            display: "flex", 
+                            alignItems: "center", 
+                            justifyContent: "center",
+                            flex: "0 0 auto",
+                            margin: "0 20px"
+                          }}>
+                            <div style={{ 
+                              backgroundColor: "rgba(255,255,255,0.1)", 
+                              padding: "15px", 
+                              borderRadius: "12px",
+                              backdropFilter: "blur(10px)"
+                            }}>
+                              <img src={logoFull} width={180} style={{ filter: "brightness(0) invert(1)" }} />
+                            </div>
+                          </div>
+
+                          {/* Right Section - Report Info */}
+                          <div style={{ 
+                            flex: "1", 
+                            minWidth: "300px",
+                            textAlign: "right"
+                          }}>
+                            <div style={{ 
+                              fontSize: "24px", 
+                              fontWeight: "700", 
+                              marginBottom: "8px",
+                              letterSpacing: "1px"
+                            }}>
+                              DUPLICATE ANALYSIS
+                            </div>
+                            <div style={{ 
+                              fontSize: "18px", 
+                              fontWeight: "600", 
+                              marginBottom: "12px",
+                              opacity: "0.9"
+                            }}>
+                              REPORT
+                            </div>
+                            <div style={{ 
+                              fontSize: "14px", 
+                              opacity: "0.8",
+                              marginBottom: "4px"
+                            }}>
+                              Generated: {currentDateTime}
+                            </div>
+                            <div style={{ 
+                              fontSize: "14px", 
+                              opacity: "0.8",
+                              marginBottom: "8px"
+                            }}>
+                              Analysis Date: {formatDate(analysisInfo?.analysis_date || fileInfo?.uploadedAt)}
+                            </div>
+                            <div style={{ 
+                              display: "flex", 
+                              alignItems: "center", 
+                              justifyContent: "flex-end",
+                              gap: "15px",
+                              marginTop: "12px"
+                            }}>
+                              <div style={{ 
+                                padding: "6px 12px", 
+                                backgroundColor: RiskColor[riskLevelNumber],
+                                borderRadius: "20px",
+                                fontSize: "12px",
+                                fontWeight: "600",
+                                color: "white"
+                              }}>
+                                Risk: {riskLevel}
+                              </div>
+                              <div style={{ 
+                                padding: "6px 12px", 
+                                backgroundColor: "rgba(255,255,255,0.2)", 
+                                borderRadius: "20px",
+                                fontSize: "12px",
+                                fontWeight: "600"
+                              }}>
+                                {totalDuplicates} Duplicates
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Quick Stats Banner */}
+                      <div className='header-stats' style={{ 
+                        display: "grid", 
+                        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
+                        gap: "15px",
+                        marginBottom: "25px"
+                      }}>
+                        <div className='stat-card' style={{ 
+                        padding: "20px", 
+                          backgroundColor: "white", 
+                        border: "1px solid #e9ecef", 
+                          borderRadius: "10px",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                          textAlign: "center"
+                      }}>
+                          <div style={{ 
+                          fontSize: "24px",
+                            fontWeight: "700", 
+                            color: "#925a9b",
+                            marginBottom: "5px"
+                        }}>
+                            {duplicateEntries.length}
+                          </div>
+                        <div style={{ 
+                            fontSize: "12px", 
+                          color: "#6c757d", 
+                            fontWeight: "600",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.5px"
+                          }}>
+                            Duplicate Groups
+                          </div>
+                        </div>
+
+                        <div className='stat-card' style={{ 
+                          padding: "20px", 
+                          backgroundColor: "white", 
+                          border: "1px solid #e9ecef", 
+                          borderRadius: "10px",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                          textAlign: "center"
+                        }}>
+                          <div style={{ 
+                            fontSize: "24px", 
+                            fontWeight: "700", 
+                            color: "#925a9b",
+                          marginBottom: "5px"
+                        }}>
+                            {formatCurrency(totalDuplicateAmount || 0)}
+                        </div>
+                        <div style={{ 
+                            fontSize: "12px", 
+                          color: "#6c757d", 
+                            fontWeight: "600",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.5px"
+                          }}>
+                            Total Amount
+                          </div>
+                        </div>
+
+                        <div className='stat-card' style={{ 
+                          padding: "20px", 
+                          backgroundColor: "white", 
+                          border: "1px solid #e9ecef", 
+                          borderRadius: "10px",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                          textAlign: "center"
+                        }}>
+                          <div style={{ 
+                            fontSize: "24px", 
+                            fontWeight: "700", 
+                            color: RiskColor[riskLevelNumber],
+                          marginBottom: "5px"
+                        }}>
+                            {overallRiskScore}%
+                        </div>
+                        <div style={{ 
+                            fontSize: "12px", 
+                            color: "#6c757d",
+                            fontWeight: "600",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.5px"
+                          }}>
+                            Risk Score
+                          </div>
+                        </div>
+
+                        <div className='stat-card' style={{ 
+                          padding: "20px", 
+                          backgroundColor: "white", 
+                          border: "1px solid #e9ecef", 
+                          borderRadius: "10px",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                          textAlign: "center"
+                        }}>
+                          <div style={{ 
+                            fontSize: "24px", 
+                            fontWeight: "700", 
+                          color: "#925a9b", 
+                            marginBottom: "5px"
+                        }}>
+                            {currency}
+                        </div>
+                          <div style={{ 
+                            fontSize: "12px", 
+                            color: "#6c757d",
+                            fontWeight: "600",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.5px"
+                          }}>
+                            Currency
+                      </div>
+                    </div>
+                      </div>
                     </div>
 
-                    <div className='sections'>
-                      <h5 style={{ margin: "10px 0" }}>Duplicate Analysis Overview</h5>
+                    <div className='sections'>                      
+                      <h5 style={{ margin: "20px 0 10px 0" }}>Duplicate Analysis Overview</h5>
                       
                       {/* Analysis Status Alert */}
                       <div style={{ 
@@ -564,7 +810,7 @@ const DuplicateAnalysisPDF = ({
                             color: totalDuplicates > 0 ? "#856404" : "#155724",
                             fontSize: "12px"
                           }}>
-                            Total amount involved: {formatCurrency(summaryStats.total_duplicate_amount || 0)}
+                            Total amount involved: {formatCurrency(totalDuplicateAmount || 0)}
                           </div>
                         )}
                       </div>
@@ -652,190 +898,9 @@ const DuplicateAnalysisPDF = ({
                           </div>
                         </div>
                       </div>
-
-
-
-                      <h5 style={{ margin: "20px 0 10px 0" }}>Analysis Summary</h5>
                       
                       {/* Top Summary Banner */}
-                      <div style={{ 
-                        padding: "20px", 
-                        backgroundColor: "white", 
-                        border: "1px solid #e9ecef", 
-                        borderRadius: "8px",
-                        marginBottom: "20px",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
-                      }}>
-                        <div style={{ 
-                          display: "grid", 
-                          gridTemplateColumns: "1fr 1fr", 
-                          gap: "20px",
-                          alignItems: "center"
-                        }}>
-                          {/* Left Section - File Information */}
-                          <div>
-                            <h4 style={{ 
-                              fontWeight: "bold", 
-                              color: "#2c3e50", 
-                              marginBottom: "10px",
-                              fontSize: "18px"
-                            }}>
-                              Duplicate Analysis
-                            </h4>
-                            <div style={{ color: "#6c757d", marginBottom: "5px" }}>
-                              Analysis Date: {formatDate(analysisInfo.analysis_date)}
-                            </div>
-                            <div style={{ color: "#6c757d", marginBottom: "15px" }}>
-                              Status: {analysisInfo.status || 'COMPLETED'} • Duplicates: {duplicateEntries.length}
-                            </div>
-                            <div style={{ 
-                              display: "flex", 
-                              alignItems: "center", 
-                              gap: "15px"
-                            }}>
-                              <div style={{ 
-                                width: "80px",
-                                height: "80px", 
-                                borderRadius: "50%", 
-                                background: "#925a9b",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                boxShadow: "0 4px 16px rgba(146, 90, 155, 0.3)"
-                              }}>
-                                <div style={{ 
-                                  fontWeight: "bold", 
-                                  color: "white",
-                                  fontSize: "16px"
-                                }}>
-                                  {overallRiskScore}%
-                                </div>
-                              </div>
-                              <div>
-                                <div style={{ 
-                                  fontWeight: "bold", 
-                                  marginBottom: "5px", 
-                                  color: "#2c3e50",
-                                  fontSize: "14px"
-                                }}>
-                                  Final Result
-                                </div>
-                                <div style={{ 
-                                  padding: "4px 12px", 
-                                  backgroundColor: RiskColor[riskLevelNumber],
-                                  color: "white",
-                                  borderRadius: "12px",
-                                  fontSize: "12px",
-                                  fontWeight: "bold",
-                                  display: "inline-block"
-                                }}>
-                                  {riskLevel}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Right Section - Analysis Results & Statistics */}
-                          <div>
-                            <div style={{ 
-                              display: "grid", 
-                              gridTemplateColumns: "repeat(3, 1fr)", 
-                              gap: "10px"
-                            }}>
-                              <div style={{ textAlign: "center" }}>
-                                <div style={{ 
-                                  fontWeight: "bold", 
-                                  color: "#2c3e50",
-                                  fontSize: "16px"
-                                }}>
-                                  {duplicateEntries.length}
-                                </div>
-                                <div style={{ 
-                                  color: "#6c757d",
-                                  fontSize: "10px"
-                                }}>
-                                  Total Duplicates
-                                </div>
-                              </div>
-                              <div style={{ textAlign: "center" }}>
-                                <div style={{ 
-                                  fontWeight: "bold", 
-                                  color: "#2c3e50",
-                                  fontSize: "16px"
-                                }}>
-                                  {formatCurrency(summaryStats.total_duplicate_amount || 0)}
-                                </div>
-                                <div style={{ 
-                                  color: "#6c757d",
-                                  fontSize: "10px"
-                                }}>
-                                  Total Amount
-                                </div>
-                              </div>
-                              <div style={{ textAlign: "center" }}>
-                                <div style={{ 
-                                  fontWeight: "bold", 
-                                  color: "#2c3e50",
-                                  fontSize: "16px"
-                                }}>
-                                  {totalDuplicates}
-                                </div>
-                                <div style={{ 
-                                  color: "#6c757d",
-                                  fontSize: "10px"
-                                }}>
-                                  Transactions
-                                </div>
-                              </div>
-                              <div style={{ textAlign: "center" }}>
-                                <div style={{ 
-                                  fontWeight: "bold", 
-                                  color: "#2c3e50",
-                                  fontSize: "16px"
-                                }}>
-                                  {chartData.duplicate_types_distribution?.labels?.length || 0}
-                                </div>
-                                <div style={{ 
-                                  color: "#6c757d",
-                                  fontSize: "10px"
-                                }}>
-                                  Duplicate Types
-                                </div>
-                              </div>
-                              <div style={{ textAlign: "center" }}>
-                                <div style={{ 
-                                  fontWeight: "bold", 
-                                  color: "#2c3e50",
-                                  fontSize: "16px"
-                                }}>
-                                  {chartData.duplicate_activity_by_user?.labels?.length || 0}
-                                </div>
-                                <div style={{ 
-                                  color: "#6c757d",
-                                  fontSize: "10px"
-                                }}>
-                                  Users Involved
-                                </div>
-                              </div>
-                              <div style={{ textAlign: "center" }}>
-                                <div style={{ 
-                                  fontWeight: "bold", 
-                                  color: "#2c3e50",
-                                  fontSize: "16px"
-                                }}>
-                                  {chartData.financial_statement_line_breakdown?.labels?.length || 0}
-                                </div>
-                                <div style={{ 
-                                  color: "#6c757d",
-                                  fontSize: "10px"
-                                }}>
-                                  GL Accounts
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                     
                       <table
                         width='100%'
                         style={{ height: "100%" }}
@@ -896,7 +961,7 @@ const DuplicateAnalysisPDF = ({
                                 {totalDuplicates}
                                 <br />
                                 <b style={{ display: "block" }}>Total Amount</b>
-                                {formatCurrency(summaryStats.total_duplicate_amount || 0)}
+                                {formatCurrency(totalDuplicateAmount || 0)}
                               </div>
                             </td>
 
@@ -911,11 +976,23 @@ const DuplicateAnalysisPDF = ({
                                 File Information
                               </strong>
                               <div style={{ padding: "10px" }}>
+                                <b style={{ display: "block" }}>Company</b>
+                                {companyInfo.company_name}
+                                <br />
+                                <b style={{ display: "block" }}>Client</b>
+                                {companyInfo.client_name}
+                                <br />
+                                <b style={{ display: "block" }}>Engagement ID</b>
+                                {companyInfo.engagement_id}
+                                <br />
+                                <b style={{ display: "block" }}>Fiscal Year</b>
+                                {companyInfo.fiscal_year}
+                                <br />
                                 <b style={{ display: "block" }}>File ID</b>
-                                {fileInfo.file_id || "N/A"}
+                                {fileInfo?.fileName || fileInfo?.file_id || analysisInfo?.analysis_id || data?.analysis_id || "N/A"}
                                 <br />
                                 <b style={{ display: "block" }}>Status</b>
-                                {fileInfo.status || "COMPLETED"}
+                                {fileInfo?.status || "COMPLETED"}
                                 <br />
                                 <b style={{ display: "block" }}>Currency</b>
                                 {currency}
@@ -1503,7 +1580,7 @@ const DuplicateAnalysisPDF = ({
 
 
                     {/* Risk Breakdown */}
-                    {riskAssessment.risk_distribution && (
+                    {summary.risk_distribution && (
                       <div className='sections'>
                         <h5 style={{ margin: "10px 0" }}>Risk Level Breakdown</h5>
                         <table
@@ -1520,7 +1597,7 @@ const DuplicateAnalysisPDF = ({
                             </tr>
                           </thead>
                           <tbody style={{ textAlign: "center" }}>
-                            {Object.entries(riskAssessment.risk_distribution).map(([riskLevel, count], index) => {
+                            {Object.entries(summary.risk_distribution).map(([riskLevel, count], index) => {
                               const riskData = {
                                 groups: count,
                                 transactions: count * 2,
@@ -2383,7 +2460,7 @@ const DuplicateAnalysisPDF = ({
 
 
                     {/* Detailed Insights */}
-                    {(recommendations.length > 0 || auditImplications.immediate_actions) && (
+                    {(recommendations.length > 0 || summary.compliance_issues?.length > 0) && (
                       <div className='sections'>
                         <h5 style={{ margin: "10px 0" }}>Detailed Insights & Recommendations</h5>
                         
@@ -2402,14 +2479,14 @@ const DuplicateAnalysisPDF = ({
                         )}
 
                         {/* Audit Implications */}
-                        {auditImplications.immediate_actions && (
+                        {summary.compliance_issues && (
                           <div style={{ marginBottom: "20px" }}>
                             <h6 style={{ margin: "10px 0" }}>Audit Implications</h6>
                             <div>
                               <strong>Immediate Actions:</strong>
                               <ul style={{ marginLeft: "20px" }}>
-                                {auditImplications.immediate_actions.map((action, index) => (
-                                  <li key={index}>{action}</li>
+                                                                  {summary.compliance_issues.map((issue, index) => (
+                                    <li key={index}>{issue.description || issue}</li>
                                 ))}
                               </ul>
                             </div>
@@ -2499,15 +2576,72 @@ const DuplicateAnalysisPDF = ({
                           </tr>
                           <tr>
                             <td>Total Amount Involved</td>
-                            <td>{formatCurrency(summaryStats.total_duplicate_amount || 0)}</td>
+                            <td>{formatCurrency(totalDuplicateAmount || 0)}</td>
                             <td>
-                              <span style={{ color: (summaryStats.total_duplicate_amount || 0) > 10000000 ? '#dc3545' : (summaryStats.total_duplicate_amount || 0) > 5000000 ? '#ffc516' : '#40b159' }}>
-                                {(summaryStats.total_duplicate_amount || 0) > 10000000 ? 'High' : (summaryStats.total_duplicate_amount || 0) > 5000000 ? 'Medium' : 'Low'}
+                              <span style={{ color: (totalDuplicateAmount || 0) > 10000000 ? '#dc3545' : (totalDuplicateAmount || 0) > 5000000 ? '#ffc516' : '#40b159' }}>
+                                {(totalDuplicateAmount || 0) > 10000000 ? 'High' : (totalDuplicateAmount || 0) > 5000000 ? 'Medium' : 'Low'}
                               </span>
                             </td>
                           </tr>
                         </tbody>
                       </table>
+                    </div>
+                    
+                    {/* Footer Section */}
+                    <div className='sections' style={{ marginTop: "30px" }}>
+                      <div style={{ 
+                        padding: "20px", 
+                        backgroundColor: "#f8f9fa", 
+                        border: "1px solid #e9ecef", 
+                        borderRadius: "8px",
+                        textAlign: "center"
+                      }}>
+                        <div style={{ 
+                          color: "#925a9b", 
+                          fontSize: "16px",
+                          fontWeight: "bold",
+                          marginBottom: "10px"
+                        }}>
+                          Report Generated by Analytics System
+                        </div>
+                        <div style={{ 
+                          color: "#6c757d", 
+                          fontSize: "12px",
+                          marginBottom: "5px"
+                        }}>
+                          Company: {companyInfo.company_name} | Client: {companyInfo.client_name}
+                        </div>
+                        <div style={{ 
+                          color: "#6c757d", 
+                          fontSize: "12px",
+                          marginBottom: "5px"
+                        }}>
+                          Engagement ID: {companyInfo.engagement_id} | Fiscal Year: {companyInfo.fiscal_year}
+                        </div>
+                        <div style={{ 
+                          color: "#6c757d", 
+                          fontSize: "12px"
+                        }}>
+                          Generated on {currentDateTime} | Analysis ID: {fileInfo?.fileName || fileInfo?.file_id || analysisInfo?.analysis_id || data?.analysis_id || "N/A"}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Page Footer for Printing */}
+                    <div className='page-footer' style={{ 
+                      display: "none",
+                      padding: "10px 20px",
+                      backgroundColor: "#f8f9fa",
+                      borderTop: "1px solid #dee2e6",
+                      fontSize: "10px",
+                      color: "#6c757d",
+                      textAlign: "center"
+                    }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span>{companyInfo.company_name} - {companyInfo.client_name}</span>
+                        <span>Page <span className="page-number"></span></span>
+                        <span>{currentDateTime}</span>
+                      </div>
                     </div>
                   </div>
                 </div>

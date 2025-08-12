@@ -38,7 +38,8 @@ import {
   Security,
   Analytics,
   Business,
-  Receipt
+  Receipt,
+  FileDownload
 } from '@mui/icons-material';
 import { colorScheme, getRiskColor, formatCurrency } from '../utils/colorScheme';
 import axios from 'axios';
@@ -67,6 +68,78 @@ export default function ExpenseAnalysisDashboard({ sheetData, fileId }) {
     hasPrevious: false
   });
   const [glAccountsSummary, setGlAccountsSummary] = useState(null);
+
+  // Export functionality state
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportError, setExportError] = useState(null);
+  const [analysisExportLoading, setAnalysisExportLoading] = useState(false);
+  const [analysisExportError, setAnalysisExportError] = useState(null);
+
+  // Export function
+  const handleExport = async () => {
+    if (!fileId) {
+      setExportError('No file ID available for export');
+      return;
+    }
+
+    try {
+      setExportLoading(true);
+      setExportError(null);
+      
+      const response = await axios.get(`http://localhost:8000/api/excel-export/${fileId}/`, {
+        responseType: 'blob'
+      });
+      
+      // Create a download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${fileInfo?.fileName || 'expense-analysis'}-export.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error('Export error:', error);
+      setExportError(error.response?.data?.message || 'Failed to export data. Please try again.');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  // Analysis Export function
+  const handleAnalysisExport = async (analysisType) => {
+    if (!fileId) {
+      setAnalysisExportError('No file ID available for export');
+      return;
+    }
+
+    try {
+      setAnalysisExportLoading(true);
+      setAnalysisExportError(null);
+      
+      const response = await axios.get(`http://localhost:8000/api/analysis-export/${fileId}/${analysisType}/`, {
+        responseType: 'blob'
+      });
+      
+      // Create a download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${fileInfo?.fileName || 'analysis'}-${analysisType}-export.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error('Analysis export error:', error);
+      setAnalysisExportError(error.response?.data?.message || 'Failed to export analysis data. Please try again.');
+    } finally {
+      setAnalysisExportLoading(false);
+    }
+  };
 
   // Fetch GL accounts data
   useEffect(() => {
@@ -397,8 +470,40 @@ console.log(sheetData)
         background: colorScheme.cardBackground, 
         borderRadius: 3,
         boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-        overflow: 'visible'
+        overflow: 'visible',
+        position: 'relative'
       }}>
+        {/* Export Button - Positioned at top-right corner of card */}
+        <Button
+          variant="contained"
+          startIcon={exportLoading ? <CircularProgress size={20} color="inherit" /> : <FileDownload />}
+          onClick={handleExport}
+          disabled={exportLoading || !fileId}
+          sx={{
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            zIndex: 10,
+            background: `linear-gradient(135deg, ${colorScheme.primary} 0%, ${colorScheme.primary}dd 100%)`,
+            color: 'white',
+            fontWeight: 600,
+            px: 3,
+            py: 1.5,
+            borderRadius: 2,
+            boxShadow: `0 4px 12px ${colorScheme.primary}4d`,
+            '&:hover': {
+              background: `linear-gradient(135deg, ${colorScheme.primary}dd 0%, ${colorScheme.primary} 100%)`,
+              boxShadow: `0 6px 16px ${colorScheme.primary}6d`,
+            },
+            '&:disabled': {
+              background: '#ccc',
+              boxShadow: 'none'
+            }
+          }}
+        >
+          {exportLoading ? 'Exporting...' : 'Export Report'}
+        </Button>
+        
         <CardContent sx={{ p: 4 }}>
           <Grid container spacing={4} alignItems="center">
             {/* Left Section - File Information */}
@@ -406,17 +511,25 @@ console.log(sheetData)
               <Typography variant="h4" sx={{ 
                 fontWeight: 700, 
                 color: colorScheme.textPrimary, 
-                mb: 1,
-                fontSize: '1.75rem'
+                fontSize: '1.75rem',
+                mb: 1
               }}>
                 {fileInfo?.fileName || 'Data Analysis'}
               </Typography>
+              
+              {exportError && (
+                <Typography variant="body2" sx={{ color: 'error.main', mb: 1, fontSize: '0.8rem' }}>
+                  {exportError}
+                </Typography>
+              )}
+              
               <Typography variant="body1" sx={{ color: colorScheme.textSecondary, mb: 0.5 }}>
                 Uploaded: {formatDate(fileInfo?.uploadedAt)}
               </Typography>
               <Typography variant="body2" sx={{ color: '#888' }}>
                 Status: {fileInfo?.status || 'COMPLETED'} • Records: {fileInfo?.totalRecords || 0}
               </Typography>
+              
               <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'row', width:'fit-content', marginTop: '10px', gap: '10px'   }}>
                   <Box sx={{ 
                     width: 120,
@@ -466,7 +579,7 @@ console.log(sheetData)
             </Grid>
 
             {/* Right Section - Analysis Results & Statistics */}
-            <Grid item size={{xs: 12, md: 6}}>
+            <Grid item size={{xs: 12, md: 6}} sx={{mt:'60px'}}>
             <Grid container spacing={2}>
                     <Grid item size={{xs: 3, md: 3}}>
                       <Box sx={{ textAlign: 'center' }}>
@@ -2212,7 +2325,14 @@ console.log(sheetData)
 
           {/* Anomaly Analysis Accordion */}
         <Grid item size={{xs: 12, md: 12}}>
-            <AnomalyAnalysisAccordion sheetId={sheetData?.sheet_id} anomalySummary={sheetData?.anomaliesAccordion} totalAnomalies={comprehensiveStats?.anomaliesDetected} />
+            <AnomalyAnalysisAccordion 
+              sheetId={sheetData?.sheet_id} 
+              anomalySummary={sheetData?.anomaliesAccordion} 
+              totalAnomalies={comprehensiveStats?.anomaliesDetected}
+              onAnalysisExport={handleAnalysisExport}
+              analysisExportLoading={analysisExportLoading}
+              analysisExportError={analysisExportError}
+            />
           </Grid>
         </Grid>
     </Box>

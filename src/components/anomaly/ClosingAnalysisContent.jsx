@@ -48,7 +48,7 @@ import RiskDistributionChart from '../charts/RiskDistributionChart';
 import AnomaliesDistributionChart from '../charts/AnomaliesDistributionChart';
 
 // Import Recharts for custom gradient charts
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Legend, Area, AreaChart, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Legend, Area, AreaChart, BarChart, Bar, PieChart, Pie, Cell, ComposedChart } from 'recharts';
 
 export default function ClosingAnalysisContent({ data, distributionData, anomalySummary, sheetId }) {
   const [expandedTransactions, setExpandedTransactions] = useState({});
@@ -182,12 +182,11 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
     fetchClosingListing(1, newPageSize);
   };
 
-  // Prepare chart data for risk distribution
-  const riskDistributionChartData = Object.entries(riskDistribution).map(([level, count]) => ({
-    name: level,
-    value: count,
-    color: getRiskColor(level || 'LOW')
-  }));
+  // Prepare chart data for risk distribution - pass raw data to let the component handle transformation
+  // If no risk distribution data, create a fallback structure
+  const riskDistributionChartData = Object.keys(riskDistribution).length > 0 
+    ? riskDistribution 
+    : { low_risk: 0, medium_risk: 0, high_risk: 0, critical_risk: 0 };
 
   // Prepare user analysis data for charts
   const userAnalysisChartData = Object.entries(userAnalysis).map(([user, data]) => ({
@@ -199,8 +198,45 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
     )
   }));
 
+  // Prepare account analysis data for charts
+  const accountAnalysisChartData = Object.entries(accountAnalysis).map(([account, data]) => ({
+    name: `Account ${account}`,
+    entries: data.total_entries,
+    amount: data.total_amount,
+    users: data.users?.length || 0
+  }));
+
+  // Prepare temporal analysis data for charts
+  const temporalAnalysisChartData = Object.entries(temporalAnalysis).map(([date, data]) => ({
+    name: new Date(date).toLocaleDateString(),
+    entries: data.total_entries,
+    amount: data.total_amount,
+    daysFromMonthEnd: data.days_from_month_end || 0
+  })).sort((a, b) => new Date(a.name) - new Date(b.name));
+
+  // Prepare amount analysis data for charts
+  const amountAnalysisChartData = [
+    { name: 'High Value', value: amountAnalysis.high_value_entries || 0, color: '#ef4444' },
+    { name: 'Medium Value', value: amountAnalysis.medium_value_entries || 0, color: '#f59e0b' },
+    { name: 'Low Value', value: amountAnalysis.low_value_entries || 0, color: '#10b981' }
+  ];
+
+  // Prepare monthly trend data
+  const monthlyTrendData = Object.entries(temporalAnalysis)
+    .reduce((acc, [date, data]) => {
+      const month = new Date(date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      if (!acc[month]) {
+        acc[month] = { name: month, entries: 0, amount: 0 };
+      }
+      acc[month].entries += data.total_entries;
+      acc[month].amount += data.total_amount;
+      return acc;
+    }, {});
+
+  const monthlyTrendChartData = Object.values(monthlyTrendData);
+
   return (
-    <Box sx={{ minHeight: '100vh', background: '#ffffff', p: 2 }}>
+    <Box sx={{ minHeight: '100vh', background: 'white', p: 3 }}>
       <Typography variant="h4" sx={{ 
         fontWeight: 700, 
         color: '#2c3e50', 
@@ -243,9 +279,9 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
         </Typography>
         <Box sx={{ mt: 2 }}>
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
-              <Box sx={{ p: 2, backgroundColor: 'rgba(230, 81, 0, 0.1)', borderRadius: 2, border: '1px solid rgba(230, 81, 0, 0.3)' }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#e65100', mb: 1 }}>
+            <Grid item size={{xs: 12, sm: 6}}>
+              <Box sx={{ p: 2, backgroundColor: 'rgba(146, 90, 155, 0.1)', borderRadius: 2, border: '1px solid rgba(146, 90, 155, 0.3)' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#925a9b', mb: 1 }}>
                   Detection Criteria
                 </Typography>
                 <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
@@ -255,9 +291,9 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
                 </Typography>
               </Box>
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <Box sx={{ p: 2, backgroundColor: 'rgba(33, 150, 243, 0.1)', borderRadius: 2, border: '1px solid rgba(33, 150, 243, 0.3)' }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#2196f3', mb: 1 }}>
+                <Grid item size={{xs: 12, sm: 6}}>
+              <Box sx={{ p: 2, backgroundColor: 'rgba(146, 90, 155, 0.1)', borderRadius: 2, border: '1px solid rgba(146, 90, 155, 0.3)' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#925a9b', mb: 1 }}>
                   Risk Indicators
                 </Typography>
                 <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
@@ -274,12 +310,12 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
 
       {/* Summary Cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} lg={3}>
+        <Grid item size={{xs: 12, sm: 6, lg: 3}}>
           <Card sx={{ 
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            background: 'linear-gradient(135deg, #925a9b 0%, #7a4a82 100%)',
             color: 'white',
             borderRadius: 2,
-            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)',
+            boxShadow: '0 4px 12px rgba(146, 90, 155, 0.2)',
             height: '100%'
           }}>
             <CardContent sx={{ p: 2.5 }}>
@@ -317,12 +353,12 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} lg={3}>
+        <Grid item size={{xs: 12, sm: 6, lg: 3}}>
           <Card sx={{ 
-            background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+            background: 'linear-gradient(135deg, #925a9b 0%, #7a4a82 100%)',
             color: 'white',
             borderRadius: 2,
-            boxShadow: '0 4px 12px rgba(240, 147, 251, 0.2)',
+            boxShadow: '0 4px 12px rgba(168, 85, 247, 0.2)',
             height: '100%'
           }}>
             <CardContent sx={{ p: 2.5 }}>
@@ -351,12 +387,12 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} lg={3}>
+        <Grid item size={{xs: 12, sm: 6, lg: 3}}>
           <Card sx={{ 
-            background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+            background: 'linear-gradient(135deg, #925a9b 0%, #7a4a82 100%)',
             color: 'white',
             borderRadius: 2,
-            boxShadow: '0 4px 12px rgba(79, 172, 254, 0.2)',
+            boxShadow: '0 4px 12px rgba(139, 92, 246, 0.2)',
             height: '100%'
           }}>
             <CardContent sx={{ p: 2.5 }}>
@@ -382,12 +418,12 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} lg={3}>
+        <Grid item size={{xs: 12, sm: 6, lg: 3}}>
           <Card sx={{ 
-            background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+            background: 'linear-gradient(135deg, #925a9b 0%, #7a4a82 100%)',
             color: 'white',
             borderRadius: 2,
-            boxShadow: '0 4px 12px rgba(67, 233, 123, 0.2)',
+            boxShadow: '0 4px 12px rgba(124, 58, 237, 0.2)',
             height: '100%'
           }}>
             <CardContent sx={{ p: 2.5 }}>
@@ -416,7 +452,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
 
       {/* Additional Summary Cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} lg={3}>
+        <Grid item size={{xs: 12, sm: 6, lg: 3}}>
           <Card sx={{ 
             borderRadius: 2, 
             boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
@@ -433,7 +469,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} lg={3}>
+        <Grid item size={{xs: 12, sm: 6, lg: 3}}>
           <Card sx={{ 
             borderRadius: 2, 
             boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
@@ -450,7 +486,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} lg={3}>
+        <Grid item size={{xs: 12, sm: 6, lg: 3}}>
           <Card sx={{ 
             borderRadius: 2, 
             boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
@@ -467,7 +503,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} lg={3}>
+        <Grid item size={{xs: 12, sm: 6, lg: 3}}>
           <Card sx={{ 
             borderRadius: 2, 
             boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
@@ -487,41 +523,383 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
       </Grid>
 
       {/* Charts Section */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} lg={6}>
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+          {/* User Activity Chart */}
+          <Grid item size={{xs: 12, lg: 12}}>
           <Card sx={{ 
             borderRadius: 2, 
             boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-            border: '1px solid #f0f0f0'
+            border: '1px solid #f0f0f0',
+            background: 'white'
           }}>
             <CardContent sx={{ p: 2.5 }}>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: '#2c3e50' }}>
-                Risk Distribution
+                User Activity Analysis
               </Typography>
-              <RiskDistributionChart data={riskDistributionChartData} />
+              <Box sx={{ 
+                height: 400,
+                background: 'linear-gradient(135deg, rgba(146, 90, 155, 0.02) 0%, rgba(122, 74, 130, 0.02) 100%)',
+                borderRadius: 2,
+                p: 1
+              }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={userAnalysisChartData}>
+                    <defs>
+                      <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#925a9b" stopOpacity={0.9}/>
+                        <stop offset="95%" stopColor="#925a9b" stopOpacity={0.3}/>
+                      </linearGradient>
+                      <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#7a4a82" stopOpacity={0.8}/>
+                        <stop offset="50%" stopColor="#925a9b" stopOpacity={1}/>
+                        <stop offset="100%" stopColor="#7a4a82" stopOpacity={0.8}/>
+                      </linearGradient>
+                      <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#7a4a82" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#7a4a82" stopOpacity={0.05}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis 
+                      dataKey="name" 
+                      stroke="#666" 
+                      angle={-45} 
+                      textAnchor="end" 
+                      height={100}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis 
+                      yAxisId="left" 
+                      stroke="#666" 
+                      label={{ value: 'Number of Entries', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle' } }}
+                    />
+                    <YAxis 
+                      yAxisId="right" 
+                      orientation="right" 
+                      stroke="#7a4a82"
+                      label={{ value: 'Total Amount', angle: 90, position: 'insideRight', style: { textAnchor: 'middle' } }}
+                    />
+                    <Tooltip 
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <Box sx={{ 
+                              background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+                              border: '1px solid #e0e0e0', 
+                              borderRadius: 3, 
+                              p: 2.5,
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                              minWidth: 200
+                            }}>
+                              <Typography variant="body2" sx={{ 
+                                fontWeight: 'bold', 
+                                mb: 1.5,
+                                color: '#2c3e50',
+                                fontSize: '0.9rem'
+                              }}>
+                                {label}
+                              </Typography>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                <Box sx={{ 
+                                  display: 'flex', 
+                                  justifyContent: 'space-between', 
+                                  alignItems: 'center',
+                                  p: 1,
+                                  backgroundColor: 'rgba(146, 90, 155, 0.1)',
+                                  borderRadius: 1
+                                }}>
+                                  <Typography variant="body2" sx={{ color: '#666', fontSize: '0.8rem' }}>
+                                    Entries:
+                                  </Typography>
+                                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#925a9b' }}>
+                                    {payload[0]?.value}
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ 
+                                  display: 'flex', 
+                                  justifyContent: 'space-between', 
+                                  alignItems: 'center',
+                                  p: 1,
+                                  backgroundColor: 'rgba(122, 74, 130, 0.1)',
+                                  borderRadius: 1
+                                }}>
+                                  <Typography variant="body2" sx={{ color: '#666', fontSize: '0.8rem' }}>
+                                    Amount:
+                                  </Typography>
+                                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#7a4a82' }}>
+                                    {formatCurrency(payload[1]?.value || 0, currency)}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            </Box>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Legend />
+                    <Bar 
+                      yAxisId="left"
+                      dataKey="entries" 
+                      fill="url(#barGradient)" 
+                      name="Entries" 
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Area
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="amount"
+                      stroke="url(#lineGradient)"
+                      strokeWidth={3}
+                      fill="url(#areaGradient)"
+                      name="Total Amount"
+                      dot={{ fill: '#7a4a82', strokeWidth: 2, r: 4 }}
+                      activeDot={{ r: 6, stroke: '#7a4a82', strokeWidth: 2 }}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </Box>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} lg={6}>
+        {/* Risk Distribution Chart */}
+        <Grid item size={{xs: 12, lg: 5}}>
+          <RiskDistributionChart 
+            data={riskDistributionChartData} 
+            title="Risk Distribution"
+            subtitle="Distribution of closing entries by risk level"
+          />
+        </Grid>
+   {/* Amount Analysis Chart */}
+   <Grid item size={{xs: 12, lg: 7}}>
           <Card sx={{ 
             borderRadius: 2, 
             boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-            border: '1px solid #f0f0f0'
+            border: '1px solid #f0f0f0',
+            background: 'white'
           }}>
             <CardContent sx={{ p: 2.5 }}>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: '#2c3e50' }}>
-                User Activity
+                Amount Distribution
               </Typography>
               <Box sx={{ height: 300 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={userAnalysisChartData.slice(0, 5)}>
+                  <PieChart>
+                    <Pie
+                      data={amountAnalysisChartData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {amountAnalysisChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      
+
+        {/* Account Analysis Chart */}
+        <Grid item size={{xs: 12, lg: 12}}>
+          <Card sx={{ 
+            borderRadius: 2, 
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+            border: '1px solid #f0f0f0',
+            background: 'white'
+          }}>
+            <CardContent sx={{ p: 2.5 }}>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: '#2c3e50' }}>
+                Account Analysis
+              </Typography>
+              <Box sx={{ 
+                height: 400,
+                background: 'linear-gradient(135deg, rgba(146, 90, 155, 0.02) 0%, rgba(122, 74, 130, 0.02) 100%)',
+                borderRadius: 2,
+                p: 1
+              }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={accountAnalysisChartData.slice(0, 8)}>
+                    <defs>
+                      <linearGradient id="accountBarGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#925a9b" stopOpacity={0.9}/>
+                        <stop offset="95%" stopColor="#925a9b" stopOpacity={0.3}/>
+                      </linearGradient>
+                      <linearGradient id="accountAmountGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#7a4a82" stopOpacity={0.9}/>
+                        <stop offset="95%" stopColor="#7a4a82" stopOpacity={0.3}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis 
+                      dataKey="name" 
+                      stroke="#666" 
+                      angle={-45} 
+                      textAnchor="end" 
+                      height={80}
+                      tick={{ fontSize: 11 }}
+                    />
+                    <YAxis 
+                      yAxisId="left" 
+                      stroke="#666"
+                      label={{ value: 'Number of Entries', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle' } }}
+                    />
+                    <YAxis 
+                      yAxisId="right" 
+                      orientation="right" 
+                      stroke="#7a4a82"
+                      label={{ value: 'Total Amount', angle: 90, position: 'insideRight', style: { textAnchor: 'middle' } }}
+                    />
+                    <Tooltip 
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <Box sx={{ 
+                              background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+                              border: '1px solid #e0e0e0', 
+                              borderRadius: 3, 
+                              p: 2.5,
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                              minWidth: 200
+                            }}>
+                              <Typography variant="body2" sx={{ 
+                                fontWeight: 'bold', 
+                                mb: 1.5,
+                                color: '#2c3e50',
+                                fontSize: '0.9rem'
+                              }}>
+                                {label}
+                              </Typography>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                <Box sx={{ 
+                                  display: 'flex', 
+                                  justifyContent: 'space-between', 
+                                  alignItems: 'center',
+                                  p: 1,
+                                  backgroundColor: 'rgba(146, 90, 155, 0.1)',
+                                  borderRadius: 1
+                                }}>
+                                  <Typography variant="body2" sx={{ color: '#666', fontSize: '0.8rem' }}>
+                                    Entries:
+                                  </Typography>
+                                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#925a9b' }}>
+                                    {payload[0]?.value}
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ 
+                                  display: 'flex', 
+                                  justifyContent: 'space-between', 
+                                  alignItems: 'center',
+                                  p: 1,
+                                  backgroundColor: 'rgba(122, 74, 130, 0.1)',
+                                  borderRadius: 1
+                                }}>
+                                  <Typography variant="body2" sx={{ color: '#666', fontSize: '0.8rem' }}>
+                                    Amount:
+                                  </Typography>
+                                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#7a4a82' }}>
+                                    {formatCurrency(payload[1]?.value || 0, currency)}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            </Box>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Legend />
+                    <Bar 
+                      yAxisId="left"
+                      dataKey="entries" 
+                      fill="url(#accountBarGradient)" 
+                      name="Entries" 
+                      radius={[4, 4, 0, 0]}
+                      barSize={20}
+                    />
+                    <Bar 
+                      yAxisId="right"
+                      dataKey="amount" 
+                      fill="url(#accountAmountGradient)" 
+                      name="Amount" 
+                      radius={[4, 4, 0, 0]}
+                      barSize={20}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+     
+
+        {/* Monthly Trend Chart */}
+        <Grid item size={{xs: 12, lg: 12}}>
+          <Card sx={{ 
+            borderRadius: 2, 
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+            border: '1px solid #f0f0f0',
+            background: 'white'
+          }}>
+            <CardContent sx={{ p: 2.5 }}>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: '#2c3e50' }}>
+                Monthly Trend
+              </Typography>
+              <Box sx={{ height: 300 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={monthlyTrendChartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="name" stroke="#666" />
                     <YAxis stroke="#666" />
                     <Tooltip />
                     <Legend />
-                    <Bar dataKey="entries" fill="#667eea" name="Entries" />
-                  </BarChart>
+                    <Line type="monotone" dataKey="entries" stroke="#925a9b" strokeWidth={2} name="Entries" />
+                    <Line type="monotone" dataKey="amount" stroke="#7a4a82" strokeWidth={2} name="Amount" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Temporal Analysis Chart */}
+        <Grid item size={{xs: 12, lg: 12}}>
+          <Card sx={{ 
+            borderRadius: 2, 
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+            border: '1px solid #f0f0f0',
+            background: 'white'
+          }}>
+            <CardContent sx={{ p: 2.5 }}>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: '#2c3e50' }}>
+                Closing Date Analysis
+              </Typography>
+              <Box sx={{ height: 300 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={temporalAnalysisChartData}>
+                    <defs>
+                      <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#925a9b" stopOpacity={0.9}/>
+                        <stop offset="95%" stopColor="#925a9b" stopOpacity={0.1}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={80} />
+                    <YAxis stroke="#666" />
+                    <Tooltip />
+                    <Legend />
+                    <Area type="monotone" dataKey="entries" stroke="#925a9b" fill="url(#colorGradient)" name="Entries" />
+                  </AreaChart>
                 </ResponsiveContainer>
               </Box>
             </CardContent>
@@ -535,6 +913,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
           borderRadius: 2, 
           boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
           border: '1px solid #f0f0f0',
+          background: 'white',
           mb: 3
         }}>
           <CardContent sx={{ p: 2.5 }}>
@@ -561,7 +940,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
                      const avgAmount = data.total_amount / data.total_entries;
                     
                     return (
-                      <TableRow key={index} hover>
+                      <TableRow key={index} hover sx={{ '&:hover': { backgroundColor: '#f8f9fa' } }}>
                         <TableCell>
                           <Typography variant="body2" sx={{ fontWeight: 500 }}>
                             {user}
@@ -602,7 +981,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
                               avg_amount: avgAmount,
                               risk_level: dominantRiskLevel
                             })}
-                            sx={{ color: '#667eea' }}
+                            sx={{ color: '#925a9b' }}
                           >
                             <VisibilityIcon />
                           </IconButton>
@@ -622,6 +1001,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
         borderRadius: 2, 
         boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
         border: '1px solid #f0f0f0',
+        background: 'white',
         mb: 3
       }}>
         <CardContent sx={{ p: 2.5 }}>
@@ -634,7 +1014,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
               startIcon={<VisibilityIcon />}
               onClick={handleOpenPDF}
               sx={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: 'linear-gradient(135deg, #925a9b 0%, #7a4a82 100%)',
                 borderRadius: 1.5,
                 textTransform: 'none',
                 fontWeight: 600,
@@ -732,7 +1112,7 @@ export default function ClosingAnalysisContent({ data, distributionData, anomaly
                             e.stopPropagation();
                             handleDrawerOpen(entry);
                           }}
-                          sx={{ color: '#667eea' }}
+                          sx={{ color: '#925a9b' }}
                         >
                           <VisibilityIcon />
                         </IconButton>

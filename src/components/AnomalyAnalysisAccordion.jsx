@@ -8,7 +8,8 @@ import {
   AccordionDetails,
   Box,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Button
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
@@ -19,7 +20,8 @@ import {
   Person as PersonIcon,
   CalendarToday as CalendarIcon,
   Event as EventIcon,
-  HolidayVillage as HolidayIcon
+  HolidayVillage as HolidayIcon,
+  FileDownload
 } from '@mui/icons-material';
 import axios from 'axios';
 import { colorScheme } from '../utils/colorScheme';
@@ -83,7 +85,14 @@ const anomalyTypes = [
   }
 ];
 
-export default function AnomalyAnalysisAccordion({ sheetId, anomalySummary, totalAnomalies }) {
+export default function AnomalyAnalysisAccordion({ 
+  sheetId, 
+  anomalySummary, 
+  totalAnomalies, 
+  onAnalysisExport, 
+  analysisExportLoading, 
+  analysisExportError 
+}) {
   const [expandedAccordion, setExpandedAccordion] = useState(null);
   const [loadingStates, setLoadingStates] = useState({});
   const [anomalyData, setAnomalyData] = useState({});
@@ -135,21 +144,95 @@ export default function AnomalyAnalysisAccordion({ sheetId, anomalySummary, tota
       totalAnomalies
     };
 
+    // Add export button wrapper
+    const ExportButtonWrapper = ({ children, type, color }) => (
+      <Box>
+        {/* Export Button */}
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+          <Button
+            variant="contained"
+            startIcon={analysisExportLoading ? <CircularProgress size={20} color="inherit" /> : <FileDownload />}
+            onClick={() => onAnalysisExport && onAnalysisExport(type)}
+            disabled={analysisExportLoading || !onAnalysisExport}
+            sx={{
+              backgroundColor: color,
+              color: 'white',
+              fontWeight: 600,
+              px: 3,
+              py: 1.5,
+              borderRadius: 2,
+              textTransform: 'none',
+              fontSize: '0.9rem',
+              boxShadow: `0 2px 8px ${color}40`,
+              '&:hover': {
+                backgroundColor: color,
+                boxShadow: `0 4px 12px ${color}60`,
+                transform: 'translateY(-1px)'
+              },
+              '&:disabled': {
+                backgroundColor: '#ccc',
+                boxShadow: 'none'
+              },
+              transition: 'all 0.2s ease-in-out'
+            }}
+          >
+            {analysisExportLoading ? 'Exporting...' : 'Export Analysis'}
+          </Button>
+        </Box>
+        
+        {analysisExportError && (
+          <Alert severity="error" sx={{ mb: 2, fontSize: '0.8rem' }}>
+            {analysisExportError}
+          </Alert>
+        )}
+        
+        {children}
+      </Box>
+    );
+
     switch (anomalyType) {
       case 'duplicate':
-        return <DuplicateAnalysisContent {...contentProps} />;
+        return (
+          <ExportButtonWrapper type="duplicate" color="#FF6384">
+            <DuplicateAnalysisContent {...contentProps} />
+          </ExportButtonWrapper>
+        );
       case 'user':
-        return <UserAnalysisContent {...contentProps} />;
+        return (
+          <ExportButtonWrapper type="user" color="#36A2EB">
+            <UserAnalysisContent {...contentProps} />
+          </ExportButtonWrapper>
+        );
       case 'backdated':
-        return <BackdatedAnalysisContent {...contentProps} />;
+        return (
+          <ExportButtonWrapper type="backdated" color="#FFCE56">
+            <BackdatedAnalysisContent {...contentProps} />
+          </ExportButtonWrapper>
+        );
       case 'closing':
-        return <ClosingAnalysisContent {...contentProps} />;
+        return (
+          <ExportButtonWrapper type="closing_entries" color="#4BC0C0">
+            <ClosingAnalysisContent {...contentProps} />
+          </ExportButtonWrapper>
+        );
       case 'unusual':
-        return <UnusualDaysAnalysisContent {...contentProps} />;
+        return (
+          <ExportButtonWrapper type="unusual_days" color="#9966FF">
+            <UnusualDaysAnalysisContent {...contentProps} />
+          </ExportButtonWrapper>
+        );
       case 'holidays':
-        return <HolidayAnalysisContent {...contentProps} />;
+        return (
+          <ExportButtonWrapper type="holiday" color="#FF9F40">
+            <HolidayAnalysisContent {...contentProps} />
+          </ExportButtonWrapper>
+        );
       default:
-        return <GenericAnalysisContent {...contentProps} />;
+        return (
+          <ExportButtonWrapper type={anomalyType} color="#925a9b">
+            <GenericAnalysisContent {...contentProps} />
+          </ExportButtonWrapper>
+        );
     }
   };
 
