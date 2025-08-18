@@ -1305,7 +1305,7 @@ export default function UnusualDaysAnalysisContent({ data, distributionData, ano
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" sx={{ color: '#2c3e50' }}>
+   ;(FqU%*Cdw6sgK*c)                     <Typography variant="body2" sx={{ color: '#2c3e50' }}>
                           {safeParseFloat(user?.high_value_percentage, 0).toFixed(1)}%
                         </Typography>
                       </TableCell>

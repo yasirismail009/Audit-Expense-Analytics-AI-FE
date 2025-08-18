@@ -2326,6 +2326,7 @@ console.log(sheetData)
           {/* Anomaly Analysis Accordion */}
         <Grid item size={{xs: 12, md: 12}}>
             <AnomalyAnalysisAccordion 
+              sheetData={sheetData}
               sheetId={sheetData?.sheet_id} 
               anomalySummary={sheetData?.anomaliesAccordion} 
               totalAnomalies={comprehensiveStats?.anomaliesDetected}

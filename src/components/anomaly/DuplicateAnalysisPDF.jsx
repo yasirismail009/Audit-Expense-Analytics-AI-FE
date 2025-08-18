@@ -195,7 +195,8 @@ const DuplicateAnalysisPDF = ({
   open,
   setOpen,
   data,
-  currency = 'SAR'
+  currency = 'SAR',
+  fileInfo
 }) => {
   const printRef = useRef();
 
@@ -222,17 +223,16 @@ const DuplicateAnalysisPDF = ({
   };
 
   // Extract data from the sheet structure - Map real file info from sheet
-  const fileInfo = data?.fileInfo || data?.file_info || {};
   const analysisInfo = data?.analysis_info || {};
   const summary = data?.summary || {};
   const detailedResults = data?.detailed_results || {};
   
   // Extract company and client information from sheet data
   const companyInfo = {
-    company_name: data?.company_name || fileInfo?.company_name || data?.company_name || 'N/A',
-    client_name: data?.client_name || fileInfo?.client_name || data?.client_name || 'N/A',
-    engagement_id: data?.engagement_id || fileInfo?.engagement_id || data?.engagement_id || 'N/A',
-    fiscal_year: data?.fiscal_year || fileInfo?.fiscal_year || data?.fiscal_year || 'N/A'
+    company_name: fileInfo?.companyName || 'N/A',
+    client_name: fileInfo?.clientName || 'N/A',
+    engagement_id: fileInfo?.engagementId || 'N/A',
+    fiscal_year: fileInfo?.fiscalYear || 'N/A'
   };
   
   // Simplified chart data structure
@@ -513,274 +513,45 @@ const DuplicateAnalysisPDF = ({
               <div className='modal-body bg-white text-dark'>
                 <div style={{ padding: "20px" }}>
                   <div className='content-section'>
-                    {/* Professional Header Section */}
-                    <div className='sections professional-header' style={{ marginBottom: "30px" }}>
-                      {/* Main Header Banner */}
-                      <div className='header-banner' style={{ 
-                        background: "linear-gradient(135deg, #925a9b 0%, #7a4a82 100%)",
-                        color: "white",
-                        padding: "30px 25px",
-                        borderRadius: "12px",
-                        boxShadow: "0 8px 32px rgba(146, 90, 155, 0.15)",
-                        marginBottom: "25px"
-                      }}>
-                      <div style={{ 
-                          display: "flex", 
-                          justifyContent: "space-between", 
-                          alignItems: "center",
-                          flexWrap: "wrap"
-                        }}>
-                          {/* Left Section - Company Info */}
-                          <div style={{ flex: "1", minWidth: "300px" }}>
-                            <div style={{ 
-                              fontSize: "28px", 
-                              fontWeight: "700", 
-                              marginBottom: "8px",
-                              letterSpacing: "0.5px"
-                            }}>
-                              {companyInfo.company_name}
-                            </div>
-                            <div style={{ 
-                              fontSize: "16px", 
-                              opacity: "0.9",
-                              marginBottom: "4px"
-                            }}>
-                              {companyInfo.client_name}
-                            </div>
-                            <div style={{ 
-                              fontSize: "14px", 
-                              opacity: "0.8",
-                              marginBottom: "8px"
-                            }}>
-                              Engagement ID: {companyInfo.engagement_id} | Fiscal Year: {companyInfo.fiscal_year}
-                            </div>
-                            <div style={{ 
-                              display: "flex", 
-                              alignItems: "center", 
-                              gap: "15px",
-                              marginTop: "12px"
-                            }}>
-                              <div style={{ 
-                                padding: "6px 12px", 
-                                backgroundColor: "rgba(255,255,255,0.2)", 
-                                borderRadius: "20px",
-                                fontSize: "12px",
-                                fontWeight: "600"
-                              }}>
-                                Analysis ID: {fileInfo?.fileName || fileInfo?.file_id || analysisInfo?.analysis_id || data?.analysis_id || "N/A"}
-                              </div>
-                              <div style={{ 
-                                padding: "6px 12px", 
-                                backgroundColor: "rgba(255,255,255,0.2)", 
-                                borderRadius: "20px",
-                                fontSize: "12px",
-                                fontWeight: "600"
-                              }}>
-                                Status: {fileInfo?.status || "COMPLETED"}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Center Section - Logo */}
-                          <div style={{ 
-                            display: "flex", 
-                            alignItems: "center", 
-                            justifyContent: "center",
-                            flex: "0 0 auto",
-                            margin: "0 20px"
-                          }}>
-                            <div style={{ 
-                              backgroundColor: "rgba(255,255,255,0.1)", 
-                              padding: "15px", 
-                              borderRadius: "12px",
-                              backdropFilter: "blur(10px)"
-                            }}>
-                              <img src={logoFull} width={180} style={{ filter: "brightness(0) invert(1)" }} />
-                            </div>
-                          </div>
-
-                          {/* Right Section - Report Info */}
-                          <div style={{ 
-                            flex: "1", 
-                            minWidth: "300px",
-                            textAlign: "right"
-                          }}>
-                            <div style={{ 
-                              fontSize: "24px", 
-                              fontWeight: "700", 
-                              marginBottom: "8px",
-                              letterSpacing: "1px"
-                            }}>
-                              DUPLICATE ANALYSIS
-                            </div>
-                            <div style={{ 
-                              fontSize: "18px", 
-                              fontWeight: "600", 
-                              marginBottom: "12px",
-                              opacity: "0.9"
-                            }}>
-                              REPORT
-                            </div>
-                            <div style={{ 
-                              fontSize: "14px", 
-                              opacity: "0.8",
-                              marginBottom: "4px"
-                            }}>
-                              Generated: {currentDateTime}
-                            </div>
-                            <div style={{ 
-                              fontSize: "14px", 
-                              opacity: "0.8",
-                              marginBottom: "8px"
-                            }}>
+                    <div className='sections'>
+                      <table
+                        width='100%'
+                        style={{ borderBottom: "4px solid #925a9b" }}>
+                        <tbody>
+                          <tr>
+                            <td
+                              align='left'
+                              style={{ verticalAlign: "top", width: "33%" }}>
+                              <h2 style={{ fontWeight: "bold" }}>Duplicate Analysis</h2>
+                              <b>Analysis ID:</b> {fileInfo?.fileName || fileInfo?.file_id || analysisInfo?.analysis_id || data?.analysis_id || "N/A"}
+                              <br />
+                              <b>Status:</b> {fileInfo?.status || "COMPLETED"}
+                              <br />
+                              <b>Currency:</b> {currency}
+                            </td>
+                            <td
+                              align='center'
+                              style={{ verticalAlign: "center", width: "33%" }}>
+                              <a href='javascript:;'>
+                                <img src={logoFull} width={200} />
+                              </a>
+                            </td>
+                            <td
+                              align='right'
+                              style={{ verticalAlign: "bottom", width: "33%" }}>
+                              Generated on {currentDateTime}
+                              <br />
                               Analysis Date: {formatDate(analysisInfo?.analysis_date || fileInfo?.uploadedAt)}
-                            </div>
-                            <div style={{ 
-                              display: "flex", 
-                              alignItems: "center", 
-                              justifyContent: "flex-end",
-                              gap: "15px",
-                              marginTop: "12px"
-                            }}>
-                              <div style={{ 
-                                padding: "6px 12px", 
-                                backgroundColor: RiskColor[riskLevelNumber],
-                                borderRadius: "20px",
-                                fontSize: "12px",
-                                fontWeight: "600",
-                                color: "white"
-                              }}>
-                                Risk: {riskLevel}
-                              </div>
-                              <div style={{ 
-                                padding: "6px 12px", 
-                                backgroundColor: "rgba(255,255,255,0.2)", 
-                                borderRadius: "20px",
-                                fontSize: "12px",
-                                fontWeight: "600"
-                              }}>
-                                {totalDuplicates} Duplicates
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Quick Stats Banner */}
-                      <div className='header-stats' style={{ 
-                        display: "grid", 
-                        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
-                        gap: "15px",
-                        marginBottom: "25px"
-                      }}>
-                        <div className='stat-card' style={{ 
-                        padding: "20px", 
-                          backgroundColor: "white", 
-                        border: "1px solid #e9ecef", 
-                          borderRadius: "10px",
-                          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-                          textAlign: "center"
-                      }}>
-                          <div style={{ 
-                          fontSize: "24px",
-                            fontWeight: "700", 
-                            color: "#925a9b",
-                            marginBottom: "5px"
-                        }}>
-                            {duplicateEntries.length}
-                          </div>
-                        <div style={{ 
-                            fontSize: "12px", 
-                          color: "#6c757d", 
-                            fontWeight: "600",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.5px"
-                          }}>
-                            Duplicate Groups
-                          </div>
-                        </div>
-
-                        <div className='stat-card' style={{ 
-                          padding: "20px", 
-                          backgroundColor: "white", 
-                          border: "1px solid #e9ecef", 
-                          borderRadius: "10px",
-                          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-                          textAlign: "center"
-                        }}>
-                          <div style={{ 
-                            fontSize: "24px", 
-                            fontWeight: "700", 
-                            color: "#925a9b",
-                          marginBottom: "5px"
-                        }}>
-                            {formatCurrency(totalDuplicateAmount || 0)}
-                        </div>
-                        <div style={{ 
-                            fontSize: "12px", 
-                          color: "#6c757d", 
-                            fontWeight: "600",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.5px"
-                          }}>
-                            Total Amount
-                          </div>
-                        </div>
-
-                        <div className='stat-card' style={{ 
-                          padding: "20px", 
-                          backgroundColor: "white", 
-                          border: "1px solid #e9ecef", 
-                          borderRadius: "10px",
-                          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-                          textAlign: "center"
-                        }}>
-                          <div style={{ 
-                            fontSize: "24px", 
-                            fontWeight: "700", 
-                            color: RiskColor[riskLevelNumber],
-                          marginBottom: "5px"
-                        }}>
-                            {overallRiskScore}%
-                        </div>
-                        <div style={{ 
-                            fontSize: "12px", 
-                            color: "#6c757d",
-                            fontWeight: "600",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.5px"
-                          }}>
-                            Risk Score
-                          </div>
-                        </div>
-
-                        <div className='stat-card' style={{ 
-                          padding: "20px", 
-                          backgroundColor: "white", 
-                          border: "1px solid #e9ecef", 
-                          borderRadius: "10px",
-                          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-                          textAlign: "center"
-                        }}>
-                          <div style={{ 
-                            fontSize: "24px", 
-                            fontWeight: "700", 
-                          color: "#925a9b", 
-                            marginBottom: "5px"
-                        }}>
-                            {currency}
-                        </div>
-                          <div style={{ 
-                            fontSize: "12px", 
-                            color: "#6c757d",
-                            fontWeight: "600",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.5px"
-                          }}>
-                            Currency
-                      </div>
-                    </div>
-                      </div>
+                              <br />
+                              <b>Risk Level:</b> {riskLevel}
+                              <br />
+                              <p style={{ maxWidth: "90%" }}>
+                                Total Duplicates: {duplicateEntries.length}
+                              </p>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
 
                     <div className='sections'>                      

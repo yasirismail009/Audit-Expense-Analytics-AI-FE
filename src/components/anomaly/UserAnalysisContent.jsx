@@ -23,7 +23,14 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Paper
+  Paper,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  ListItemSecondaryAction,
+  ListItemAvatar,
+  ListItemButton
 } from '@mui/material';
 import {
   Visibility as VisibilityIcon,
@@ -36,8 +43,10 @@ import {
   Timeline as TimelineIcon,
   Security as SecurityIcon,
   Assessment as AssessmentIcon,
-  PictureAsPdf as PictureAsPdfIcon
+  PictureAsPdf as PictureAsPdfIcon,
+  FileDownload
 } from '@mui/icons-material';
+import { CircularProgress } from '@mui/material';
 import { colorScheme, getRiskColor, formatCurrency } from '../../utils/colorScheme';
 
 // Import chart components (if needed for future use)
@@ -73,7 +82,17 @@ import UserAnalysisPDF from './UserAnalysisPDF';
 //   AreaChart
 // } from 'recharts';
 
-export default function UserAnalysisContent({ data, distributionData, anomalySummary, sheetId }) {
+export default function UserAnalysisContent({ 
+  data, 
+  distributionData, 
+  anomalySummary, 
+  sheetId,
+  onAnalysisExport,
+  analysisExportLoading,
+  analysisExportError,
+  analysisType,
+  sheetData
+}) {
   const [selectedUser, setSelectedUser] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
@@ -226,6 +245,8 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
   };
 
   // Extract data from the API structure
+  const fileInfo = data?.file_info || {};
+  const analysisInfo = data?.analysis_info || {};
   const userSummary = data?.user_analysis?.user_transaction_summary || [];
   const userAnomalies = data?.anomaly_detection?.user_anomalies || [];
   const userRiskScores = data?.risk_assessment?.user_risk_scores || [];
@@ -235,7 +256,36 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
   const riskDistribution = summary?.risk_distribution || {};
   const anomalyTypes = data?.anomaly_detection?.anomaly_types || {};
   const chartData = data?.visualizations?.chart_data || {};
-  const analysisInfo = data?.analysis_info || {};
+  
+  // Extract additional data structures
+  const patterns = data?.patterns || {};
+  const auditRecommendations = data?.audit_recommendations || {};
+  const complianceAssessment = data?.compliance_assessment || {};
+  const financialStatementImpact = data?.financial_statement_impact || {};
+  const exportData = data?.export_data || {};
+  
+  // Extract detailed patterns and trends
+  const activityTrends = patterns?.activity_trends || {};
+  const userBehaviorAnalysis = patterns?.user_behavior_analysis || {};
+  const temporalPatterns = patterns?.temporal_patterns || {};
+  
+  // Extract audit recommendations
+  const highPriorityRecommendations = auditRecommendations?.high_priority_recommendations || [];
+  const mediumPriorityRecommendations = auditRecommendations?.medium_priority_recommendations || [];
+  const lowPriorityRecommendations = auditRecommendations?.low_priority_recommendations || [];
+  const complianceIssues = auditRecommendations?.compliance_issues || [];
+  const followUpActions = auditRecommendations?.follow_up_actions || [];
+  
+  // Extract compliance assessment
+  const complianceRisks = complianceAssessment?.compliance_risks || [];
+  const regulatoryImplications = complianceAssessment?.regulatory_implications || [];
+  const internalControlAssessment = complianceAssessment?.internal_control_assessment || {};
+  
+  // Extract financial statement impact
+  const materialImpactAssessment = financialStatementImpact?.material_impact_assessment || {};
+  const financialStatementRisks = financialStatementImpact?.financial_statement_risks || [];
+  const disclosureRequirements = financialStatementImpact?.disclosure_requirements || [];
+  const auditImplications = financialStatementImpact?.audit_implications || [];
 
   // Prepare chart data from the new structure
   const userAmountsData = (chartData.user_summary || []).map(user => ({
@@ -366,6 +416,77 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
           </Grid>
         </Box>
       </Alert>
+
+      {/* Export and Report Buttons */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mb: 3 }}>
+        {/* Export Analysis Button */}
+        <Button
+          variant="contained"
+          startIcon={analysisExportLoading ? <CircularProgress size={20} color="inherit" /> : <FileDownload />}
+          onClick={() => onAnalysisExport && onAnalysisExport(analysisType || 'user')}
+          disabled={analysisExportLoading || !onAnalysisExport}
+          sx={{
+            backgroundColor: '#36A2EB',
+            color: 'white',
+            fontWeight: 600,
+            px: 3,
+            py: 1.5,
+            borderRadius: 2,
+            textTransform: 'none',
+            fontSize: '0.9rem',
+            boxShadow: '0 2px 8px rgba(54, 162, 235, 0.3)',
+            '&:hover': {
+              backgroundColor: '#2d8bd4',
+              boxShadow: '0 4px 12px rgba(54, 162, 235, 0.4)',
+              transform: 'translateY(-1px)'
+            },
+            '&:disabled': {
+              backgroundColor: '#ccc',
+              boxShadow: 'none'
+            },
+            transition: 'all 0.2s ease-in-out'
+          }}
+        >
+          {analysisExportLoading ? 'Exporting...' : 'Export Analysis'}
+        </Button>
+        
+        {/* Open Report Button */}
+        <Button
+          variant="contained"
+          onClick={handlePdfOpen}
+          sx={{
+            backgroundColor: '#925a9b',
+            color: 'white',
+            fontWeight: 600,
+            px: 3,
+            py: 1.5,
+            borderRadius: 2,
+            textTransform: 'none',
+            fontSize: '0.9rem',
+            boxShadow: '0 2px 8px rgba(146, 90, 155, 0.3)',
+            '&:hover': {
+              backgroundColor: '#7a4a82',
+              boxShadow: '0 4px 12px rgba(146, 90, 155, 0.4)',
+              transform: 'translateY(-1px)'
+            },
+            transition: 'all 0.2s ease-in-out'
+          }}
+        >
+          📄 Open Report
+        </Button>
+      </Box>
+
+      {/* Export Error Alert */}
+      {analysisExportError && (
+        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+          <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+            Export Error
+          </Typography>
+          <Typography variant="body2">
+            {analysisExportError}
+          </Typography>
+        </Alert>
+      )}
 
       {/* Top Summary Banner */}
       <Card sx={{ 
@@ -859,392 +980,1155 @@ export default function UserAnalysisContent({ data, distributionData, anomalySum
         type="User Analysis"
       />
 
-      {/* API Fetched User Listing */}
-      <Card sx={{ 
-        mb: 4, 
-        background: 'white', 
-        borderRadius: 2,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-        border: '1px solid #e9ecef'
-      }}>
-        <CardContent sx={{ p: 3 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h5" sx={{ 
-              fontWeight: 600, 
-              color: '#2c3e50',
-              fontSize: '1.25rem'
+      {/* All Content in One View */}
+      <Grid container spacing={3} sx={{ mt: 3 }}>
+
+        {/* Section 1: User Behavior Analysis */}
+        {userBehaviorAnalysis.unusual_activities && userBehaviorAnalysis.unusual_activities.length > 0 && (
+          <Grid item size={{xs: 12}}>
+            <Card sx={{ 
+              background: 'white', 
+              borderRadius: 2,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              border: '1px solid #e9ecef'
             }}>
-              User Entries Listing
-            </Typography>
-            <Button
-              variant="outlined"
-              onClick={() => fetchUserListing(pagination.currentPage, pagination.pageSize)}
-              disabled={loading}
-              sx={{
-                borderColor: '#925a9b',
-                color: '#925a9b',
-                fontWeight: 600,
-                px: 2,
-                py: 1,
-                borderRadius: 2,
-                textTransform: 'none',
-                fontSize: '0.875rem',
-                '&:hover': {
-                  backgroundColor: '#925a9b',
-                  color: 'white',
-                  borderColor: '#925a9b'
-                }
-              }}
-            >
-              {loading ? 'Refreshing...' : '🔄 Refresh'}
-            </Button>
-          </Box>
-
-          {/* Loading State */}
-          {loading && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
-              <LinearProgress sx={{ width: '100%', mb: 2 }} />
-              <Typography variant="body2" sx={{ color: '#6c757d' }}>
-                Fetching user entries listing...
-              </Typography>
-            </Box>
-          )}
-
-          {/* Error State */}
-          {error && (
-            <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
-              <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
-                Error Loading User Listing
-              </Typography>
-              <Typography variant="body2" sx={{ mb: 2 }}>
-                {error}
-              </Typography>
-              <Button
-                variant="contained"
-                onClick={() => fetchUserListing(pagination.currentPage, pagination.pageSize)}
-                sx={{
-                  backgroundColor: '#dc3545',
-                  color: 'white',
-                  fontWeight: 600,
-                  px: 2,
-                  py: 1,
-                  borderRadius: 2,
-                  textTransform: 'none',
-                  fontSize: '0.875rem',
-                  '&:hover': {
-                    backgroundColor: '#c82333'
-                  }
-                }}
-              >
-                🔄 Retry
-              </Button>
-            </Alert>
-          )}
-
-          {/* Success State - Display Data */}
-          {!loading && !error && userListing.length > 0 && (
-            <Box>
-              <Typography variant="body1" sx={{ 
-                fontWeight: 600, 
-                mb: 2, 
-                color: '#2c3e50',
-                fontSize: '1rem'
-              }}>
-                Found {pagination.count} user entries from API (showing page {pagination.currentPage} of {Math.ceil(pagination.count / pagination.pageSize)})
-              </Typography>
-              
-              <Paper sx={{ 
-                borderRadius: 3, 
-                boxShadow: 2,
-                overflow: 'hidden'
-              }}>
-                <TableContainer>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h5" sx={{ 
+                  fontWeight: 600, 
+                  mb: 3, 
+                  color: '#2c3e50',
+                  fontSize: '1.25rem'
+                }}>
+                  User Behavior Analysis
+                </Typography>
+                <TableContainer sx={{ 
+                  boxShadow: 'none', 
+                  background: 'transparent',
+                  border: '1px solid #e9ecef',
+                  borderRadius: 2
+                }}>
                   <Table size="small">
                     <TableHead>
-                      <TableRow sx={{ 
-                        backgroundColor: '#f8f9fa',
-                        '& th': {
-                          borderBottom: '2px solid #e9ecef',
-                          fontWeight: 700,
+                      <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
+                        <TableCell sx={{ 
+                          fontWeight: 600, 
                           color: '#2c3e50',
-                          fontSize: '0.875rem',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.5px'
-                        }
-                      }}>
-                        <TableCell>User</TableCell>
-                        <TableCell>Transaction Count</TableCell>
-                        <TableCell>Total Amount</TableCell>
-                        <TableCell>Risk Level</TableCell>
-                        <TableCell>Anomaly Count</TableCell>
-                        <TableCell align="center">Actions</TableCell>
+                          borderBottom: '1px solid #e9ecef'
+                        }}>
+                          User Name
+                        </TableCell>
+                        <TableCell sx={{ 
+                          fontWeight: 600, 
+                          color: '#2c3e50',
+                          borderBottom: '1px solid #e9ecef'
+                        }}>
+                          Reason
+                        </TableCell>
+                        <TableCell sx={{ 
+                          fontWeight: 600, 
+                          color: '#2c3e50',
+                          borderBottom: '1px solid #e9ecef'
+                        }} align="right">
+                          Transaction Count
+                        </TableCell>
+                        <TableCell sx={{ 
+                          fontWeight: 600, 
+                          color: '#2c3e50',
+                          borderBottom: '1px solid #e9ecef'
+                        }} align="right">
+                          Total Amount
+                        </TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {userListing.map((entry, index) => (
-                        <TableRow 
-                          key={index}
-                          sx={{ 
-                            '&:hover': { 
-                              backgroundColor: '#f8f9fa',
-                              transform: 'scale(1.01)',
-                              transition: 'all 0.2s ease-in-out'
-                            },
-                            '&:nth-of-type(even)': {
-                              backgroundColor: '#fafbfc'
-                            }
-                          }}
-                        >
-                                                     <TableCell sx={{ py: 2 }}>
-                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                               <Avatar sx={{ 
-                                 width: 32, 
-                                 height: 32, 
-                                 backgroundColor: '#925a9b',
-                                 fontSize: '0.875rem',
-                                 fontWeight: 600
-                               }}>
-                                 {entry.user?.charAt(0) || 'U'}
-                               </Avatar>
-                               <Box>
-                                 <Typography variant="body2" sx={{ 
-                                   fontWeight: 600, 
-                                   color: '#2c3e50',
-                                   fontSize: '0.875rem'
-                                 }}>
-                                   {entry.user || `User-${index + 1}`}
-                                 </Typography>
-                                 <Typography variant="caption" sx={{ 
-                                   color: '#6c757d',
-                                   fontSize: '0.75rem'
-                                 }}>
-                                   API Entry #{index + 1}
-                                 </Typography>
-                               </Box>
-                             </Box>
-                           </TableCell>
-                           <TableCell sx={{ py: 2 }}>
-                             <Typography variant="body2" sx={{ 
-                               color: '#6c757d',
-                               fontSize: '0.875rem',
-                               fontWeight: 500
-                             }}>
-                               {entry.transaction_count || 0}
-                             </Typography>
-                           </TableCell>
-                                                     <TableCell align="right" sx={{ py: 2 }}>
-                             <Typography variant="body2" sx={{ 
-                               fontWeight: 700, 
-                               color: '#925a9b',
-                               fontSize: '0.875rem'
-                             }}>
-                               {entry.amount_formatted || formatCurrency(entry.total_amount || 0)}
-                             </Typography>
-                           </TableCell>
-                                                      <TableCell align="center" sx={{ py: 2 }}>
-                             <Chip 
-                               label={entry.risk_level?.toUpperCase() || 'N/A'} 
-                               size="small"
-                               sx={{ 
-                                 backgroundColor: getRiskColor(entry.risk_level?.toUpperCase()),
-                                 color: 'white',
-                                 fontWeight: 600,
-                                 fontSize: '0.75rem'
-                               }}
-                             />
-                           </TableCell>
-                           <TableCell align="center" sx={{ py: 2 }}>
-                             <Chip 
-                               label={entry.anomaly_count || 0} 
-                               size="small"
-                               sx={{ 
-                                 backgroundColor: entry.anomaly_count > 0 ? '#dc3545' : '#6c757d',
-                                 color: 'white',
-                                 fontWeight: 600,
-                                 fontSize: '0.75rem'
-                               }}
-                             />
-                           </TableCell>
-
-                           <TableCell align="center" sx={{ py: 2 }}>
-                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                               <IconButton
-                                 size="small"
-                                 onClick={() => handleDrawerOpen(entry)}
-                                 sx={{ 
-                                   color: '#925a9b',
-                                   '&:hover': {
-                                     backgroundColor: '#925a9b',
-                                     color: 'white'
-                                   }
-                                 }}
-                               >
-                                 <VisibilityIcon />
-                               </IconButton>
-                             </Box>
-                           </TableCell>
+                      {userBehaviorAnalysis.unusual_activities.map((activity, index) => (
+                        <TableRow key={index} sx={{ '&:hover': { backgroundColor: '#f8f9fa' } }}>
+                          <TableCell sx={{ borderBottom: '1px solid #e9ecef', py: 2 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <Avatar sx={{ 
+                                width: 32, 
+                                height: 32, 
+                                mr: 2, 
+                                backgroundColor: '#925a9b',
+                                fontSize: '0.875rem',
+                                fontWeight: 600
+                              }}>
+                                {activity.user?.charAt(0) || 'U'}
+                              </Avatar>
+                              <Typography variant="body2" sx={{ 
+                                fontWeight: 600, 
+                                color: '#2c3e50',
+                                fontSize: '0.875rem'
+                              }}>
+                                {activity.user}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell sx={{ borderBottom: '1px solid #e9ecef', py: 2 }}>
+                            <Typography variant="body2" sx={{ 
+                              color: '#6c757d',
+                              fontSize: '0.875rem'
+                            }}>
+                              {activity.reason}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right" sx={{ borderBottom: '1px solid #e9ecef', py: 2 }}>
+                            <Typography variant="body2" sx={{ 
+                              fontWeight: 600, 
+                              color: '#925a9b',
+                              fontSize: '0.875rem'
+                            }}>
+                              {activity.transaction_count}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right" sx={{ borderBottom: '1px solid #e9ecef', py: 2 }}>
+                            <Typography variant="body2" sx={{ 
+                              fontWeight: 600, 
+                              color: '#925a9b',
+                              fontSize: '0.875rem'
+                            }}>
+                              {formatCurrency(activity.total_amount)}
+                            </Typography>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                 </TableContainer>
-              </Paper>
-              
-              {/* Pagination Controls */}
-              {pagination.count > 0 && (
-                <Box sx={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center', 
-                  mt: 3,
-                  p: 2,
-                  backgroundColor: '#f8f9fa',
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+
+        {/* Section 2: Activity Trends */}
+        {activityTrends.most_active_users && activityTrends.most_active_users.length > 0 && (
+          <Grid item size={{xs: 12}}>
+            <Card sx={{ 
+              background: 'white', 
+              borderRadius: 2,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              border: '1px solid #e9ecef'
+            }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h5" sx={{ 
+                  fontWeight: 600, 
+                  mb: 3, 
+                  color: '#2c3e50',
+                  fontSize: '1.25rem'
+                }}>
+                  Most Active Users
+                </Typography>
+                <TableContainer sx={{ 
+                  boxShadow: 'none', 
+                  background: 'transparent',
+                  border: '1px solid #e9ecef',
                   borderRadius: 2
                 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Typography variant="body2" sx={{ color: '#6c757d' }}>
-                      Showing {((pagination.currentPage - 1) * pagination.pageSize) + 1} to {Math.min(pagination.currentPage * pagination.pageSize, pagination.count)} of {pagination.count} entries
-                    </Typography>
-                    <FormControl size="small" sx={{ minWidth: 120 }}>
-                      <InputLabel>Page Size</InputLabel>
-                      <Select
-                        value={pagination.pageSize}
-                        label="Page Size"
-                        onChange={(e) => handlePageSizeChange(e.target.value)}
-                        sx={{ fontSize: '0.875rem' }}
-                      >
-                        <MenuItem value={5}>5 per page</MenuItem>
-                        <MenuItem value={10}>10 per page</MenuItem>
-                        <MenuItem value={25}>25 per page</MenuItem>
-                        <MenuItem value={50}>50 per page</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Box>
-                  
-                  <Pagination
-                    count={Math.ceil(pagination.count / pagination.pageSize)}
-                    page={pagination.currentPage}
-                    onChange={(event, newPage) => handlePageChange(newPage)}
-                    color="primary"
-                    size="large"
-                    showFirstButton
-                    showLastButton
-                    sx={{
-                      '& .MuiPaginationItem-root': {
-                        fontSize: '0.875rem',
-                        fontWeight: 600
-                      }
-                    }}
-                  />
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
+                        <TableCell sx={{ 
+                          fontWeight: 600, 
+                          color: '#2c3e50',
+                          borderBottom: '1px solid #e9ecef'
+                        }}>
+                          User Name
+                        </TableCell>
+                        <TableCell sx={{ 
+                          fontWeight: 600, 
+                          color: '#2c3e50',
+                          borderBottom: '1px solid #e9ecef'
+                        }} align="right">
+                          Transaction Count
+                        </TableCell>
+                        <TableCell sx={{ 
+                          fontWeight: 600, 
+                          color: '#2c3e50',
+                          borderBottom: '1px solid #e9ecef'
+                        }} align="right">
+                          Total Amount
+                        </TableCell>
+                        <TableCell sx={{ 
+                          fontWeight: 600, 
+                          color: '#2c3e50',
+                          borderBottom: '1px solid #e9ecef'
+                        }} align="right">
+                          Average Amount
+                        </TableCell>
+                        <TableCell sx={{ 
+                          fontWeight: 600, 
+                          color: '#2c3e50',
+                          borderBottom: '1px solid #e9ecef'
+                        }} align="right">
+                          Accounts
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {activityTrends.most_active_users.map((user, index) => (
+                        <TableRow key={index} sx={{ '&:hover': { backgroundColor: '#f8f9fa' } }}>
+                          <TableCell sx={{ borderBottom: '1px solid #e9ecef', py: 2 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <Avatar sx={{ 
+                                width: 32, 
+                                height: 32, 
+                                mr: 2, 
+                                backgroundColor: '#925a9b',
+                                fontSize: '0.875rem',
+                                fontWeight: 600
+                              }}>
+                                {user.user?.charAt(0) || 'U'}
+                              </Avatar>
+                              <Typography variant="body2" sx={{ 
+                                fontWeight: 600, 
+                                color: '#2c3e50',
+                                fontSize: '0.875rem'
+                              }}>
+                                {user.user}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell align="right" sx={{ borderBottom: '1px solid #e9ecef', py: 2 }}>
+                            <Typography variant="body2" sx={{ 
+                              fontWeight: 600, 
+                              color: '#925a9b',
+                              fontSize: '0.875rem'
+                            }}>
+                              {user.transaction_count}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right" sx={{ borderBottom: '1px solid #e9ecef', py: 2 }}>
+                            <Typography variant="body2" sx={{ 
+                              fontWeight: 600, 
+                              color: '#925a9b',
+                              fontSize: '0.875rem'
+                            }}>
+                              {formatCurrency(user.total_amount)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right" sx={{ borderBottom: '1px solid #e9ecef', py: 2 }}>
+                            <Typography variant="body2" sx={{ 
+                              color: '#6c757d',
+                              fontSize: '0.875rem'
+                            }}>
+                              {formatCurrency(user.avg_amount)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right" sx={{ borderBottom: '1px solid #e9ecef', py: 2 }}>
+                            <Typography variant="body2" sx={{ 
+                              color: '#6c757d',
+                              fontSize: '0.875rem'
+                            }}>
+                              {user.accounts?.length || 0}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+        <Grid item size={{xs: 12}}>
+          {/* API Fetched User Listing */}
+          <Card sx={{ 
+            mb: 4, 
+            background: 'white', 
+            borderRadius: 2,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            border: '1px solid #e9ecef'
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h5" sx={{ 
+                  fontWeight: 600, 
+                  color: '#2c3e50',
+                  fontSize: '1.25rem'
+                }}>
+                  User Entries Listing
+                </Typography>
+                <Button
+                  variant="outlined"
+                  onClick={() => fetchUserListing(pagination.currentPage, pagination.pageSize)}
+                  disabled={loading}
+                  sx={{
+                    borderColor: '#925a9b',
+                    color: '#925a9b',
+                    fontWeight: 600,
+                    px: 2,
+                    py: 1,
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontSize: '0.875rem',
+                    '&:hover': {
+                      backgroundColor: '#925a9b',
+                      color: 'white',
+                      borderColor: '#925a9b'
+                    }
+                  }}
+                >
+                  {loading ? 'Refreshing...' : '🔄 Refresh'}
+                </Button>
+              </Box>
+
+              {/* Loading State */}
+              {loading && (
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
+                  <LinearProgress sx={{ width: '100%', mb: 2 }} />
+                  <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                    Fetching user entries listing...
+                  </Typography>
                 </Box>
               )}
-            </Box>
-          )}
 
-          {/* No Data State */}
-          {!loading && !error && userListing.length === 0 && (
-            <Alert severity="info" sx={{ borderRadius: 2 }}>
-              <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
-                No User Entries Found
-              </Typography>
-              <Typography variant="body2">
-                The API returned no user entries for this analysis. This could mean either no user entries were found, or the data is still being processed.
-              </Typography>
-            </Alert>
-          )}
+              {/* Error State */}
+              {error && (
+                <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+                  <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+                    Error Loading User Listing
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 2 }}>
+                    {error}
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    onClick={() => fetchUserListing(pagination.currentPage, pagination.pageSize)}
+                    sx={{
+                      backgroundColor: '#dc3545',
+                      color: 'white',
+                      fontWeight: 600,
+                      px: 2,
+                      py: 1,
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontSize: '0.875rem',
+                      '&:hover': {
+                        backgroundColor: '#c82333'
+                      }
+                    }}
+                  >
+                    🔄 Retry
+                  </Button>
+                </Alert>
+              )}
 
-          {/* API Data Summary */}
-          {!loading && !error && userListing.length > 0 && (
-            <Box sx={{ mt: 3 }}>
-              <Typography variant="h6" sx={{ 
-                fontWeight: 600, 
-                mb: 2, 
-                color: '#2c3e50',
-                fontSize: '1.1rem'
-              }}>
-                API Data Summary
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item size={{xs: 6, sm: 3}}>
-                  <Box sx={{ p: 2, backgroundColor: '#f8f9fa', borderRadius: 2, textAlign: 'center' }}>
-                    <Typography variant="h6" sx={{ 
-                      fontWeight: 700, 
-                      color: '#925a9b',
-                      fontSize: '1.5rem'
-                    }}>
-                      {pagination.count}
-                    </Typography>
-                    <Typography variant="body2" sx={{ 
-                      color: '#6c757d',
-                      fontSize: '0.875rem'
-                    }}>
-                      Total Users
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid item size={{xs: 6, sm: 3}}>
-                  <Box sx={{ p: 2, backgroundColor: '#f8f9fa', borderRadius: 2, textAlign: 'center' }}>
-                    <Typography variant="h6" sx={{ 
-                      fontWeight: 700, 
-                      color: '#925a9b',
-                      fontSize: '1.5rem'
-                    }}>
-                                             {formatCurrency(userListing.reduce((sum, entry) => sum + (entry.total_amount || 0), 0))}
-                    </Typography>
-                    <Typography variant="body2" sx={{ 
-                      color: '#6c757d',
-                      fontSize: '0.875rem'
-                    }}>
-                      Total Amount
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid item size={{xs: 6, sm: 3}}>
-                  <Box sx={{ p: 2, backgroundColor: '#f8f9fa', borderRadius: 2, textAlign: 'center' }}>
-                    <Typography variant="h6" sx={{ 
-                      fontWeight: 700, 
-                      color: '#925a9b',
-                      fontSize: '1.5rem'
-                    }}>
-                                             {new Set(userListing.map(entry => entry.user)).size}
-                    </Typography>
-                    <Typography variant="body2" sx={{ 
-                      color: '#6c757d',
-                      fontSize: '0.875rem'
-                    }}>
-                      Unique Users
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid item size={{xs: 6, sm: 3}}>
-                  <Box sx={{ p: 2, backgroundColor: '#f8f9fa', borderRadius: 2, textAlign: 'center' }}>
-                    <Typography variant="h6" sx={{ 
-                      fontWeight: 700, 
-                      color: '#925a9b',
-                      fontSize: '1.5rem'
-                    }}>
-                                             {userListing.reduce((sum, entry) => sum + (entry.accounts_count || 0), 0)}
-                    </Typography>
-                                         <Typography variant="body2" sx={{ 
-                       color: '#6c757d',
-                       fontSize: '0.875rem'
-                     }}>
-                       Total Accounts
-                     </Typography>
-                  </Box>
-                </Grid>
-              </Grid>
-            </Box>
-          )}
-        </CardContent>
-      </Card>
+              {/* Success State - Display Data */}
+              {!loading && !error && userListing.length > 0 && (
+                <Box>
+                  <Typography variant="body1" sx={{ 
+                    fontWeight: 600, 
+                    mb: 2, 
+                    color: '#2c3e50',
+                    fontSize: '1rem'
+                  }}>
+                    Found {pagination.count} user entries from API (showing page {pagination.currentPage} of {Math.ceil(pagination.count / pagination.pageSize)})
+                  </Typography>
+                  
+                  <Paper sx={{ 
+                    borderRadius: 3, 
+                    boxShadow: 2,
+                    overflow: 'hidden'
+                  }}>
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow sx={{ 
+                            backgroundColor: '#f8f9fa',
+                            '& th': {
+                              borderBottom: '2px solid #e9ecef',
+                              fontWeight: 700,
+                              color: '#2c3e50',
+                              fontSize: '0.875rem',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px'
+                            }
+                          }}>
+                            <TableCell>User</TableCell>
+                            <TableCell>Transaction Count</TableCell>
+                            <TableCell>Total Amount</TableCell>
+                            <TableCell>Risk Level</TableCell>
+                            <TableCell>Anomaly Count</TableCell>
+                            <TableCell align="center">Actions</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {userListing.map((entry, index) => (
+                            <TableRow 
+                              key={index}
+                              sx={{ 
+                                '&:hover': { 
+                                  backgroundColor: '#f8f9fa',
+                                  transform: 'scale(1.01)',
+                                  transition: 'all 0.2s ease-in-out'
+                                },
+                                '&:nth-of-type(even)': {
+                                  backgroundColor: '#fafbfc'
+                                }
+                              }}
+                            >
+                                                        <TableCell sx={{ py: 2 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                  <Avatar sx={{ 
+                                    width: 32, 
+                                    height: 32, 
+                                    backgroundColor: '#925a9b',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 600
+                                  }}>
+                                    {entry.user?.charAt(0) || 'U'}
+                                  </Avatar>
+                                  <Box>
+                                    <Typography variant="body2" sx={{ 
+                                      fontWeight: 600, 
+                                      color: '#2c3e50',
+                                      fontSize: '0.875rem'
+                                    }}>
+                                      {entry.user || `User-${index + 1}`}
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ 
+                                      color: '#6c757d',
+                                      fontSize: '0.75rem'
+                                    }}>
+                                      API Entry #{index + 1}
+                                    </Typography>
+                                  </Box>
+                                </Box>
+                              </TableCell>
+                              <TableCell sx={{ py: 2 }}>
+                                <Typography variant="body2" sx={{ 
+                                  color: '#6c757d',
+                                  fontSize: '0.875rem',
+                                  fontWeight: 500
+                                }}>
+                                  {entry.transaction_count || 0}
+                                </Typography>
+                              </TableCell>
+                                                        <TableCell align="right" sx={{ py: 2 }}>
+                                <Typography variant="body2" sx={{ 
+                                  fontWeight: 700, 
+                                  color: '#925a9b',
+                                  fontSize: '0.875rem'
+                                }}>
+                                  {entry.amount_formatted || formatCurrency(entry.total_amount || 0)}
+                                </Typography>
+                              </TableCell>
+                                                          <TableCell align="center" sx={{ py: 2 }}>
+                                <Chip 
+                                  label={entry.risk_level?.toUpperCase() || 'N/A'} 
+                                  size="small"
+                                  sx={{ 
+                                    backgroundColor: getRiskColor(entry.risk_level?.toUpperCase()),
+                                    color: 'white',
+                                    fontWeight: 600,
+                                    fontSize: '0.75rem'
+                                  }}
+                                />
+                              </TableCell>
+                              <TableCell align="center" sx={{ py: 2 }}>
+                                <Chip 
+                                  label={entry.anomaly_count || 0} 
+                                  size="small"
+                                  sx={{ 
+                                    backgroundColor: entry.anomaly_count > 0 ? '#dc3545' : '#6c757d',
+                                    color: 'white',
+                                    fontWeight: 600,
+                                    fontSize: '0.75rem'
+                                  }}
+                                />
+                              </TableCell>
 
+                              <TableCell align="center" sx={{ py: 2 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleDrawerOpen(entry)}
+                                    sx={{ 
+                                      color: '#925a9b',
+                                      '&:hover': {
+                                        backgroundColor: '#925a9b',
+                                        color: 'white'
+                                      }
+                                    }}
+                                  >
+                                    <VisibilityIcon />
+                                  </IconButton>
+                                </Box>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Paper>
+                  
+                  {/* Pagination Controls */}
+                  {pagination.count > 0 && (
+                    <Box sx={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center', 
+                      mt: 3,
+                      p: 2,
+                      backgroundColor: '#f8f9fa',
+                      borderRadius: 2
+                    }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                          Showing {((pagination.currentPage - 1) * pagination.pageSize) + 1} to {Math.min(pagination.currentPage * pagination.pageSize, pagination.count)} of {pagination.count} entries
+                        </Typography>
+                        <FormControl size="small" sx={{ minWidth: 120 }}>
+                          <InputLabel>Page Size</InputLabel>
+                          <Select
+                            value={pagination.pageSize}
+                            label="Page Size"
+                            onChange={(e) => handlePageSizeChange(e.target.value)}
+                            sx={{ fontSize: '0.875rem' }}
+                          >
+                            <MenuItem value={5}>5 per page</MenuItem>
+                            <MenuItem value={10}>10 per page</MenuItem>
+                            <MenuItem value={25}>25 per page</MenuItem>
+                            <MenuItem value={50}>50 per page</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Box>
+                      
+                      <Pagination
+                        count={Math.ceil(pagination.count / pagination.pageSize)}
+                        page={pagination.currentPage}
+                        onChange={(event, newPage) => handlePageChange(newPage)}
+                        color="primary"
+                        size="large"
+                        showFirstButton
+                        showLastButton
+                        sx={{
+                          '& .MuiPaginationItem-root': {
+                            fontSize: '0.875rem',
+                            fontWeight: 600
+                          }
+                        }}
+                      />
+                    </Box>
+                  )}
+                </Box>
+              )}
+
+              {/* No Data State */}
+              {!loading && !error && userListing.length === 0 && (
+                <Alert severity="info" sx={{ borderRadius: 2 }}>
+                  <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+                    No User Entries Found
+                  </Typography>
+                  <Typography variant="body2">
+                    The API returned no user entries for this analysis. This could mean either no user entries were found, or the data is still being processed.
+                  </Typography>
+                </Alert>
+              )}
+
+              {/* API Data Summary */}
+              {!loading && !error && userListing.length > 0 && (
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="h6" sx={{ 
+                    fontWeight: 600, 
+                    mb: 2, 
+                    color: '#2c3e50',
+                    fontSize: '1.1rem'
+                  }}>
+                    API Data Summary
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item size={{xs: 6, sm: 3}}>
+                      <Box sx={{ p: 2, backgroundColor: '#f8f9fa', borderRadius: 2, textAlign: 'center' }}>
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 700, 
+                          color: '#925a9b',
+                          fontSize: '1.5rem'
+                        }}>
+                          {pagination.count}
+                        </Typography>
+                        <Typography variant="body2" sx={{ 
+                          color: '#6c757d',
+                          fontSize: '0.875rem'
+                        }}>
+                          Total Users
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item size={{xs: 6, sm: 3}}>
+                      <Box sx={{ p: 2, backgroundColor: '#f8f9fa', borderRadius: 2, textAlign: 'center' }}>
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 700, 
+                          color: '#925a9b',
+                          fontSize: '1.5rem'
+                        }}>
+                                                {formatCurrency(userListing.reduce((sum, entry) => sum + (entry.total_amount || 0), 0))}
+                        </Typography>
+                        <Typography variant="body2" sx={{ 
+                          color: '#6c757d',
+                          fontSize: '0.875rem'
+                        }}>
+                          Total Amount
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item size={{xs: 6, sm: 3}}>
+                      <Box sx={{ p: 2, backgroundColor: '#f8f9fa', borderRadius: 2, textAlign: 'center' }}>
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 700, 
+                          color: '#925a9b',
+                          fontSize: '1.5rem'
+                        }}>
+                                                {new Set(userListing.map(entry => entry.user)).size}
+                        </Typography>
+                        <Typography variant="body2" sx={{ 
+                          color: '#6c757d',
+                          fontSize: '0.875rem'
+                        }}>
+                          Unique Users
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item size={{xs: 6, sm: 3}}>
+                      <Box sx={{ p: 2, backgroundColor: '#f8f9fa', borderRadius: 2, textAlign: 'center' }}>
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 700, 
+                          color: '#925a9b',
+                          fontSize: '1.5rem'
+                        }}>
+                                                {userListing.reduce((sum, entry) => sum + (entry.accounts_count || 0), 0)}
+                        </Typography>
+                                            <Typography variant="body2" sx={{ 
+                          color: '#6c757d',
+                          fontSize: '0.875rem'
+                        }}>
+                          Total Accounts
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+        {/* Section 3: Audit Recommendations */}
+        {(highPriorityRecommendations.length > 0 || mediumPriorityRecommendations.length > 0 || lowPriorityRecommendations.length > 0) && (
+          <Grid item size={{xs: 12}}>
+            <Card sx={{ 
+              background: 'white', 
+              borderRadius: 2,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              border: '1px solid #e9ecef'
+            }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h5" sx={{ 
+                  fontWeight: 600, 
+                  mb: 3, 
+                  color: '#2c3e50',
+                  fontSize: '1.25rem'
+                }}>
+                  Audit Recommendations
+                </Typography>
+                
+                <Grid container spacing={3}>
+                  {/* High Priority Recommendations */}
+                  {highPriorityRecommendations.length > 0 && (
+                    <Grid item size={{xs: 12, md: 6}}>
+                      <Box sx={{ p: 2, background: '#fff3cd', borderRadius: 2, border: '1px solid #ffeaa7' }}>
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 600, 
+                          mb: 2, 
+                          color: '#856404',
+                          fontSize: '1.1rem'
+                        }}>
+                          High Priority
+                        </Typography>
+                        <List dense>
+                          {highPriorityRecommendations.map((recommendation, index) => (
+                            <ListItem key={index} sx={{ py: 0.5 }}>
+                              <ListItemIcon sx={{ minWidth: 24 }}>
+                                <ErrorIcon sx={{ color: '#dc3545', fontSize: 16 }} />
+                              </ListItemIcon>
+                              <ListItemText 
+                                primary={recommendation.recommendation}
+                                secondary={recommendation.rationale}
+                                sx={{ 
+                                  '& .MuiListItemText-primary': {
+                                    fontSize: '0.875rem',
+                                    color: '#856404',
+                                    fontWeight: 600
+                                  },
+                                  '& .MuiListItemText-secondary': {
+                                    fontSize: '0.75rem',
+                                    color: '#856404'
+                                  }
+                                }}
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Box>
+                    </Grid>
+                  )}
+
+                  {/* Medium Priority Recommendations */}
+                  {mediumPriorityRecommendations.length > 0 && (
+                    <Grid item size={{xs: 12, md: 6}}>
+                      <Box sx={{ p: 2, background: '#fff8e1', borderRadius: 2, border: '1px solid #ffb300' }}>
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 600, 
+                          mb: 2, 
+                          color: '#f57c00',
+                          fontSize: '1.1rem'
+                        }}>
+                          Medium Priority
+                        </Typography>
+                        <List dense>
+                          {mediumPriorityRecommendations.map((recommendation, index) => (
+                            <ListItem key={index} sx={{ py: 0.5 }}>
+                              <ListItemIcon sx={{ minWidth: 24 }}>
+                                <WarningIcon sx={{ color: '#f57c00', fontSize: 16 }} />
+                              </ListItemIcon>
+                              <ListItemText 
+                                primary={recommendation.recommendation}
+                                secondary={recommendation.rationale}
+                                sx={{ 
+                                  '& .MuiListItemText-primary': {
+                                    fontSize: '0.875rem',
+                                    color: '#f57c00',
+                                    fontWeight: 600
+                                  },
+                                  '& .MuiListItemText-secondary': {
+                                    fontSize: '0.75rem',
+                                    color: '#f57c00'
+                                  }
+                                }}
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Box>
+                    </Grid>
+                  )}
+
+                  {/* Low Priority Recommendations */}
+                  {lowPriorityRecommendations.length > 0 && (
+                    <Grid item size={{xs: 12, md: 6}}>
+                      <Box sx={{ p: 2, background: '#f1f8e9', borderRadius: 2, border: '1px solid #4caf50' }}>
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 600, 
+                          mb: 2, 
+                          color: '#2e7d32',
+                          fontSize: '1.1rem'
+                        }}>
+                          Low Priority
+                        </Typography>
+                        <List dense>
+                          {lowPriorityRecommendations.map((recommendation, index) => (
+                            <ListItem key={index} sx={{ py: 0.5 }}>
+                              <ListItemIcon sx={{ minWidth: 24 }}>
+                                <InfoIcon sx={{ color: '#4caf50', fontSize: 16 }} />
+                              </ListItemIcon>
+                              <ListItemText 
+                                primary={recommendation.recommendation}
+                                secondary={recommendation.rationale}
+                                sx={{ 
+                                  '& .MuiListItemText-primary': {
+                                    fontSize: '0.875rem',
+                                    color: '#2e7d32',
+                                    fontWeight: 600
+                                  },
+                                  '& .MuiListItemText-secondary': {
+                                    fontSize: '0.75rem',
+                                    color: '#2e7d32'
+                                  }
+                                }}
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Box>
+                    </Grid>
+                  )}
+
+                  {/* Compliance Issues */}
+                  {complianceIssues.length > 0 && (
+                    <Grid item size={{xs: 12, md: 6}}>
+                      <Box sx={{ p: 2, background: '#ffebee', borderRadius: 2, border: '1px solid #f44336' }}>
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 600, 
+                          mb: 2, 
+                          color: '#c62828',
+                          fontSize: '1.1rem'
+                        }}>
+                          Compliance Issues
+                        </Typography>
+                        <List dense>
+                          {complianceIssues.map((issue, index) => (
+                            <ListItem key={index} sx={{ py: 0.5 }}>
+                              <ListItemIcon sx={{ minWidth: 24 }}>
+                                <ErrorIcon sx={{ color: '#f44336', fontSize: 16 }} />
+                              </ListItemIcon>
+                              <ListItemText 
+                                primary={issue.description}
+                                secondary={`Severity: ${issue.severity} • Type: ${issue.issue_type}`}
+                                sx={{ 
+                                  '& .MuiListItemText-primary': {
+                                    fontSize: '0.875rem',
+                                    color: '#c62828',
+                                    fontWeight: 600
+                                  },
+                                  '& .MuiListItemText-secondary': {
+                                    fontSize: '0.75rem',
+                                    color: '#c62828'
+                                  }
+                                }}
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Box>
+                    </Grid>
+                  )}
+                </Grid>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+
+        {/* Section 4: Compliance Assessment */}
+        {(complianceRisks.length > 0 || regulatoryImplications.length > 0) && (
+          <Grid item size={{xs: 12}}>
+            <Card sx={{ 
+              background: 'white', 
+              borderRadius: 2,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              border: '1px solid #e9ecef'
+            }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h5" sx={{ 
+                  fontWeight: 600, 
+                  mb: 3, 
+                  color: '#2c3e50',
+                  fontSize: '1.25rem'
+                }}>
+                  Compliance Assessment
+                </Typography>
+                
+                <Grid container spacing={3}>
+                  {/* Compliance Risks */}
+                  {complianceRisks.length > 0 && (
+                    <Grid item size={{xs: 12, md: 6}}>
+                      <Box sx={{ p: 2, background: '#f8f9fa', borderRadius: 2, border: '1px solid #e9ecef' }}>
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 600, 
+                          mb: 2, 
+                          color: '#2c3e50',
+                          fontSize: '1.1rem'
+                        }}>
+                          Compliance Risks
+                        </Typography>
+                        <List dense>
+                          {complianceRisks.map((risk, index) => (
+                            <ListItem key={index} sx={{ py: 0.5 }}>
+                              <ListItemIcon sx={{ minWidth: 24 }}>
+                                <WarningIcon sx={{ color: '#925a9b', fontSize: 16 }} />
+                              </ListItemIcon>
+                              <ListItemText 
+                                primary={risk.description}
+                                secondary={`Risk Level: ${risk.risk_level} • Mitigation: ${risk.mitigation}`}
+                                sx={{ 
+                                  '& .MuiListItemText-primary': {
+                                    fontSize: '0.875rem',
+                                    color: '#2c3e50',
+                                    fontWeight: 600
+                                  },
+                                  '& .MuiListItemText-secondary': {
+                                    fontSize: '0.75rem',
+                                    color: '#6c757d'
+                                  }
+                                }}
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Box>
+                    </Grid>
+                  )}
+
+                  {/* Regulatory Implications */}
+                  {regulatoryImplications.length > 0 && (
+                    <Grid item size={{xs: 12, md: 6}}>
+                      <Box sx={{ p: 2, background: '#f8f9fa', borderRadius: 2, border: '1px solid #e9ecef' }}>
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 600, 
+                          mb: 2, 
+                          color: '#2c3e50',
+                          fontSize: '1.1rem'
+                        }}>
+                          Regulatory Implications
+                        </Typography>
+                        <List dense>
+                          {regulatoryImplications.map((implication, index) => (
+                            <ListItem key={index} sx={{ py: 0.5 }}>
+                              <ListItemIcon sx={{ minWidth: 24 }}>
+                                <InfoIcon sx={{ color: '#925a9b', fontSize: 16 }} />
+                              </ListItemIcon>
+                              <ListItemText 
+                                primary={implication.implication}
+                                secondary={`Regulation: ${implication.regulation} • Impact: ${implication.impact}`}
+                                sx={{ 
+                                  '& .MuiListItemText-primary': {
+                                    fontSize: '0.875rem',
+                                    color: '#2c3e50',
+                                    fontWeight: 600
+                                  },
+                                  '& .MuiListItemText-secondary': {
+                                    fontSize: '0.75rem',
+                                    color: '#6c757d'
+                                  }
+                                }}
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Box>
+                    </Grid>
+                  )}
+                </Grid>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+
+        {/* Section 5: Financial Statement Impact */}
+        {(financialStatementRisks.length > 0 || disclosureRequirements.length > 0) && (
+          <Grid item size={{xs: 12}}>
+            <Card sx={{ 
+              background: 'white', 
+              borderRadius: 2,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              border: '1px solid #e9ecef'
+            }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h5" sx={{ 
+                  fontWeight: 600, 
+                  mb: 3, 
+                  color: '#2c3e50',
+                  fontSize: '1.25rem'
+                }}>
+                  Financial Statement Impact
+                </Typography>
+                
+                <Grid container spacing={3}>
+                  {/* Financial Statement Risks */}
+                  {financialStatementRisks.length > 0 && (
+                    <Grid item size={{xs: 12, md: 6}}>
+                      <Box sx={{ p: 2, background: '#f8f9fa', borderRadius: 2, border: '1px solid #e9ecef' }}>
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 600, 
+                          mb: 2, 
+                          color: '#2c3e50',
+                          fontSize: '1.1rem'
+                        }}>
+                          Financial Statement Risks
+                        </Typography>
+                        <List dense>
+                          {financialStatementRisks.map((risk, index) => (
+                            <ListItem key={index} sx={{ py: 0.5 }}>
+                              <ListItemIcon sx={{ minWidth: 24 }}>
+                                <WarningIcon sx={{ color: '#925a9b', fontSize: 16 }} />
+                              </ListItemIcon>
+                              <ListItemText 
+                                primary={risk.description}
+                                secondary={`Risk Level: ${risk.risk_level} • Mitigation: ${risk.mitigation}`}
+                                sx={{ 
+                                  '& .MuiListItemText-primary': {
+                                    fontSize: '0.875rem',
+                                    color: '#2c3e50',
+                                    fontWeight: 600
+                                  },
+                                  '& .MuiListItemText-secondary': {
+                                    fontSize: '0.75rem',
+                                    color: '#6c757d'
+                                  }
+                                }}
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Box>
+                    </Grid>
+                  )}
+
+                  {/* Disclosure Requirements */}
+                  {disclosureRequirements.length > 0 && (
+                    <Grid item size={{xs: 12, md: 6}}>
+                      <Box sx={{ p: 2, background: '#f8f9fa', borderRadius: 2, border: '1px solid #e9ecef' }}>
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 600, 
+                          mb: 2, 
+                          color: '#2c3e50',
+                          fontSize: '1.1rem'
+                        }}>
+                          Disclosure Requirements
+                        </Typography>
+                        <List dense>
+                          {disclosureRequirements.map((disclosure, index) => (
+                            <ListItem key={index} sx={{ py: 0.5 }}>
+                              <ListItemIcon sx={{ minWidth: 24 }}>
+                                <InfoIcon sx={{ color: '#925a9b', fontSize: 16 }} />
+                              </ListItemIcon>
+                              <ListItemText 
+                                primary={disclosure.description}
+                                secondary={`Required: ${disclosure.required} • Timeline: ${disclosure.timeline}`}
+                                sx={{ 
+                                  '& .MuiListItemText-primary': {
+                                    fontSize: '0.875rem',
+                                    color: '#2c3e50',
+                                    fontWeight: 600
+                                  },
+                                  '& .MuiListItemText-secondary': {
+                                    fontSize: '0.75rem',
+                                    color: '#6c757d'
+                                  }
+                                }}
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Box>
+                    </Grid>
+                  )}
+                </Grid>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+
+        {/* Section 6: Follow-up Actions */}
+        {followUpActions.length > 0 && (
+          <Grid item size={{xs: 12}}>
+            <Card sx={{ 
+              background: 'white', 
+              borderRadius: 2,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              border: '1px solid #e9ecef'
+            }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h5" sx={{ 
+                  fontWeight: 600, 
+                  mb: 3, 
+                  color: '#2c3e50',
+                  fontSize: '1.25rem'
+                }}>
+                  Follow-up Actions
+                </Typography>
+                <TableContainer sx={{ 
+                  boxShadow: 'none', 
+                  background: 'transparent',
+                  border: '1px solid #e9ecef',
+                  borderRadius: 2
+                }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
+                        <TableCell sx={{ 
+                          fontWeight: 600, 
+                          color: '#2c3e50',
+                          borderBottom: '1px solid #e9ecef'
+                        }}>
+                          Action
+                        </TableCell>
+                        <TableCell sx={{ 
+                          fontWeight: 600, 
+                          color: '#2c3e50',
+                          borderBottom: '1px solid #e9ecef'
+                        }}>
+                          Timeline
+                        </TableCell>
+                        <TableCell sx={{ 
+                          fontWeight: 600, 
+                          color: '#2c3e50',
+                          borderBottom: '1px solid #e9ecef'
+                        }}>
+                          Responsible Party
+                        </TableCell>
+                        <TableCell sx={{ 
+                          fontWeight: 600, 
+                          color: '#2c3e50',
+                          borderBottom: '1px solid #e9ecef'
+                        }}>
+                          Deadline
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {followUpActions.map((action, index) => (
+                        <TableRow key={index} sx={{ '&:hover': { backgroundColor: '#f8f9fa' } }}>
+                          <TableCell sx={{ borderBottom: '1px solid #e9ecef', py: 2 }}>
+                            <Typography variant="body2" sx={{ 
+                              fontWeight: 600, 
+                              color: '#2c3e50',
+                              fontSize: '0.875rem'
+                            }}>
+                              {action.action}
+                            </Typography>
+                          </TableCell>
+                          <TableCell sx={{ borderBottom: '1px solid #e9ecef', py: 2 }}>
+                            <Chip 
+                              label={action.timeline}
+                              size="small"
+                              sx={{ 
+                                backgroundColor: action.timeline === 'IMMEDIATE' ? '#dc3545' : 
+                                               action.timeline === 'SHORT_TERM' ? '#ffc107' : '#28a745',
+                                color: 'white',
+                                fontWeight: 600,
+                                fontSize: '0.75rem'
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell sx={{ borderBottom: '1px solid #e9ecef', py: 2 }}>
+                            <Typography variant="body2" sx={{ 
+                              color: '#6c757d',
+                              fontSize: '0.875rem'
+                            }}>
+                              {action.responsible_party}
+                            </Typography>
+                          </TableCell>
+                          <TableCell sx={{ borderBottom: '1px solid #e9ecef', py: 2 }}>
+                            <Typography variant="body2" sx={{ 
+                              color: '#6c757d',
+                              fontSize: '0.875rem'
+                            }}>
+                              {action.deadline}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+      </Grid>
+
+    
       {/* User Analysis PDF */}
       <UserAnalysisPDF
         open={pdfModalOpen}
         setOpen={setPdfModalOpen}
         data={data}
         currency={currency}
+        fileInfo={sheetData?.fileInfo}
+        sheetId={sheetId}
+        userListing={userListing}
+        listingLoading={loading}
+        listingError={error}
+        listingPagination={pagination}
       />
     </Box>
   );

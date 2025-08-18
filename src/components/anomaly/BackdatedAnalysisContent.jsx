@@ -38,8 +38,10 @@ import {
   TrendingUp as TrendingUpIcon,
   Warning as WarningIcon,
   Error as ErrorIcon,
-  Info as InfoIcon
+  Info as InfoIcon,
+  FileDownload
 } from '@mui/icons-material';
+import { CircularProgress } from '@mui/material';
 import { getRiskColor, formatCurrency } from '../../utils/colorScheme';
 import UnifiedAnomalyDrawer from '../FlaggedExpenseDrawer';
 
@@ -50,7 +52,17 @@ import AnomaliesDistributionChart from '../charts/AnomaliesDistributionChart';
 // Import Recharts for custom gradient charts
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Legend, Area, AreaChart } from 'recharts';
 
-export default function BackdatedAnalysisContent({ data, distributionData, anomalySummary, sheetId }) {
+export default function BackdatedAnalysisContent({ 
+  data, 
+  distributionData, 
+  anomalySummary, 
+  sheetId,
+  onAnalysisExport,
+  analysisExportLoading,
+  analysisExportError,
+  analysisType,
+  sheetData
+}) {
   const [expandedTransactions, setExpandedTransactions] = useState({});
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedBackdated, setSelectedBackdated] = useState(null);
@@ -139,6 +151,9 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
       // Handle the specific API response format
       const listingData = result.results || result.data || result.backdated_entries || [];
       
+      console.log('Backdated listing data:', listingData);
+      console.log('Backdated listing length:', listingData.length);
+      
       setBackdatedListing(listingData);
       setPagination({
         count: result.count || 0,
@@ -159,6 +174,21 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
   useEffect(() => {
     fetchBackdatedListing(1, 10);
   }, [sheetId]);
+
+  // Fallback to static data if API fails or returns empty
+  useEffect(() => {
+    if (!loading && !error && backdatedListing.length === 0 && backdatedEntries.length > 0) {
+      console.log('Using fallback data from backdatedEntries:', backdatedEntries);
+      setBackdatedListing(backdatedEntries);
+      setPagination({
+        count: backdatedEntries.length,
+        next: null,
+        previous: null,
+        currentPage: 1,
+        pageSize: 10
+      });
+    }
+  }, [loading, error, backdatedListing.length, backdatedEntries]);
 
   // Pagination handlers
   const handlePageChange = (newPage) => {
@@ -442,8 +472,40 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
         </Box>
       )}
 
-      {/* Open Report Button */}
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
+      {/* Export and Report Buttons */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mb: 3 }}>
+        {/* Export Analysis Button */}
+        <Button
+          variant="contained"
+          startIcon={analysisExportLoading ? <CircularProgress size={20} color="inherit" /> : <FileDownload />}
+          onClick={() => onAnalysisExport && onAnalysisExport(analysisType || 'backdated')}
+          disabled={analysisExportLoading || !onAnalysisExport}
+          sx={{
+            backgroundColor: '#FFCE56',
+            color: 'white',
+            fontWeight: 600,
+            px: 3,
+            py: 1.5,
+            borderRadius: 2,
+            textTransform: 'none',
+            fontSize: '0.9rem',
+            boxShadow: '0 2px 8px rgba(255, 206, 86, 0.3)',
+            '&:hover': {
+              backgroundColor: '#e6b94a',
+              boxShadow: '0 4px 12px rgba(255, 206, 86, 0.4)',
+              transform: 'translateY(-1px)'
+            },
+            '&:disabled': {
+              backgroundColor: '#ccc',
+              boxShadow: 'none'
+            },
+            transition: 'all 0.2s ease-in-out'
+          }}
+        >
+          {analysisExportLoading ? 'Exporting...' : 'Export Analysis'}
+        </Button>
+        
+        {/* Open Report Button */}
         <Button
           variant="contained"
           onClick={handleOpenPDF}
@@ -468,6 +530,18 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
           📄 Open Report
         </Button>
       </Box>
+
+      {/* Export Error Alert */}
+      {analysisExportError && (
+        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+          <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+            Export Error
+          </Typography>
+          <Typography variant="body2">
+            {analysisExportError}
+          </Typography>
+        </Alert>
+      )}
 
       {/* Top Summary Banner */}
       <Card sx={{ 
@@ -1370,20 +1444,21 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
                        </TableRow>
                      </TableHead>
                     <TableBody>
-                      {backdatedListing.map((entry, index) => (
-                                                 <TableRow 
-                           key={index}
-                           sx={{ 
-                             '&:hover': { 
-                               backgroundColor: '#f8f9fa',
-                               transform: 'scale(1.01)',
-                               transition: 'all 0.2s ease-in-out'
-                             },
-                             '&:nth-of-type(even)': {
-                               backgroundColor: '#fafbfc'
-                             }
-                           }}
-                         >
+                      {backdatedListing && backdatedListing.length > 0 ? (
+                        backdatedListing.map((entry, index) => (
+                          <TableRow 
+                            key={index}
+                            sx={{ 
+                              '&:hover': { 
+                                backgroundColor: '#f8f9fa',
+                                transform: 'scale(1.01)',
+                                transition: 'all 0.2s ease-in-out'
+                              },
+                              '&:nth-of-type(even)': {
+                                backgroundColor: '#fafbfc'
+                              }
+                            }}
+                          >
                            <TableCell sx={{ py: 2 }}>
                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                <Avatar sx={{ 
@@ -1487,7 +1562,16 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
                              </Box>
                            </TableCell>
                          </TableRow>
-                      ))}
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={7} sx={{ textAlign: 'center', py: 4 }}>
+                            <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                              {loading ? 'Loading backdated entries...' : 'No backdated entries found'}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 </TableContainer>
@@ -1866,6 +1950,8 @@ export default function BackdatedAnalysisContent({ data, distributionData, anoma
         setOpen={setPdfOpen}
         data={data}
         currency={currency}
+        backdatedListing={backdatedListing}
+        fileInfo={sheetData?.fileInfo}
       />
     </Box>
   );

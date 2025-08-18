@@ -182,7 +182,19 @@ const UserAnalysisPDF = ({
   open,
   setOpen,
   data,
-  currency = 'SAR'
+  currency = 'SAR',
+  fileInfo,
+  sheetId,
+  userListing = [],
+  listingLoading = false,
+  listingError = null,
+  listingPagination = {
+    count: 0,
+    next: null,
+    previous: null,
+    currentPage: 1,
+    pageSize: 10
+  }
 }) => {
   const printRef = useRef();
 
@@ -206,7 +218,7 @@ const UserAnalysisPDF = ({
   };
 
   // Extract data from the API structure
-  const fileInfo = data?.file_info || {};
+  // const fileInfo = data?.file_info || {};
   const analysisInfo = data?.analysis_info || {};
   const userSummary = data?.user_analysis?.user_transaction_summary || [];
   const userAnomalies = data?.anomaly_detection?.user_anomalies || [];
@@ -215,6 +227,44 @@ const UserAnalysisPDF = ({
   const summary = data?.summary || {};
   const riskDistribution = summary?.risk_distribution || {};
   const chartData = data?.visualizations?.chart_data || {};
+  
+  // Extract company and client information from file data
+  const companyInfo = {
+    company_name: fileInfo?.companyName || 'N/A',
+    client_name: fileInfo?.clientName || 'N/A',
+    engagement_id: fileInfo?.engagementId || 'N/A',
+    fiscal_year: fileInfo?.fiscalYear || 'N/A'
+  };
+  
+  // Extract additional data structures
+  const patterns = data?.patterns || {};
+  const auditRecommendations = data?.audit_recommendations || {};
+  const complianceAssessment = data?.compliance_assessment || {};
+  const financialStatementImpact = data?.financial_statement_impact || {};
+  const exportData = data?.export_data || {};
+  
+  // Extract detailed patterns and trends
+  const activityTrends = patterns?.activity_trends || {};
+  const userBehaviorAnalysis = patterns?.user_behavior_analysis || {};
+  const temporalPatterns = patterns?.temporal_patterns || {};
+  
+  // Extract audit recommendations
+  const highPriorityRecommendations = auditRecommendations?.high_priority_recommendations || [];
+  const mediumPriorityRecommendations = auditRecommendations?.medium_priority_recommendations || [];
+  const lowPriorityRecommendations = auditRecommendations?.low_priority_recommendations || [];
+  const complianceIssues = auditRecommendations?.compliance_issues || [];
+  const followUpActions = auditRecommendations?.follow_up_actions || [];
+  
+  // Extract compliance assessment
+  const complianceRisks = complianceAssessment?.compliance_risks || [];
+  const regulatoryImplications = complianceAssessment?.regulatory_implications || [];
+  const internalControlAssessment = complianceAssessment?.internal_control_assessment || {};
+  
+  // Extract financial statement impact
+  const materialImpactAssessment = financialStatementImpact?.material_impact_assessment || {};
+  const financialStatementRisks = financialStatementImpact?.financial_statement_risks || [];
+  const disclosureRequirements = financialStatementImpact?.disclosure_requirements || [];
+  const auditImplications = financialStatementImpact?.audit_implications || [];
 
   // Calculate overall risk score
   const totalAmount = userSummary.reduce((sum, user) => sum + (user.total_amount || 0), 0);
@@ -254,6 +304,9 @@ const UserAnalysisPDF = ({
   };
 
   const currentDateTime = getCurrentDateTime();
+
+  // Note: userListing data is now passed from parent component
+  // No need to fetch data here as it's already available from UserAnalysisContent.jsx
 
   const handlePrint = () => {
     var htmlToPrint =
@@ -363,6 +416,12 @@ const UserAnalysisPDF = ({
       ".chart-content { min-height: 200px; display: flex; align-items: center; justify-content: center; }" +
       ".chart-placeholder { color: #666; font-style: italic; }" +
       ".chart-fallback { padding: 20px; text-align: center; color: #666; border: 2px dashed #ddd; border-radius: 8px; background-color: #f9f9f9; }" +
+      "  .page-header { position: running(header); }" +
+      "  .page-footer { position: running(footer); }" +
+      "  @page {" +
+      "    @top-center { content: element(header); }" +
+      "    @bottom-center { content: element(footer); }" +
+      "  }" +
       "</style>";
 
     var divToPrint = document.getElementById("UserAnalysisPDF");
@@ -419,6 +478,21 @@ const UserAnalysisPDF = ({
           style={{ padding: "20px 10px" }}>
           <div className='modal-dialog modal-xl modal-dialog-centered'>
             <div id='UserAnalysisPDF' className='modal-content'>
+              {/* Page Header for Printing */}
+              <div className='page-header' style={{ 
+                display: "none",
+                padding: "10px 20px",
+                backgroundColor: "#f8f9fa",
+                borderBottom: "1px solid #dee2e6",
+                fontSize: "12px",
+                color: "#6c757d"
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span><strong>{companyInfo.company_name}</strong> - User Analysis Report</span>
+                  <span>Analysis ID: {fileInfo?.fileName || fileInfo?.file_id || analysisInfo?.analysis_id || data?.analysis_id || "N/A"}</span>
+                </div>
+              </div>
+              
               <div className='modal-body bg-white text-dark'>
                 <div style={{ padding: "20px" }}>
                   <div className='content-section'>
@@ -457,6 +531,37 @@ const UserAnalysisPDF = ({
 
                     <div className='sections'>
                       <h5 style={{ margin: "10px 0" }}>User Analysis Overview</h5>
+                      
+                      {/* Analysis Status Alert */}
+                      <div style={{ 
+                        padding: "15px", 
+                        backgroundColor: userAnomalies.length > 0 ? "#fff3cd" : "#d4edda", 
+                        border: `1px solid ${userAnomalies.length > 0 ? "#ffeaa7" : "#c3e6cb"}`, 
+                        borderRadius: "8px",
+                        marginBottom: "20px"
+                      }}>
+                        <div style={{ 
+                          fontWeight: "bold", 
+                          color: userAnomalies.length > 0 ? "#856404" : "#155724",
+                          fontSize: "14px",
+                          marginBottom: "5px"
+                        }}>
+                          {userAnomalies.length > 0 
+                            ? `Found ${userAnomalies.length} users with anomalies involving ${totalTransactions} transactions`
+                            : "No user anomalies found"
+                          }
+                        </div>
+                        {userAnomalies.length > 0 && (
+                          <div style={{ 
+                            color: userAnomalies.length > 0 ? "#856404" : "#155724",
+                            fontSize: "12px"
+                          }}>
+                            Total amount involved: {formatCurrency(totalAmount)}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* User Analysis Definitions */}
                       <div style={{ 
                         padding: "15px", 
                         backgroundColor: "#f8f9fa", 
@@ -690,53 +795,631 @@ const UserAnalysisPDF = ({
                       </table>
                     </div>
 
-                    {/* Risk Assessment Summary */}
-                    <div className='sections'>
-                      <h5 style={{ margin: "10px 0" }}>Risk Assessment Summary</h5>
-                      <table width='100%' border='1' className='border' cellSpacing='0'>
-                        <thead>
-                          <tr>
-                            <th>Risk Level</th>
-                            <th>Users</th>
-                            <th>Transactions</th>
-                            <th>Total Amount</th>
-                          </tr>
-                        </thead>
-                        <tbody style={{ textAlign: "center" }}>
-                          {Object.entries(riskDistribution).map(([level, count], index) => {
-                            const riskLevelUsers = userRiskScores.filter(user => {
-                              return user.risk_level === level.toUpperCase();
-                            });
-                            
-                            const totalAmount = riskLevelUsers.reduce((sum, user) => {
-                              const userSummaryItem = userSummary.find(u => u.user === user.user);
-                              return sum + (userSummaryItem?.total_amount || 0);
-                            }, 0);
-                            
-                            const totalTransactions = riskLevelUsers.reduce((sum, user) => {
-                              const userSummaryItem = userSummary.find(u => u.user === user.user);
-                              return sum + (userSummaryItem?.transaction_count || 0);
-                            }, 0);
-                            
-                            return (
+                                         {/* Risk Assessment Summary */}
+                     <div className='sections'>
+                       <h5 style={{ margin: "10px 0" }}>Risk Assessment Summary</h5>
+                       <table width='100%' border='1' className='border' cellSpacing='0'>
+                         <thead>
+                           <tr>
+                             <th>Risk Level</th>
+                             <th>Users</th>
+                             <th>Transactions</th>
+                             <th>Total Amount</th>
+                           </tr>
+                         </thead>
+                         <tbody style={{ textAlign: "center" }}>
+                           {Object.entries(riskDistribution).map(([level, count], index) => {
+                             const riskLevelUsers = userRiskScores.filter(user => {
+                               return user.risk_level === level.toUpperCase();
+                             });
+                             
+                             const totalAmount = riskLevelUsers.reduce((sum, user) => {
+                               const userSummaryItem = userSummary.find(u => u.user === user.user);
+                               return sum + (userSummaryItem?.total_amount || 0);
+                             }, 0);
+                             
+                             const totalTransactions = riskLevelUsers.reduce((sum, user) => {
+                               const userSummaryItem = userSummary.find(u => u.user === user.user);
+                               return sum + (userSummaryItem?.transaction_count || 0);
+                             }, 0);
+                             
+                             return (
+                               <tr key={index}>
+                                 <td>
+                                   <span style={{
+                                     color: RiskColor[getRiskLevelNumber(level === 'high' ? 80 : level === 'medium' ? 60 : 40)],
+                                     fontWeight: "bold"
+                                   }}>
+                                     {level.toUpperCase()}
+                                   </span>
+                                 </td>
+                                 <td>{count}</td>
+                                 <td>{totalTransactions}</td>
+                                 <td>{formatCurrency(totalAmount)}</td>
+                               </tr>
+                             );
+                           })}
+                         </tbody>
+                       </table>
+                     </div>
+
+                     {/* User Listing from API */}
+                     <div className='sections'>
+                       <h5 style={{ margin: "10px 0" }}>User Entries Listing (First Page)</h5>
+                       
+                       {listingLoading && (
+                         <div style={{ 
+                           padding: "20px", 
+                           textAlign: "center", 
+                           color: "#6c757d",
+                           fontStyle: "italic"
+                         }}>
+                           Loading user entries from API...
+                         </div>
+                       )}
+                       
+                       {listingError && (
+                         <div style={{ 
+                           padding: "15px", 
+                           backgroundColor: "#f8d7da", 
+                           border: "1px solid #f5c6cb", 
+                           borderRadius: "8px",
+                           color: "#721c24",
+                           marginBottom: "20px"
+                         }}>
+                           <strong>Error loading user entries:</strong> {listingError}
+                         </div>
+                       )}
+                       
+                       {!listingLoading && !listingError && userListing.length > 0 && (
+                         <>
+                           <div style={{ 
+                             padding: "10px", 
+                             backgroundColor: "#f8f9fa", 
+                             border: "1px solid #e9ecef", 
+                             borderRadius: "8px",
+                             marginBottom: "15px",
+                             fontSize: "12px",
+                             color: "#6c757d"
+                           }}>
+                             Found {listingPagination.count} user entries from API (showing page {listingPagination.currentPage} of {Math.ceil(listingPagination.count / listingPagination.pageSize)})
+                           </div>
+                           
+                           <table width='100%' border='1' className='border' cellSpacing='0'>
+                             <thead>
+                               <tr>
+                                 <th>User</th>
+                                 <th>Transaction Count</th>
+                                 <th>Total Amount</th>
+                                 <th>Risk Level</th>
+                                 <th>Anomaly Count</th>
+                               </tr>
+                             </thead>
+                             <tbody style={{ textAlign: "left" }}>
+                               {userListing.map((entry, index) => (
+                                 <tr key={index}>
+                                   <td style={{ fontWeight: "bold" }}>
+                                     {entry.user || `User-${index + 1}`}
+                                   </td>
+                                   <td style={{ textAlign: "center" }}>
+                                     {entry.transaction_count || 0}
+                                   </td>
+                                   <td style={{ textAlign: "right" }}>
+                                     {entry.amount_formatted || formatCurrency(entry.total_amount || 0)}
+                                   </td>
+                                   <td style={{ textAlign: "center" }}>
+                                     <span style={{
+                                       color: entry.risk_level === 'HIGH' ? '#dc3545' : 
+                                              entry.risk_level === 'MEDIUM' ? '#ffc107' : '#28a745',
+                                       fontWeight: "bold"
+                                     }}>
+                                       {entry.risk_level?.toUpperCase() || 'N/A'}
+                                     </span>
+                                   </td>
+                                   <td style={{ textAlign: "center" }}>
+                                     <span style={{
+                                       color: (entry.anomaly_count || 0) > 0 ? '#dc3545' : '#6c757d',
+                                       fontWeight: "bold"
+                                     }}>
+                                       {entry.anomaly_count || 0}
+                                     </span>
+                                   </td>
+                                 </tr>
+                               ))}
+                             </tbody>
+                           </table>
+                           
+                           {/* Listing Summary */}
+                           <div style={{ 
+                             marginTop: "15px",
+                             padding: "10px",
+                             backgroundColor: "#e9ecef",
+                             borderRadius: "8px",
+                             fontSize: "12px"
+                           }}>
+                             <strong>Summary:</strong> Total Amount: {formatCurrency(userListing.reduce((sum, entry) => sum + (entry.total_amount || 0), 0))} | 
+                             Unique Users: {new Set(userListing.map(entry => entry.user)).size} | 
+                             Total Accounts: {userListing.reduce((sum, entry) => sum + (entry.accounts_count || 0), 0)}
+                           </div>
+                         </>
+                       )}
+                       
+                       {!listingLoading && !listingError && userListing.length === 0 && (
+                         <div style={{ 
+                           padding: "20px", 
+                           textAlign: "center", 
+                           color: "#6c757d",
+                           fontStyle: "italic",
+                           backgroundColor: "#f8f9fa",
+                           border: "1px solid #e9ecef",
+                           borderRadius: "8px"
+                         }}>
+                           No user entries found in the API response
+                         </div>
+                       )}
+                     </div>
+
+                    {/* User Behavior Analysis */}
+                    {userBehaviorAnalysis.unusual_activities && userBehaviorAnalysis.unusual_activities.length > 0 && (
+                      <div className='sections'>
+                        <h5 style={{ margin: "10px 0" }}>User Behavior Analysis</h5>
+                        <table width='100%' border='1' className='border' cellSpacing='0'>
+                          <thead>
+                            <tr>
+                              <th>User Name</th>
+                              <th>Reason</th>
+                              <th>Transaction Count</th>
+                              <th>Total Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody style={{ textAlign: "left" }}>
+                            {userBehaviorAnalysis.unusual_activities.map((activity, index) => (
+                              <tr key={index}>
+                                <td style={{ fontWeight: "bold" }}>{activity.user}</td>
+                                <td>{activity.reason}</td>
+                                <td style={{ textAlign: "center" }}>{activity.transaction_count}</td>
+                                <td style={{ textAlign: "right" }}>{formatCurrency(activity.total_amount)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Activity Trends - Most Active Users */}
+                    {activityTrends.most_active_users && activityTrends.most_active_users.length > 0 && (
+                      <div className='sections'>
+                        <h5 style={{ margin: "10px 0" }}>Most Active Users</h5>
+                        <table width='100%' border='1' className='border' cellSpacing='0'>
+                          <thead>
+                            <tr>
+                              <th>User Name</th>
+                              <th>Transaction Count</th>
+                              <th>Total Amount</th>
+                              <th>Average Amount</th>
+                              <th>Accounts</th>
+                            </tr>
+                          </thead>
+                          <tbody style={{ textAlign: "left" }}>
+                            {activityTrends.most_active_users.map((user, index) => (
+                              <tr key={index}>
+                                <td style={{ fontWeight: "bold" }}>{user.user}</td>
+                                <td style={{ textAlign: "center" }}>{user.transaction_count}</td>
+                                <td style={{ textAlign: "right" }}>{formatCurrency(user.total_amount)}</td>
+                                <td style={{ textAlign: "right" }}>{formatCurrency(user.avg_amount)}</td>
+                                <td style={{ textAlign: "center" }}>{user.accounts?.length || 0}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Highest Value Users */}
+                    {activityTrends.highest_value_users && activityTrends.highest_value_users.length > 0 && (
+                      <div className='sections'>
+                        <h5 style={{ margin: "10px 0" }}>Highest Value Users</h5>
+                        <table width='100%' border='1' className='border' cellSpacing='0'>
+                          <thead>
+                            <tr>
+                              <th>User Name</th>
+                              <th>Transaction Count</th>
+                              <th>Total Amount</th>
+                              <th>Average Amount</th>
+                              <th>Accounts</th>
+                            </tr>
+                          </thead>
+                          <tbody style={{ textAlign: "left" }}>
+                            {activityTrends.highest_value_users.map((user, index) => (
+                              <tr key={index}>
+                                <td style={{ fontWeight: "bold" }}>{user.user}</td>
+                                <td style={{ textAlign: "center" }}>{user.transaction_count}</td>
+                                <td style={{ textAlign: "right" }}>{formatCurrency(user.total_amount)}</td>
+                                <td style={{ textAlign: "right" }}>{formatCurrency(user.avg_amount)}</td>
+                                <td style={{ textAlign: "center" }}>{user.accounts?.length || 0}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* User Activity Distribution */}
+                    {activityTrends.users_by_transaction_count && (
+                      <div className='sections'>
+                        <h5 style={{ margin: "10px 0" }}>User Activity Distribution</h5>
+                        <table width='100%' border='1' className='border' cellSpacing='0'>
+                          <thead>
+                            <tr>
+                              <th>Activity Level</th>
+                              <th>Number of Users</th>
+                            </tr>
+                          </thead>
+                          <tbody style={{ textAlign: "center" }}>
+                            {Object.entries(activityTrends.users_by_transaction_count).map(([level, count], index) => (
+                              <tr key={index}>
+                                <td style={{ fontWeight: "bold", textTransform: "capitalize" }}>{level}</td>
+                                <td>{count}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Export Data Summary */}
+                    {exportData.user_summary && exportData.user_summary.length > 0 && (
+                      <div className='sections'>
+                        <h5 style={{ margin: "10px 0" }}>Export Data Summary</h5>
+                        <table width='100%' border='1' className='border' cellSpacing='0'>
+                          <thead>
+                            <tr>
+                              <th>User</th>
+                              <th>Transaction Count</th>
+                              <th>Total Amount</th>
+                              <th>Average Amount</th>
+                              <th>Accounts</th>
+                            </tr>
+                          </thead>
+                          <tbody style={{ textAlign: "left" }}>
+                            {exportData.user_summary.map((user, index) => (
+                              <tr key={index}>
+                                <td style={{ fontWeight: "bold" }}>{user.user}</td>
+                                <td style={{ textAlign: "center" }}>{user.transaction_count}</td>
+                                <td style={{ textAlign: "right" }}>{formatCurrency(user.total_amount)}</td>
+                                <td style={{ textAlign: "right" }}>{formatCurrency(user.avg_amount)}</td>
+                                <td style={{ fontSize: "11px" }}>{user.accounts}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+
+
+                    {/* Recommendations Export Data */}
+                    {exportData.recommendations_export && exportData.recommendations_export.length > 0 && (
+                      <div className='sections'>
+                        <h5 style={{ margin: "10px 0" }}>Recommendations Export Data</h5>
+                        <table width='100%' border='1' className='border' cellSpacing='0'>
+                          <thead>
+                            <tr>
+                              <th>Priority</th>
+                              <th>Category</th>
+                              <th>Recommendation</th>
+                              <th>Rationale</th>
+                            </tr>
+                          </thead>
+                          <tbody style={{ textAlign: "left" }}>
+                            {exportData.recommendations_export.map((recommendation, index) => (
                               <tr key={index}>
                                 <td>
                                   <span style={{
-                                    color: RiskColor[getRiskLevelNumber(level === 'high' ? 80 : level === 'medium' ? 60 : 40)],
+                                    color: recommendation.priority === 'HIGH' ? '#dc3545' : 
+                                           recommendation.priority === 'MEDIUM' ? '#ffc107' : '#28a745',
                                     fontWeight: "bold"
                                   }}>
-                                    {level.toUpperCase()}
+                                    {recommendation.priority}
                                   </span>
                                 </td>
-                                <td>{count}</td>
-                                <td>{totalTransactions}</td>
-                                <td>{formatCurrency(totalAmount)}</td>
+                                <td>{recommendation.category}</td>
+                                <td>{recommendation.recommendation}</td>
+                                <td>{recommendation.rationale}</td>
                               </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Audit Recommendations */}
+                    {(highPriorityRecommendations.length > 0 || mediumPriorityRecommendations.length > 0 || lowPriorityRecommendations.length > 0) && (
+                      <div className='sections'>
+                        <h5 style={{ margin: "10px 0" }}>Audit Recommendations</h5>
+                        <table width='100%' border='1' className='border' cellSpacing='0'>
+                          <thead>
+                            <tr>
+                              <th>Priority</th>
+                              <th>Category</th>
+                              <th>Recommendation</th>
+                              <th>Rationale</th>
+                            </tr>
+                          </thead>
+                          <tbody style={{ textAlign: "left" }}>
+                            {[...highPriorityRecommendations, ...mediumPriorityRecommendations, ...lowPriorityRecommendations].map((recommendation, index) => (
+                              <tr key={index}>
+                                <td>
+                                  <span style={{
+                                    color: recommendation.priority === 'HIGH' ? '#dc3545' : 
+                                           recommendation.priority === 'MEDIUM' ? '#ffc107' : '#28a745',
+                                    fontWeight: "bold"
+                                  }}>
+                                    {recommendation.priority}
+                                  </span>
+                                </td>
+                                <td>{recommendation.category}</td>
+                                <td>{recommendation.recommendation}</td>
+                                <td>{recommendation.rationale}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Compliance Assessment */}
+                    {(complianceRisks.length > 0 || regulatoryImplications.length > 0) && (
+                      <div className='sections'>
+                        <h5 style={{ margin: "10px 0" }}>Compliance Assessment</h5>
+                        <table width='100%' border='1' className='border' cellSpacing='0'>
+                          <thead>
+                            <tr>
+                              <th>Type</th>
+                              <th>Description</th>
+                              <th>Risk Level</th>
+                              <th>Impact</th>
+                            </tr>
+                          </thead>
+                          <tbody style={{ textAlign: "left" }}>
+                            {complianceRisks.map((risk, index) => (
+                              <tr key={index}>
+                                <td>Compliance Risk</td>
+                                <td>{risk.description}</td>
+                                <td>
+                                  <span style={{
+                                    color: risk.risk_level === 'HIGH' ? '#dc3545' : 
+                                           risk.risk_level === 'MEDIUM' ? '#ffc107' : '#28a745',
+                                    fontWeight: "bold"
+                                  }}>
+                                    {risk.risk_level}
+                                  </span>
+                                </td>
+                                <td>{risk.mitigation}</td>
+                              </tr>
+                            ))}
+                            {regulatoryImplications.map((implication, index) => (
+                              <tr key={index}>
+                                <td>Regulatory</td>
+                                <td>{implication.implication}</td>
+                                <td>
+                                  <span style={{
+                                    color: implication.impact === 'HIGH' ? '#dc3545' : 
+                                           implication.impact === 'MEDIUM' ? '#ffc107' : '#28a745',
+                                    fontWeight: "bold"
+                                  }}>
+                                    {implication.impact}
+                                  </span>
+                                </td>
+                                <td>{implication.regulation}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Financial Statement Impact */}
+                    {(financialStatementRisks.length > 0 || disclosureRequirements.length > 0) && (
+                      <div className='sections'>
+                        <h5 style={{ margin: "10px 0" }}>Financial Statement Impact</h5>
+                        <table width='100%' border='1' className='border' cellSpacing='0'>
+                          <thead>
+                            <tr>
+                              <th>Type</th>
+                              <th>Description</th>
+                              <th>Risk Level</th>
+                              <th>Required Action</th>
+                            </tr>
+                          </thead>
+                          <tbody style={{ textAlign: "left" }}>
+                            {financialStatementRisks.map((risk, index) => (
+                              <tr key={index}>
+                                <td>Financial Risk</td>
+                                <td>{risk.description}</td>
+                                <td>
+                                  <span style={{
+                                    color: risk.risk_level === 'HIGH' ? '#dc3545' : 
+                                           risk.risk_level === 'MEDIUM' ? '#ffc107' : '#28a745',
+                                    fontWeight: "bold"
+                                  }}>
+                                    {risk.risk_level}
+                                  </span>
+                                </td>
+                                <td>{risk.mitigation}</td>
+                              </tr>
+                            ))}
+                            {disclosureRequirements.map((disclosure, index) => (
+                              <tr key={index}>
+                                <td>Disclosure</td>
+                                <td>{disclosure.description}</td>
+                                <td>
+                                  <span style={{
+                                    color: disclosure.required === 'YES' ? '#dc3545' : '#28a745',
+                                    fontWeight: "bold"
+                                  }}>
+                                    {disclosure.required}
+                                  </span>
+                                </td>
+                                <td>{disclosure.timeline}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Follow-up Actions */}
+                    {followUpActions.length > 0 && (
+                      <div className='sections'>
+                        <h5 style={{ margin: "10px 0" }}>Follow-up Actions</h5>
+                        <table width='100%' border='1' className='border' cellSpacing='0'>
+                          <thead>
+                            <tr>
+                              <th>Action</th>
+                              <th>Timeline</th>
+                              <th>Responsible Party</th>
+                              <th>Deadline</th>
+                            </tr>
+                          </thead>
+                          <tbody style={{ textAlign: "left" }}>
+                            {followUpActions.map((action, index) => (
+                              <tr key={index}>
+                                <td>{action.action}</td>
+                                <td>
+                                  <span style={{
+                                    color: action.timeline === 'IMMEDIATE' ? '#dc3545' : 
+                                           action.timeline === 'SHORT_TERM' ? '#ffc107' : '#28a745',
+                                    fontWeight: "bold"
+                                  }}>
+                                    {action.timeline}
+                                  </span>
+                                </td>
+                                <td>{action.responsible_party}</td>
+                                <td>{action.deadline}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Internal Control Assessment */}
+                    {internalControlAssessment.overall_effectiveness && (
+                      <div className='sections'>
+                        <h5 style={{ margin: "10px 0" }}>Internal Control Assessment</h5>
+                        <table width='100%' border='1' className='border' cellSpacing='0'>
+                          <thead>
+                            <tr>
+                              <th>Assessment Area</th>
+                              <th>Status</th>
+                              <th>Details</th>
+                            </tr>
+                          </thead>
+                          <tbody style={{ textAlign: "left" }}>
+                            <tr>
+                              <td style={{ fontWeight: "bold" }}>Overall Effectiveness</td>
+                              <td>
+                                <span style={{
+                                  color: internalControlAssessment.overall_effectiveness === 'ADEQUATE' ? '#28a745' : 
+                                         internalControlAssessment.overall_effectiveness === 'WEAK' ? '#ffc107' : '#dc3545',
+                                  fontWeight: "bold"
+                                }}>
+                                  {internalControlAssessment.overall_effectiveness}
+                                </span>
+                              </td>
+                              <td>Overall assessment of internal control effectiveness</td>
+                            </tr>
+                            {internalControlAssessment.control_deficiencies && internalControlAssessment.control_deficiencies.map((deficiency, index) => (
+                              <tr key={index}>
+                                <td style={{ fontWeight: "bold" }}>Control Deficiency</td>
+                                <td>
+                                  <span style={{
+                                    color: deficiency.impact === 'HIGH' ? '#dc3545' : 
+                                           deficiency.impact === 'MEDIUM' ? '#ffc107' : '#28a745',
+                                    fontWeight: "bold"
+                                  }}>
+                                    {deficiency.impact}
+                                  </span>
+                                </td>
+                                <td>{deficiency.deficiency} - {deficiency.recommendation}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Material Impact Assessment */}
+                    {materialImpactAssessment.materiality_assessment && (
+                      <div className='sections'>
+                        <h5 style={{ margin: "10px 0" }}>Material Impact Assessment</h5>
+                        <table width='100%' border='1' className='border' cellSpacing='0'>
+                          <thead>
+                            <tr>
+                              <th>Assessment Type</th>
+                              <th>Level</th>
+                              <th>Details</th>
+                            </tr>
+                          </thead>
+                          <tbody style={{ textAlign: "left" }}>
+                            <tr>
+                              <td style={{ fontWeight: "bold" }}>Materiality Assessment</td>
+                              <td>
+                                <span style={{
+                                  color: materialImpactAssessment.materiality_assessment === 'HIGH' ? '#dc3545' : 
+                                         materialImpactAssessment.materiality_assessment === 'MEDIUM' ? '#ffc107' : '#28a745',
+                                  fontWeight: "bold"
+                                }}>
+                                  {materialImpactAssessment.materiality_assessment}
+                                </span>
+                              </td>
+                              <td>Assessment of material impact on financial statements</td>
+                            </tr>
+                            <tr>
+                              <td style={{ fontWeight: "bold" }}>Quantified Impact</td>
+                              <td style={{ textAlign: "right" }}>{formatCurrency(materialImpactAssessment.quantified_impact || 0)}</td>
+                              <td>Total quantified financial impact</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Audit Implications */}
+                    {auditImplications.length > 0 && (
+                      <div className='sections'>
+                        <h5 style={{ margin: "10px 0" }}>Audit Implications</h5>
+                        <table width='100%' border='1' className='border' cellSpacing='0'>
+                          <thead>
+                            <tr>
+                              <th>Implication Type</th>
+                              <th>Description</th>
+                              <th>Impact</th>
+                              <th>Required Action</th>
+                            </tr>
+                          </thead>
+                          <tbody style={{ textAlign: "left" }}>
+                            {auditImplications.map((implication, index) => (
+                              <tr key={index}>
+                                <td style={{ fontWeight: "bold" }}>{implication.implication_type}</td>
+                                <td>{implication.description}</td>
+                                <td>
+                                  <span style={{
+                                    color: implication.impact === 'HIGH' ? '#dc3545' : 
+                                           implication.impact === 'MEDIUM' ? '#ffc107' : '#28a745',
+                                    fontWeight: "bold"
+                                  }}>
+                                    {implication.impact}
+                                  </span>
+                                </td>
+                                <td>{implication.action_required}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
 
                     {/* Conclusion */}
                     <div className='sections'>
@@ -788,6 +1471,63 @@ const UserAnalysisPDF = ({
                           </tr>
                         </tbody>
                       </table>
+                    </div>
+                    
+                    {/* Footer Section */}
+                    <div className='sections' style={{ marginTop: "30px" }}>
+                      <div style={{ 
+                        padding: "20px", 
+                        backgroundColor: "#f8f9fa", 
+                        border: "1px solid #e9ecef", 
+                        borderRadius: "8px",
+                        textAlign: "center"
+                      }}>
+                        <div style={{ 
+                          color: "#925a9b", 
+                          fontSize: "16px",
+                          fontWeight: "bold",
+                          marginBottom: "10px"
+                        }}>
+                          Report Generated by Analytics System
+                        </div>
+                        <div style={{ 
+                          color: "#6c757d", 
+                          fontSize: "12px",
+                          marginBottom: "5px"
+                        }}>
+                          Company: {companyInfo.company_name} | Client: {companyInfo.client_name}
+                        </div>
+                        <div style={{ 
+                          color: "#6c757d", 
+                          fontSize: "12px",
+                          marginBottom: "5px"
+                        }}>
+                          Engagement ID: {companyInfo.engagement_id} | Fiscal Year: {companyInfo.fiscal_year}
+                        </div>
+                        <div style={{ 
+                          color: "#6c757d", 
+                          fontSize: "12px"
+                        }}>
+                          Generated on {currentDateTime} | Analysis ID: {fileInfo?.fileName || fileInfo?.file_id || analysisInfo?.analysis_id || data?.analysis_id || "N/A"}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Page Footer for Printing */}
+                    <div className='page-footer' style={{ 
+                      display: "none",
+                      padding: "10px 20px",
+                      backgroundColor: "#f8f9fa",
+                      borderTop: "1px solid #dee2e6",
+                      fontSize: "10px",
+                      color: "#6c757d",
+                      textAlign: "center"
+                    }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span>{companyInfo.company_name} - {companyInfo.client_name}</span>
+                        <span>Page <span className="page-number"></span></span>
+                        <span>{currentDateTime}</span>
+                      </div>
                     </div>
                   </div>
                 </div>

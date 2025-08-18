@@ -37,8 +37,10 @@ import {
   TrendingUp as TrendingUpIcon,
   Warning as WarningIcon,
   Error as ErrorIcon,
-  Info as InfoIcon
+  Info as InfoIcon,
+  FileDownload
 } from '@mui/icons-material';
+import { CircularProgress } from '@mui/material';
 import DuplicateAnalysisDashboard from '../charts/DuplicateAnalysisDashboard';
 import ColorCodedDuplicateList from './shared/ColorCodedDuplicateList';
 import UnifiedAnomalyDrawer from '../FlaggedExpenseDrawer';
@@ -51,7 +53,17 @@ import DuplicateRiskChart from '../charts/DuplicateRiskChart';
 import DuplicateUserChart from '../charts/DuplicateUserChart';
 import DuplicateAmountChart from '../charts/DuplicateAmountChart';
 
-export default function DuplicateAnalysisContent({ data, distributionData, anomalySummary, sheetId }) {
+export default function DuplicateAnalysisContent({ 
+  data, 
+  distributionData, 
+  anomalySummary, 
+  sheetId,
+  onAnalysisExport,
+  analysisExportLoading,
+  analysisExportError,
+  analysisType,
+  sheetData
+}) {
   const [expandedTransactions, setExpandedTransactions] = useState({});
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedDuplicate, setSelectedDuplicate] = useState(null);
@@ -336,8 +348,40 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
         </Box>
       </Alert>
 
-      {/* Open Report Button */}
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
+      {/* Export and Report Buttons */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mb: 3 }}>
+        {/* Export Analysis Button */}
+        <Button
+          variant="contained"
+          startIcon={analysisExportLoading ? <CircularProgress size={20} color="inherit" /> : <FileDownload />}
+          onClick={() => onAnalysisExport && onAnalysisExport(analysisType || 'duplicate')}
+          disabled={analysisExportLoading || !onAnalysisExport}
+          sx={{
+            backgroundColor: '#FF6384',
+            color: 'white',
+            fontWeight: 600,
+            px: 3,
+            py: 1.5,
+            borderRadius: 2,
+            textTransform: 'none',
+            fontSize: '0.9rem',
+            boxShadow: '0 2px 8px rgba(255, 99, 132, 0.3)',
+            '&:hover': {
+              backgroundColor: '#e55a75',
+              boxShadow: '0 4px 12px rgba(255, 99, 132, 0.4)',
+              transform: 'translateY(-1px)'
+            },
+            '&:disabled': {
+              backgroundColor: '#ccc',
+              boxShadow: 'none'
+            },
+            transition: 'all 0.2s ease-in-out'
+          }}
+        >
+          {analysisExportLoading ? 'Exporting...' : 'Export Analysis'}
+        </Button>
+        
+        {/* Open Report Button */}
         <Button
           variant="contained"
           onClick={() => setPdfModalOpen(true)}
@@ -362,6 +406,18 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
           📄 Open Report
         </Button>
       </Box>
+
+      {/* Export Error Alert */}
+      {analysisExportError && (
+        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+          <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+            Export Error
+          </Typography>
+          <Typography variant="body2">
+            {analysisExportError}
+          </Typography>
+        </Alert>
+      )}
 
       {/* Top Summary Banner */}
       <Card sx={{ 
@@ -1976,6 +2032,7 @@ export default function DuplicateAnalysisContent({ data, distributionData, anoma
         setOpen={setPdfModalOpen}
         data={data}
         currency={currency}
+        fileInfo={sheetData.fileInfo}
       />
     </Box>
   );

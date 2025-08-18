@@ -179,7 +179,9 @@ const BackdatedAnalysisPDF = ({
   open,
   setOpen,
   data,
-  currency = 'SAR'
+  currency = 'SAR',
+  backdatedListing = [],
+  fileInfo
 }) => {
   const printRef = useRef();
 
@@ -191,7 +193,6 @@ const BackdatedAnalysisPDF = ({
   };
 
   // Extract data from the new API structure
-  const fileInfo = data?.file_info || {};
   const analysisInfo = data?.analysis_info || {};
   const summaryStats = data?.summary_statistics || {};
   const riskAssessment = data?.risk_assessment || {};
@@ -200,13 +201,32 @@ const BackdatedAnalysisPDF = ({
   const backdatedPatterns = data?.backdated_patterns || {};
   const recommendations = data?.recommendations || [];
   const auditImplications = data?.audit_implications || {};
-  const criticalAlerts = data?.critical_alerts || {};
+  const criticalAlerts = data?.critical_alerts || [];
 
   // Calculate overall risk score based on new data structure
-  const totalBackdated = summaryStats.backdated_transactions || 0;
+  const totalBackdated = backdatedListing && backdatedListing.length > 0 ? backdatedListing.length : (summaryStats.backdated_transactions || 0);
   const totalTransactions = summaryStats.total_transactions || 0;
-  const overallRiskScore = summaryStats.avg_risk_score || 0;
+  const overallRiskScore = riskAssessment.overall_risk_score || summaryStats.avg_risk_score || 0;
   const riskLevel = riskAssessment.risk_level || 'LOW';
+
+  // Debug: Log the first entry to see available fields
+  if (backdatedListing && backdatedListing.length > 0) {
+    console.log('First backdated entry structure:', backdatedListing[0]);
+    console.log('Available fields:', Object.keys(backdatedListing[0]));
+  } else if (backdatedEntries && backdatedEntries.length > 0) {
+    console.log('First backdated entry structure (from data):', backdatedEntries[0]);
+    console.log('Available fields:', Object.keys(backdatedEntries[0]));
+  }
+
+  // Company info for header
+  // Extract company and client information from file data
+  const companyInfo = {
+    company_name: fileInfo?.companyName || 'N/A',
+    client_name: fileInfo?.clientName || 'N/A',
+    engagement_id: fileInfo?.engagementId || 'N/A',
+    fiscal_year: fileInfo?.fiscalYear || 'N/A'
+  };
+  
 
   const getRiskLevel = (score) => {
     if (score >= 80) return 'CRITICAL';
@@ -330,25 +350,36 @@ const BackdatedAnalysisPDF = ({
       ".form-check-input.checked {background-color:#6259ca !important;border-color:#6259ca !important;-webkit-print-color-adjust: exact;print-color-adjust: exact;opacity:1;}" +
       ".form-check-input.checked[type=radio]{background-image:url(https://financialerp.lyca.sa/assets/images/radio.png);}" +
       ".form-check-input.checked[type=checkbox]{background-image:url(https://financialerp.lyca.sa/assets/images/checkbox.png);}" +
-      "@media print { @page {margin: 0.7in; }}" +
-      "@media print { .content-section { page-break-after: always;}}" +
-      "@media print { .time-date { display: none; }}" +
-      "#InvoiceDetailsPDF { word-wrap: break-word;  white-space: pre-wrap;}" +
-      // Chart specific styles for PDF
-      ".chart-container { page-break-inside: avoid; margin: 20px 0; }" +
-      ".chart-section { border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin: 15px 0; background: white; page-break-inside: avoid; }" +
-      ".chart-title { font-size: 16px; font-weight: bold; margin-bottom: 10px; color: #333; }" +
-      ".chart-content { min-height: 200px; display: flex; align-items: center; justify-content: center; }" +
-      ".chart-placeholder { color: #666; font-style: italic; }" +
-      ".chart-fallback { padding: 20px; text-align: center; color: #666; border: 2px dashed #ddd; border-radius: 8px; background-color: #f9f9f9; }" +
-      "</style>";
+             "@media print { @page {margin: 0.7in; }}" +
+       "@media print { .content-section { page-break-after: always;}}" +
+       "@media print { .time-date { display: none; }}" +
+       "#InvoiceDetailsPDF { word-wrap: break-word;  white-space: pre-wrap;}" +
+       // Chart specific styles for PDF
+       ".chart-container { page-break-inside: avoid; margin: 20px 0; }" +
+       ".chart-section { border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin: 15px 0; background: white; page-break-inside: avoid; }" +
+       ".chart-title { font-size: 16px; font-weight: bold; margin-bottom: 10px; color: #333; }" +
+       ".chart-content { min-height: 200px; display: flex; align-items: center; justify-content: center; }" +
+       ".chart-placeholder { color: #666; font-style: italic; }" +
+       ".chart-fallback { padding: 20px; text-align: center; color: #666; border: 2px dashed #ddd; border-radius: 8px; background-color: #f9f9f9; }" +
+       "@media print { " +
+       "  .page-header { position: running(header); }" +
+       "  .page-footer { position: running(footer); }" +
+       "  .professional-header { page-break-after: avoid; }" +
+       "  .header-banner { background: linear-gradient(135deg, #e65100 0%, #d84315 100%) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }" +
+       "  .header-stats { page-break-inside: avoid; }" +
+       "  @page { " +
+       "    @top-center { content: element(header); }" +
+       "    @bottom-center { content: element(footer); }" +
+       "  }" +
+       "}" +
+       "</style>";
 
     var divToPrint = document.getElementById("BackdatedAnalysisPDF");
     htmlToPrint += divToPrint.outerHTML;
 
     let newWin = window.open("", "_blank");
     newWin.document.write(htmlToPrint);
-    newWin.document.title = "Backdated Analysis Report";
+    newWin.document.title = `${companyInfo.company_name} - Backdated Analysis Report`;
     setTimeout(() => {
       newWin.focus(); // necessary for IE >= 10
       newWin.print(); // change window to winPrint
@@ -398,6 +429,21 @@ const BackdatedAnalysisPDF = ({
           style={{ padding: "20px 10px" }}>
           <div className='modal-dialog modal-xl modal-dialog-centered'>
             <div id='BackdatedAnalysisPDF' className='modal-content'>
+              {/* Page Header for Printing */}
+              <div className='page-header' style={{ 
+                display: "none",
+                padding: "10px 20px",
+                backgroundColor: "#f8f9fa",
+                borderBottom: "1px solid #dee2e6",
+                fontSize: "12px",
+                color: "#6c757d"
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span><strong>{companyInfo.company_name}</strong> - Backdated Analysis Report</span>
+                  <span>Analysis ID: {fileInfo?.file_id || analysisInfo?.analysis_id || data?.analysis_id || "N/A"}</span>
+                </div>
+              </div>
+              
               <div className='modal-body bg-white text-dark'>
                 <div style={{ padding: "20px" }}>
                   <div className='content-section'>
@@ -440,6 +486,86 @@ const BackdatedAnalysisPDF = ({
                           </tr>
                         </tbody>
                       </table>
+                    </div>
+
+                    {/* Professional Header Banner */}
+                    <div className='sections professional-header'>
+                      <div className='header-banner' style={{ 
+                        padding: "20px", 
+                        borderRadius: "10px", 
+                        marginBottom: "20px",
+                        background: "linear-gradient(135deg, #e65100 0%, #d84315 100%)",
+                        color: "white"
+                      }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div>
+                            <h2 style={{ margin: 0, fontSize: "24px", fontWeight: "bold" }}>
+                              Backdated Analysis Report
+                            </h2>
+                            <p style={{ margin: "5px 0 0 0", fontSize: "14px", opacity: 0.9 }}>
+                              Comprehensive analysis of backdated journal entries
+                            </p>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: "12px", opacity: 0.8 }}>
+                              Generated: {currentDateTime}
+                            </div>
+                            <div style={{ fontSize: "12px", opacity: 0.8 }}>
+                              Analysis ID: {fileInfo?.file_id || analysisInfo?.analysis_id || "N/A"}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Summary Statistics Cards */}
+                    <div className='sections header-stats'>
+                      <div style={{ 
+                        display: "grid", 
+                        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
+                        gap: "15px",
+                        marginBottom: "25px"
+                      }}>
+                        <div className='stat-card' style={{ padding: "15px", textAlign: "center" }}>
+                          <div style={{ fontSize: "24px", fontWeight: "bold", color: "#e65100", marginBottom: "5px" }}>
+                            {totalBackdated}
+                          </div>
+                          <div style={{ fontSize: "12px", color: "#6c757d" }}>
+                            Total Backdated Entries
+                          </div>
+                        </div>
+                        
+                        <div className='stat-card' style={{ padding: "15px", textAlign: "center" }}>
+                          <div style={{ fontSize: "24px", fontWeight: "bold", color: "#e65100", marginBottom: "5px" }}>
+                            {formatCurrency(
+                              backdatedListing && backdatedListing.length > 0 
+                                ? backdatedListing.reduce((sum, entry) => sum + (parseFloat(entry.amount || entry.amount_local_currency || 0)), 0)
+                                : (summaryStats.total_backdated_amount || 0)
+                            )}
+                          </div>
+                          <div style={{ fontSize: "12px", color: "#6c757d" }}>
+                            Total Amount Involved
+                          </div>
+                        </div>
+                        
+                        <div className='stat-card' style={{ padding: "15px", textAlign: "center" }}>
+                          <div style={{ fontSize: "24px", fontWeight: "bold", color: "#e65100", marginBottom: "5px" }}>
+                            {overallRiskScore}%
+                          </div>
+                          <div style={{ fontSize: "12px", color: "#6c757d" }}>
+                            Overall Risk Score
+                          </div>
+                        </div>
+                        
+                        <div className='stat-card' style={{ padding: "15px", textAlign: "center" }}>
+                          <div style={{ fontSize: "24px", fontWeight: "bold", color: "#e65100", marginBottom: "5px" }}>
+                            {riskLevel}
+                          </div>
+                          <div style={{ fontSize: "12px", color: "#6c757d" }}>
+                            Risk Level
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     <div className='sections'>
@@ -689,7 +815,17 @@ const BackdatedAnalysisPDF = ({
                                 
                                 if (backdatedEntries && backdatedEntries.length > 0) {
                                   backdatedEntries.forEach(entry => {
-                                    const days = Math.abs(entry.days_difference || 0);
+                                    const days = Math.abs(entry.days_difference || 
+                                                         entry.date_difference || 
+                                                         entry.backdated_days ||
+                                                         entry.days_backdated ||
+                                                         entry.days_delta ||
+                                                         entry.date_delta ||
+                                                         (entry.posting_date && entry.document_date ? 
+                                                           Math.ceil((new Date(entry.posting_date) - new Date(entry.document_date)) / (1000 * 60 * 60 * 24)) : 
+                                                           (entry.posting_date && entry.effective_date ? 
+                                                             Math.ceil((new Date(entry.posting_date) - new Date(entry.effective_date)) / (1000 * 60 * 60 * 24)) : 
+                                                             0)) || 0);
                                     if (days <= 7) distribution['1-7 days']++;
                                     else if (days <= 30) distribution['8-30 days']++;
                                     else if (days <= 90) distribution['31-90 days']++;
@@ -720,7 +856,17 @@ const BackdatedAnalysisPDF = ({
                               
                               if (backdatedEntries && backdatedEntries.length > 0) {
                                 backdatedEntries.forEach(entry => {
-                                  const days = Math.abs(entry.days_difference || 0);
+                                  const days = Math.abs(entry.days_difference || 
+                                                       entry.date_difference || 
+                                                       entry.backdated_days ||
+                                                       entry.days_backdated ||
+                                                       entry.days_delta ||
+                                                       entry.date_delta ||
+                                                       (entry.posting_date && entry.document_date ? 
+                                                         Math.ceil((new Date(entry.posting_date) - new Date(entry.document_date)) / (1000 * 60 * 60 * 24)) : 
+                                                         (entry.posting_date && entry.effective_date ? 
+                                                           Math.ceil((new Date(entry.posting_date) - new Date(entry.effective_date)) / (1000 * 60 * 60 * 24)) : 
+                                                           0)) || 0);
                                   if (days <= 7) distribution['1-7 days']++;
                                   else if (days <= 30) distribution['8-30 days']++;
                                   else if (days <= 90) distribution['31-90 days']++;
@@ -1071,10 +1217,10 @@ const BackdatedAnalysisPDF = ({
                       </div>
                     </div>
 
-                    {/* Backdated Entries List */}
-                    {backdatedEntries && backdatedEntries.length > 0 && (
-                      <div className='sections'>
-                        <h5 style={{ margin: "10px 0" }}>Backdated Entries Analysis</h5>
+                                         {/* Backdated Entries List */}
+                     {(backdatedListing && backdatedListing.length > 0) || (backdatedEntries && backdatedEntries.length > 0) ? (
+                       <div className='sections'>
+                         <h5 style={{ margin: "10px 0" }}>Backdated Entries Analysis (Page 1 of {(backdatedListing && backdatedListing.length > 0 ? backdatedListing : backdatedEntries).length > 10 ? Math.ceil((backdatedListing && backdatedListing.length > 0 ? backdatedListing : backdatedEntries).length / 10) : 1})</h5>
                         <table
                           width='100%'
                           border='1'
@@ -1092,29 +1238,60 @@ const BackdatedAnalysisPDF = ({
                               <th>Risk Level</th>
                             </tr>
                           </thead>
-                          <tbody style={{ textAlign: "center" }}>
-                            {backdatedEntries.map((entry, index) => (
-                              <tr key={index}>
-                                <td>{entry.transaction_id || entry.id || 'N/A'}</td>
-                                <td>{entry.user || entry.user_name || entry.created_by || 'N/A'}</td>
-                                <td>{entry.account || entry.gl_account || entry.account_code || 'N/A'}</td>
-                                <td>{formatDate(entry.posting_date)}</td>
-                                <td>{formatDate(entry.document_date || entry.effective_date)}</td>
-                                <td>{entry.days_difference || entry.date_difference || 0}</td>
-                                <td>{formatCurrency(entry.amount || entry.amount_local_currency || entry.debit_amount || entry.credit_amount || 0)}</td>
-                                <td>
-                                  <span
-                                    style={{
-                                      color: RiskColor[getRiskLevelNumber(entry.risk_score || 0)],
-                                      fontWeight: "bold"
-                                    }}>
-                                    {entry.risk_level || entry.risk_category || getRiskLevel(entry.risk_score || 0)}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
+                                                     <tbody style={{ textAlign: "center" }}>
+                             {(backdatedListing && backdatedListing.length > 0 ? backdatedListing : backdatedEntries)
+                               .slice(0, 10) // Show only first 10 entries (first page)
+                               .map((entry, index) => (
+                               <tr key={index}>
+                                 <td>{entry.transaction_id || entry.id || 'N/A'}</td>
+                                 <td>{entry.user || entry.user_name || entry.created_by || 'N/A'}</td>
+                                 <td>{entry.account || entry.gl_account || entry.account_code || 'N/A'}</td>
+                                 <td>{formatDate(entry.posting_date)}</td>
+                                 <td>{formatDate(entry.document_date || entry.effective_date)}</td>
+                                 <td>
+                                   {(() => {
+                                     // Try multiple possible field names for days difference
+                                     const daysDiff = entry.days_difference || 
+                                                     entry.date_difference || 
+                                                     entry.backdated_days ||
+                                                     entry.days_backdated ||
+                                                     entry.days_delta ||
+                                                     entry.date_delta ||
+                                                     (entry.posting_date && entry.document_date ? 
+                                                       Math.ceil((new Date(entry.posting_date) - new Date(entry.document_date)) / (1000 * 60 * 60 * 24)) : 
+                                                       (entry.posting_date && entry.effective_date ? 
+                                                         Math.ceil((new Date(entry.posting_date) - new Date(entry.effective_date)) / (1000 * 60 * 60 * 24)) : 
+                                                         0));
+                                     return daysDiff || 0;
+                                   })()}
+                                 </td>
+                                 <td>{formatCurrency(entry.amount || entry.amount_local_currency || entry.debit_amount || entry.credit_amount || 0)}</td>
+                                 <td>
+                                   <span
+                                     style={{
+                                       color: RiskColor[getRiskLevelNumber(entry.risk_score || 0)],
+                                       fontWeight: "bold"
+                                     }}>
+                                     {entry.risk_level || entry.risk_category || entry.backdated_severity || getRiskLevel(entry.risk_score || 0)}
+                                   </span>
+                                 </td>
+                               </tr>
+                             ))}
+                           </tbody>
                         </table>
+                      </div>
+                    ) : (
+                      <div className='sections'>
+                        <h5 style={{ margin: "10px 0" }}>Backdated Entries Analysis</h5>
+                        <div style={{ 
+                          padding: "20px", 
+                          textAlign: "center", 
+                          backgroundColor: "#f8f9fa", 
+                          border: "1px solid #e9ecef", 
+                          borderRadius: "8px" 
+                        }}>
+                          <p style={{ margin: 0, color: "#6c757d" }}>No backdated entries found in the analysis.</p>
+                        </div>
                       </div>
                     )}
 
@@ -1217,6 +1394,63 @@ const BackdatedAnalysisPDF = ({
                           </tr>
                         </tbody>
                       </table>
+                    </div>
+                    
+                    {/* Footer Section */}
+                    <div className='sections' style={{ marginTop: "30px" }}>
+                      <div style={{ 
+                        padding: "20px", 
+                        backgroundColor: "#f8f9fa", 
+                        border: "1px solid #e9ecef", 
+                        borderRadius: "8px",
+                        textAlign: "center"
+                      }}>
+                        <div style={{ 
+                          color: "#e65100", 
+                          fontSize: "16px",
+                          fontWeight: "bold",
+                          marginBottom: "10px"
+                        }}>
+                          Report Generated by Analytics System
+                        </div>
+                        <div style={{ 
+                          color: "#6c757d", 
+                          fontSize: "12px",
+                          marginBottom: "5px"
+                        }}>
+                          Company: {companyInfo.company_name} | Address: {companyInfo.address}
+                        </div>
+                        <div style={{ 
+                          color: "#6c757d", 
+                          fontSize: "12px",
+                          marginBottom: "5px"
+                        }}>
+                          Phone: {companyInfo.phone} | Email: {companyInfo.email}
+                        </div>
+                        <div style={{ 
+                          color: "#6c757d", 
+                          fontSize: "12px"
+                        }}>
+                          Generated on {currentDateTime} | Analysis ID: {fileInfo?.file_id || analysisInfo?.analysis_id || data?.analysis_id || "N/A"}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Page Footer for Printing */}
+                    <div className='page-footer' style={{ 
+                      display: "none",
+                      padding: "10px 20px",
+                      backgroundColor: "#f8f9fa",
+                      borderTop: "1px solid #dee2e6",
+                      fontSize: "10px",
+                      color: "#6c757d",
+                      textAlign: "center"
+                    }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span>{companyInfo.company_name}</span>
+                        <span>Page <span className="page-number"></span></span>
+                        <span>{currentDateTime}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
