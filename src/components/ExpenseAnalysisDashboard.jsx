@@ -39,7 +39,8 @@ import {
   Analytics,
   Business,
   Receipt,
-  FileDownload
+  FileDownload,
+  PictureAsPdf
 } from '@mui/icons-material';
 import { colorScheme, getRiskColor, formatCurrency } from '../utils/colorScheme';
 import axios from 'axios';
@@ -54,6 +55,9 @@ import DepartmentExpensesChart from './charts/DepartmentExpensesChart';
 // Import analysis components
 import AnomalyAnalysisAccordion from './AnomalyAnalysisAccordion';
 import DetailedRiskAnalysis from './DetailedRiskAnalysis';
+
+// Import PDF component
+import OverallAnalysisPDF from './OverallAnalysisPDF';
 
 export default function ExpenseAnalysisDashboard({ sheetData, fileId }) {
   // State for GL accounts data
@@ -74,6 +78,9 @@ export default function ExpenseAnalysisDashboard({ sheetData, fileId }) {
   const [exportError, setExportError] = useState(null);
   const [analysisExportLoading, setAnalysisExportLoading] = useState(false);
   const [analysisExportError, setAnalysisExportError] = useState(null);
+
+  // PDF Export state
+  const [pdfOpen, setPdfOpen] = useState(false);
 
   // Export function
   const handleExport = async () => {
@@ -139,6 +146,11 @@ export default function ExpenseAnalysisDashboard({ sheetData, fileId }) {
     } finally {
       setAnalysisExportLoading(false);
     }
+  };
+
+  // PDF Export function
+  const handlePdfExport = () => {
+    setPdfOpen(true);
   };
 
   // Fetch GL accounts data
@@ -473,36 +485,62 @@ console.log(sheetData)
         overflow: 'visible',
         position: 'relative'
       }}>
-        {/* Export Button - Positioned at top-right corner of card */}
-        <Button
-          variant="contained"
-          startIcon={exportLoading ? <CircularProgress size={20} color="inherit" /> : <FileDownload />}
-          onClick={handleExport}
-          disabled={exportLoading || !fileId}
-          sx={{
-            position: 'absolute',
-            top: 16,
-            right: 16,
-            zIndex: 10,
-            background: `linear-gradient(135deg, ${colorScheme.primary} 0%, ${colorScheme.primary}dd 100%)`,
-            color: 'white',
-            fontWeight: 600,
-            px: 3,
-            py: 1.5,
-            borderRadius: 2,
-            boxShadow: `0 4px 12px ${colorScheme.primary}4d`,
-            '&:hover': {
-              background: `linear-gradient(135deg, ${colorScheme.primary}dd 0%, ${colorScheme.primary} 100%)`,
-              boxShadow: `0 6px 16px ${colorScheme.primary}6d`,
-            },
-            '&:disabled': {
-              background: '#ccc',
-              boxShadow: 'none'
-            }
-          }}
-        >
-          {exportLoading ? 'Exporting...' : 'Export Report'}
-        </Button>
+        {/* Export Buttons - Positioned at top-right corner of card */}
+        <Box sx={{ 
+          position: 'absolute', 
+          top: 16, 
+          right: 16, 
+          zIndex: 10,
+          display: 'flex',
+          gap: 2
+        }}>
+          <Button
+            variant="contained"
+            startIcon={exportLoading ? <CircularProgress size={20} color="inherit" /> : <FileDownload />}
+            onClick={handleExport}
+            disabled={exportLoading || !fileId}
+            sx={{
+              background: `linear-gradient(135deg, ${colorScheme.primary} 0%, ${colorScheme.primary}dd 100%)`,
+              color: 'white',
+              fontWeight: 600,
+              px: 3,
+              py: 1.5,
+              borderRadius: 2,
+              boxShadow: `0 4px 12px ${colorScheme.primary}4d`,
+              '&:hover': {
+                background: `linear-gradient(135deg, ${colorScheme.primary}dd 0%, ${colorScheme.primary} 100%)`,
+                boxShadow: `0 6px 16px ${colorScheme.primary}6d`,
+              },
+              '&:disabled': {
+                background: '#ccc',
+                boxShadow: 'none'
+              }
+            }}
+          >
+            {exportLoading ? 'Exporting...' : 'Export Excel'}
+          </Button>
+          
+          <Button
+            variant="contained"
+            startIcon={<PictureAsPdf />}
+            onClick={handlePdfExport}
+            sx={{
+              background: 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)',
+              color: 'white',
+              fontWeight: 600,
+              px: 3,
+              py: 1.5,
+              borderRadius: 2,
+              boxShadow: '0 4px 12px rgba(220, 53, 69, 0.3)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #c82333 0%, #dc3545 100%)',
+                boxShadow: '0 6px 16px rgba(220, 53, 69, 0.4)',
+              }
+            }}
+          >
+            Export PDF Report
+          </Button>
+        </Box>
         
         <CardContent sx={{ p: 4 }}>
           <Grid container spacing={4} alignItems="center">
@@ -2336,6 +2374,24 @@ console.log(sheetData)
             />
           </Grid>
         </Grid>
+        
+        {/* Overall Analysis PDF Component */}
+        <OverallAnalysisPDF
+          open={pdfOpen}
+          setOpen={setPdfOpen}
+          data={sheetData}
+          fileId={fileId}
+          comprehensiveStats={comprehensiveStats}
+          anomalyData={anomalyData}
+          glAccountsData={glAccountsData}
+          glAccountsSummary={glAccountsSummary}
+          chartsData={chartsData}
+          glChartsData={glChartsData}
+          fileInfo={fileInfo}
+          overallRiskScore={overallRiskScore}
+          riskLevel={riskLevel}
+          anomalyRate={anomalyRate}
+        />
     </Box>
   );
 } 

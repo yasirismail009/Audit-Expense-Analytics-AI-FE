@@ -30,8 +30,10 @@ import {
   CheckCircle as CheckCircleIcon
 } from '@mui/icons-material';
 import axios from 'axios';
+import { useAuth } from '../utils/authContext';
 
 export default function UploadModal({ open, onClose, onUploadSuccess }) {
+  const { token } = useAuth();
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
@@ -249,6 +251,7 @@ export default function UploadModal({ open, onClose, onUploadSuccess }) {
       const response = await axios.post('http://localhost:8000/api/targeted-anomaly-upload/', uploadFormData, {
         headers: {
           'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${token}`
         },
       });
 

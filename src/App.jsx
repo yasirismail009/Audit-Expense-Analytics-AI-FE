@@ -2,12 +2,38 @@ import React, { useEffect, useState } from 'react';
 import { Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Typography, CssBaseline, CircularProgress, Fab } from '@mui/material';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
-import { BrowserRouter, Routes, Route, useNavigate, useParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
 import ExpenseSheetDetails from './ExpenseSheetDetails';
 import UploadModal from './components/UploadModal';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import axios from 'axios';
 import { colorScheme } from './utils/colorScheme';
+import Login from './components/auth/Login';
+import Signup from './components/auth/Signup';
+import { useAuth } from './utils/authContext';
+
+// Protected Route Component
+const ProtectedRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
+  
+  console.log('ProtectedRoute - isAuthenticated:', isAuthenticated, 'loading:', loading);
+  
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+  
+  if (!isAuthenticated) {
+    console.log('ProtectedRoute - redirecting to login');
+    return <Navigate to="/login" replace />;
+  }
+  
+  console.log('ProtectedRoute - rendering children');
+  return children;
+};
 
 function TableListing() {
   const [rows, setRows] = useState([]);
@@ -15,9 +41,17 @@ function TableListing() {
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [summary, setSummary] = useState(null);
   const navigate = useNavigate();
+  const { token, logout } = useAuth();
 
   useEffect(() => {
-    axios.get('http://localhost:8000/api/files-listing/')
+    // Add authorization header to requests
+    const config = {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    };
+
+    axios.get('http://localhost:8000/api/files-listing/', config)
       .then(res => {
         // Handle new payload structure with files array
         const files = res.data.files || res.data;
@@ -28,15 +62,26 @@ function TableListing() {
       })
       .catch((error) => {
         console.error('Error fetching file list:', error);
+        if (error.response?.status === 401) {
+          // Unauthorized - logout and redirect to login
+          logout();
+          navigate('/login');
+        }
         setRows([]);
         setSummary(null);
         setLoading(false);
       });
-  }, []);
+  }, [navigate, token, logout]);
 
   const handleUploadSuccess = (data) => {
     // Refresh the data
-    axios.get('http://localhost:8000/api/files-listing/')
+    const config = {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    };
+
+    axios.get('http://localhost:8000/api/files-listing/', config)
       .then(res => {
         const files = res.data.files || res.data;
         setRows(Array.isArray(files) ? files : []);
@@ -44,6 +89,10 @@ function TableListing() {
       })
       .catch((error) => {
         console.error('Error refreshing file list:', error);
+        if (error.response?.status === 401) {
+          logout();
+          navigate('/login');
+        }
       });
   };
 
@@ -169,8 +218,24 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<TableListing />} />
-        <Route path="/expense-sheet-details/:sheetId" element={<ExpenseSheetDetailsWrapper />} />
+        {/* Public Routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        
+        {/* Protected Routes */}
+        <Route path="/" element={
+          <ProtectedRoute>
+            <TableListing />
+          </ProtectedRoute>
+        } />
+        <Route path="/expense-sheet-details/:sheetId" element={
+          <ProtectedRoute>
+            <ExpenseSheetDetailsWrapper />
+          </ProtectedRoute>
+        } />
+        
+        {/* Redirect to login for any unmatched routes */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   );
