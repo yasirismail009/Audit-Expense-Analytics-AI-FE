@@ -345,12 +345,41 @@ console.log(sheetData)
 
   // Extract anomaly data from the comprehensive risk analysis structure
   const anomalyData = {
-    duplicateEntries: sheetData?.detailed_risk_analysis?.risk_factors?.duplicate_risk?.count || sheetData?.anomalies_data?.anomaly_summary?.duplicate_entries || anomaliesAccordion?.duplicateEntries || 0,
-    userAnomalies: sheetData?.detailed_risk_analysis?.user_anomalies?.total_user_anomalies || anomaliesAccordion?.userAnomalies || 0,
-    backdatedEntries: sheetData?.detailed_risk_analysis?.risk_factors?.backdated_risk?.count || sheetData?.anomalies_data?.anomaly_summary?.backdated_entries || anomaliesAccordion?.backdatedEntries || 0,
-    closingEntries: sheetData?.detailed_risk_analysis?.risk_factors?.closing_entries_risk?.count || sheetData?.anomalies_data?.anomaly_summary?.closing_entries || anomaliesAccordion?.closingEntries || 0,
-    unusualDays: sheetData?.detailed_risk_analysis?.risk_factors?.unusual_days_risk?.count || sheetData?.anomalies_data?.anomaly_summary?.unusual_days || anomaliesAccordion?.unusualDays || 0,
-    holidayEntries: sheetData?.detailed_risk_analysis?.risk_factors?.holiday_risk?.count || sheetData?.anomalies_data?.anomaly_summary?.holiday_entries || anomaliesAccordion?.holidayEntries || 0,
+    duplicateEntries: sheetData?.statistics?.duplicatesFound || 
+                     sheetData?.anomaliesStats?.anomalySummary?.duplicateEntries ||
+                     sheetData?.anomaliesAccordion?.duplicateEntries ||
+                     sheetData?.detailed_risk_analysis?.risk_factors?.duplicate_risk?.count || 
+                     sheetData?.anomalies_data?.anomaly_summary?.duplicate_entries || 
+                     anomaliesAccordion?.duplicateEntries || 0,
+    userAnomalies: sheetData?.statistics?.userAnomalies || 
+                  sheetData?.anomaliesStats?.anomalySummary?.userAnomalies ||
+                  sheetData?.anomaliesAccordion?.userAnomalies ||
+                  sheetData?.detailed_risk_analysis?.user_anomalies?.total_user_anomalies || 
+                  anomaliesAccordion?.userAnomalies || 0,
+    backdatedEntries: sheetData?.statistics?.backdatedEntries || 
+                     sheetData?.anomaliesStats?.anomalySummary?.backdatedEntries ||
+                     sheetData?.anomaliesAccordion?.backdatedEntries ||
+                     sheetData?.detailed_risk_analysis?.risk_factors?.backdated_risk?.count || 
+                     sheetData?.anomalies_data?.anomaly_summary?.backdated_entries || 
+                     anomaliesAccordion?.backdatedEntries || 0,
+    closingEntries: sheetData?.statistics?.closingEntries || 
+                   sheetData?.anomaliesStats?.anomalySummary?.closingEntries ||
+                   sheetData?.anomaliesAccordion?.closingEntries ||
+                   sheetData?.detailed_risk_analysis?.risk_factors?.closing_entries_risk?.count || 
+                   sheetData?.anomalies_data?.anomaly_summary?.closing_entries || 
+                   anomaliesAccordion?.closingEntries || 0,
+    unusualDays: sheetData?.statistics?.unusualDays || 
+                sheetData?.anomaliesStats?.anomalySummary?.unusualDays ||
+                sheetData?.anomaliesAccordion?.unusualDays ||
+                sheetData?.detailed_risk_analysis?.risk_factors?.unusual_days_risk?.count || 
+                sheetData?.anomalies_data?.anomaly_summary?.unusual_days || 
+                anomaliesAccordion?.unusualDays || 0,
+    holidayEntries: sheetData?.statistics?.holidayEntries || 
+                   sheetData?.anomaliesStats?.anomalySummary?.holidayEntries ||
+                   sheetData?.anomaliesAccordion?.holidayEntries ||
+                   sheetData?.detailed_risk_analysis?.risk_factors?.holiday_risk?.count || 
+                   sheetData?.anomalies_data?.anomaly_summary?.holiday_entries || 
+                   anomaliesAccordion?.holidayEntries || 0,
     totalAnomalies: sheetData?.detailed_risk_analysis?.risk_calculations?.total_flagged || sheetData?.analysis_summary?.total_flagged_expenses || anomaliesAccordion?.totalAnomalies || 
                    (sheetData?.detailed_risk_analysis?.risk_factors?.duplicate_risk?.count || 0) + 
                    (sheetData?.detailed_risk_analysis?.user_anomalies?.total_user_anomalies || 0) + 
@@ -361,9 +390,12 @@ console.log(sheetData)
     highRiskUsers: sheetData?.detailed_risk_analysis?.user_anomalies?.high_risk_users_count || 0
   };
 
-  // Calculate total anomalies from the summary dashboard or sum individual anomalies
+  // Calculate total anomalies from the new data structure
   anomalyData.totalAnomalies = extractAnomalyValue(
-    sheetData?.summary_dashboard?.total_anomalies || 
+    sheetData?.statistics?.totalAnomalies || 
+    sheetData?.anomaliesStats?.anomalySummary?.totalAnomalies ||
+    sheetData?.anomaliesAccordion?.totalAnomalies ||
+    sheetData?.analysis_summary?.total_alerts ||
     (anomalyData.duplicateEntries + 
      anomalyData.userAnomalies + 
      anomalyData.backdatedEntries + 
@@ -372,23 +404,31 @@ console.log(sheetData)
      anomalyData.holidayEntries)
   );
 
-  // Get anomaly rate from multiple sources - handle both decimal and percentage formats
+  // Get anomaly rate from new data structure
+  const newAnomalyPercentage = sheetData?.statistics?.anomalyPercentage;
+  const analysisSummaryAnomalyPercentage = sheetData?.analysis_summary?.anomaly_percentage;
   const summaryDashboardAnomalyPercentage = sheetData?.summary_dashboard?.anomaly_percentage;
   const flagSummaryAnomalyRate = sheetData?.overall_statistics?.flag_summary?.anomaly_rate;
   const riskStatisticsAnomalyPercentage = sheetData?.risk_statistics?.methodology_overview?.anomaly_percentage;
   
   // Try to get the raw anomaly percentage from multiple sources in order of preference
-  let rawAnomalyPercentage = summaryDashboardAnomalyPercentage !== undefined ? summaryDashboardAnomalyPercentage : 
+  let rawAnomalyPercentage = newAnomalyPercentage !== undefined ? newAnomalyPercentage :
+                            analysisSummaryAnomalyPercentage !== undefined ? analysisSummaryAnomalyPercentage :
+                            summaryDashboardAnomalyPercentage !== undefined ? summaryDashboardAnomalyPercentage : 
                             riskStatisticsAnomalyPercentage !== undefined ? riskStatisticsAnomalyPercentage :
                             flagSummaryAnomalyRate;
   
-  // Calculate anomaly rate directly from total anomalies and total transactions
-  let anomalyRate = Math.min(Math.round((anomalyData.totalAnomalies / ( sheetData?.overall_statistics?.transaction_summary?.total_transactions || statistics?.totalTransactions||0)) * 100 * 100) / 100, 100);
+  // Calculate anomaly rate directly from total anomalies and total transactions using new structure
+  const totalTransactions = sheetData?.statistics?.totalTransactions || 
+                           sheetData?.overall_statistics?.transaction_summary?.total_transactions || 
+                           statistics?.totalTransactions || 0;
+  
+  let anomalyRate = Math.min(Math.round((anomalyData.totalAnomalies / totalTransactions) * 100 * 100) / 100, 100);
   
   // Final fallback: if anomalyRate is still 0 but we have anomalies, force calculate it
   if (anomalyRate === 0 && anomalyData.totalAnomalies > 0) {
-    anomalyRate = (anomalyData.totalAnomalies / (sheetData?.overall_statistics?.transaction_summary?.total_transactions || 10000)) * 100;
-    console.log('Forced anomaly rate calculation:', { totalAnomalies: anomalyData.totalAnomalies, totalTransactions: sheetData?.overall_statistics?.transaction_summary?.total_transactions || 10000, calculatedRate: anomalyRate });
+    anomalyRate = (anomalyData.totalAnomalies / totalTransactions) * 100;
+    console.log('Forced anomaly rate calculation:', { totalAnomalies: anomalyData.totalAnomalies, totalTransactions: totalTransactions, calculatedRate: anomalyRate });
   }
   
   // Direct calculation as ultimate fallback (7060 / 10000 = 70.6)

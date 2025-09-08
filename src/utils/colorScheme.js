@@ -1,62 +1,83 @@
-// Consistent color scheme for all charts
+// Modern audit and anomaly detection color scheme
 export const colorScheme = {
-  // Primary colors
-  primary: '#925A9B',
-  secondary: '#36A2EB',
-  accent: '#FFCE56',
+  // Primary colors - Professional audit theme
+  primary: '#1E40AF', // Deep blue for trust and reliability
+  primaryDark: '#1E3A8A', // Darker blue
+  secondary: '#059669', // Green for success/approved
+  accent: '#DC2626', // Red for alerts/critical
   
-  // Purple shades for unusual days charts
-  purpleShades: [
-    '#925A9B', // Primary Purple
-    '#7B4A82', // Darker Purple
-    '#A67BB3', // Lighter Purple
-    '#8E6C95', // Medium Purple
-    '#B894C4', // Very Light Purple
-    '#6B3E72', // Very Dark Purple
-    '#C4A5D1', // Pale Purple
-    '#5A2E61', // Deep Purple
-    '#D1B8DC', // Lightest Purple
-    '#4A1F50'  // Darkest Purple
+  // Audit status colors
+  auditColors: [
+    '#1E40AF', // Primary Blue
+    '#059669', // Success Green
+    '#DC2626', // Critical Red
+    '#D97706', // Warning Orange
+    '#7C3AED', // Purple
+    '#0891B2', // Cyan
+    '#BE185D', // Pink
+    '#65A30D', // Lime
+    '#9333EA', // Violet
+    '#EA580C'  // Orange
   ],
   
-  // Chart colors
+  // Chart colors for anomaly detection
   chartColors: [
-    '#925A9B', // Purple (Primary)
-    '#36A2EB', // Blue
-    '#FFCE56', // Yellow
-    '#FF9F40', // Orange
-    '#FF6384', // Pink
-    '#9966FF', // Purple
-    '#4BC0C0', // Cyan
-    '#FF9F40', // Orange
-    '#C9CBCF', // Gray
-    '#4BC0C0', // Light Teal
+    '#1E40AF', // Primary Blue
+    '#059669', // Success Green
+    '#DC2626', // Critical Red
+    '#D97706', // Warning Orange
+    '#7C3AED', // Purple
+    '#0891B2', // Cyan
+    '#BE185D', // Pink
+    '#65A30D', // Lime
+    '#9333EA', // Violet
+    '#EA580C'  // Orange
   ],
   
-  // Risk level colors
+  // Risk level colors for anomaly detection
   riskColors: {
-    LOW: '#4BC0C0',
-    MEDIUM: '#FFCE56',
-    HIGH: '#FF9F40',
-    CRITICAL: '#FF6384'
+    LOW: '#059669', // Green
+    MEDIUM: '#D97706', // Orange
+    HIGH: '#DC2626', // Red
+    CRITICAL: '#7C2D12' // Dark red
+  },
+  
+  // Audit test status colors
+  testStatusColors: {
+    PASSED: '#059669', // Green
+    FAILED: '#DC2626', // Red
+    WARNING: '#D97706', // Orange
+    PENDING: '#6B7280', // Gray
+    RUNNING: '#1E40AF' // Blue
   },
   
   // Background colors
-  background: '#f4f6fa',
-  cardBackground: '#ffffff',
+  background: '#F8FAFC', // Light gray-blue
+  cardBackground: '#FFFFFF',
+  sidebarBackground: '#F1F5F9',
   
   // Text colors
-  textPrimary: '#1a1a1a',
-  textSecondary: '#666666',
+  textPrimary: '#0F172A', // Dark slate
+  textSecondary: '#64748B', // Slate gray
+  textMuted: '#94A3B8', // Light slate
   
   // Border colors
-  border: '#e0e0e0',
+  border: '#E2E8F0',
+  borderLight: '#F1F5F9',
   
-  // Success/Error colors
-  success: '#4CAF50',
-  error: '#F44336',
-  warning: '#FF9800',
-  info: '#2196F3'
+  // Status colors
+  success: '#059669', // Green
+  error: '#DC2626', // Red
+  warning: '#D97706', // Orange
+  info: '#1E40AF', // Blue
+  
+  // Anomaly detection specific colors
+  anomalyColors: {
+    normal: '#059669', // Green
+    suspicious: '#D97706', // Orange
+    fraudulent: '#DC2626', // Red
+    unknown: '#6B7280' // Gray
+  }
 };
 
 // Get color by index with fallback

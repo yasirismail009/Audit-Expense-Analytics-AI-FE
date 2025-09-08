@@ -6,6 +6,7 @@ import SummaryCards from './SummaryCards';
 import IncomeExpenseCard from './IncomeExpenseCard';
 import RecentActivityTable from './RecentActivityTable';
 import MyCardsSection from './MyCardsSection';
+import { colorScheme } from '../utils/colorScheme';
 
 export default function Dashboard() {
   return (
@@ -13,7 +14,7 @@ export default function Dashboard() {
       sx={{
         px: { xs: 1, sm: 2, md: 4 },
         py: 4,
-        background: '#f4f6fa',
+        background: colorScheme.background,
         minHeight: '100vh',
         width: '100%',
         maxWidth: '1600px', // Optional: for very large screens
