@@ -68,45 +68,7 @@ export default function TopBar() {
       >
         <Toolbar sx={{ minHeight: 80, px: { xs: 2, md: 4 }, py: 2 }}>
           <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 3, justifyContent: 'space-between' }}>
-            {/* Search Bar */}
-            <Paper
-              component="form"
-              sx={{
-                p: '4px 12px',
-                display: 'flex',
-                alignItems: 'center',
-                width: { xs: 200, sm: 320 },
-                borderRadius: 3,
-                boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
-                bgcolor: 'rgba(255, 255, 255, 0.9)',
-                border: '1px solid rgba(0, 0, 0, 0.06)',
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.12)',
-                  transform: 'translateY(-1px)',
-                },
-              }}
-              elevation={0}
-            >
-              <IconButton sx={{ p: '8px', color: colorScheme.primary }} aria-label="search">
-                <SearchIcon />
-              </IconButton>
-              <InputBase 
-                sx={{ 
-                  ml: 1, 
-                  flex: 1,
-                  fontSize: '0.95rem',
-                  '& input': {
-                    '&::placeholder': {
-                      color: colorScheme.textSecondary,
-                      opacity: 0.7,
-                    },
-                  },
-                }} 
-                placeholder="Search analytics..." 
-                inputProps={{ 'aria-label': 'search' }} 
-              />
-            </Paper>
+        
 
             {/* Right side controls */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>

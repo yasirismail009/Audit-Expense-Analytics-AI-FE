@@ -3,22 +3,44 @@ import { Card, CardContent, Typography, Box, Grid } from '@mui/material';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import SavingsIcon from '@mui/icons-material/Savings';
 import ShieldIcon from '@mui/icons-material/Shield';
+import { colorScheme } from '../utils/colorScheme';
 
 const summaryData = [
   {
-    icon: <AccountBalanceIcon sx={{ color: '#00B686', fontSize: 28 }} />, title: 'Business account', value: '€ 8.672,20', change: '+16.0%', changeColor: '#00B686', sub: 'vs. 7.120,41 Last Period'
+    icon: <AccountBalanceIcon sx={{ color: colorScheme.success, fontSize: 28 }} />, 
+    title: 'Audit Tests Passed', 
+    value: '24/28', 
+    change: '+16.0%', 
+    changeColor: colorScheme.success, 
+    sub: 'vs. 20/28 Last Period'
   },
   {
-    icon: <SavingsIcon sx={{ color: '#F43F5E', fontSize: 28 }} />, title: 'Total Saving', value: '€ 3.765,35', change: '-8.2%', changeColor: '#F43F5E', sub: 'vs. 4.115,50 Last Period'
+    icon: <SavingsIcon sx={{ color: colorScheme.error, fontSize: 28 }} />, 
+    title: 'Anomalies Detected', 
+    value: '12', 
+    change: '-8.2%', 
+    changeColor: colorScheme.error, 
+    sub: 'vs. 15 Last Period'
   },
   {
-    icon: <ShieldIcon sx={{ color: '#14b8a6', fontSize: 28 }} />, title: 'Tax Reserve', value: '€ 14.376,16', change: '+36.2%', changeColor: '#00B686', sub: 'vs. 10.235,46 Last Period'
+    icon: <ShieldIcon sx={{ color: colorScheme.warning, fontSize: 28 }} />, 
+    title: 'Risk Score', 
+    value: '7.2/10', 
+    change: '+36.2%', 
+    changeColor: colorScheme.warning, 
+    sub: 'vs. 5.3/10 Last Period'
   },
 ];
 
 export default function SummaryCards() {
   return (
-    <Card sx={{ bgcolor: 'white', borderRadius: 3, boxShadow: '0 4px 24px 0 rgba(1,77,78,0.10)', p: 1 }}>
+    <Card sx={{ 
+      bgcolor: colorScheme.cardBackground, 
+      borderRadius: 3, 
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', 
+      p: 1,
+      border: `1px solid ${colorScheme.border}`
+    }}>
       <CardContent sx={{ p: 2 }}>
         <Grid container spacing={2}>
           {summaryData.map((item, idx) => (
@@ -27,7 +49,7 @@ export default function SummaryCards() {
                 {item.icon}
                 <Box>
                   <Typography variant="body2" color="text.secondary">{item.title}</Typography>
-                  <Typography variant="h6" fontWeight={700} sx={{ color: '#014D4E' }}>{item.value} <span style={{ color: item.changeColor, fontWeight: 600, fontSize: 14 }}>{item.change}</span></Typography>
+                  <Typography variant="h6" fontWeight={700} sx={{ color: colorScheme.textPrimary }}>{item.value} <span style={{ color: item.changeColor, fontWeight: 600, fontSize: 14 }}>{item.change}</span></Typography>
                   <Typography variant="caption" color="text.secondary">{item.sub}</Typography>
                 </Box>
               </Box>

@@ -1,54 +1,54 @@
-// Modern audit and anomaly detection color scheme
+// Modern audit and anomaly detection color scheme with purple theme
 export const colorScheme = {
-  // Primary colors - Professional audit theme
-  primary: '#1E40AF', // Deep blue for trust and reliability
-  primaryDark: '#1E3A8A', // Darker blue
-  secondary: '#059669', // Green for success/approved
-  accent: '#DC2626', // Red for alerts/critical
+  // Primary colors - Purple theme for audit and anomaly detection
+  primary: '#925A9B', // Purple for trust and reliability
+  primaryDark: '#7B4A82', // Darker purple
+  secondary: '#A67BB0', // Light purple for secondary elements
+  accent: '#7A4A82', // Dark purple for accents
   
-  // Audit status colors
+  // Audit status colors - using purple shades
   auditColors: [
-    '#1E40AF', // Primary Blue
-    '#059669', // Success Green
-    '#DC2626', // Critical Red
-    '#D97706', // Warning Orange
-    '#7C3AED', // Purple
-    '#0891B2', // Cyan
-    '#BE185D', // Pink
-    '#65A30D', // Lime
-    '#9333EA', // Violet
-    '#EA580C'  // Orange
+    '#925A9B', // Primary Purple
+    '#A67BB0', // Light Purple
+    '#7A4A82', // Dark Purple
+    '#5A3A62', // Very Dark Purple
+    '#B88BC4', // Very Light Purple
+    '#8B5A95', // Medium Purple
+    '#C49BD0', // Lightest Purple
+    '#6B4A72', // Darker Purple
+    '#A67BB3', // Light Purple
+    '#9A6BA3'  // Medium Light Purple
   ],
   
-  // Chart colors for anomaly detection
+  // Chart colors for anomaly detection - using purple shades
   chartColors: [
-    '#1E40AF', // Primary Blue
-    '#059669', // Success Green
-    '#DC2626', // Critical Red
-    '#D97706', // Warning Orange
-    '#7C3AED', // Purple
-    '#0891B2', // Cyan
-    '#BE185D', // Pink
-    '#65A30D', // Lime
-    '#9333EA', // Violet
-    '#EA580C'  // Orange
+    '#925A9B', // Primary Purple
+    '#A67BB0', // Light Purple
+    '#7A4A82', // Dark Purple
+    '#5A3A62', // Very Dark Purple
+    '#B88BC4', // Very Light Purple
+    '#8B5A95', // Medium Purple
+    '#C49BD0', // Lightest Purple
+    '#6B4A72', // Darker Purple
+    '#A67BB3', // Light Purple
+    '#9A6BA3'  // Medium Light Purple
   ],
   
-  // Risk level colors for anomaly detection
+  // Risk level colors for anomaly detection - using purple shades
   riskColors: {
-    LOW: '#059669', // Green
-    MEDIUM: '#D97706', // Orange
-    HIGH: '#DC2626', // Red
-    CRITICAL: '#7C2D12' // Dark red
+    LOW: '#A67BB0', // Light purple
+    MEDIUM: '#925A9B', // Purple
+    HIGH: '#7A4A82', // Dark purple
+    CRITICAL: '#5A3A62' // Very dark purple
   },
   
-  // Audit test status colors
+  // Audit test status colors - using purple shades
   testStatusColors: {
-    PASSED: '#059669', // Green
-    FAILED: '#DC2626', // Red
-    WARNING: '#D97706', // Orange
-    PENDING: '#6B7280', // Gray
-    RUNNING: '#1E40AF' // Blue
+    PASSED: '#925A9B', // Purple
+    FAILED: '#7A4A82', // Dark purple
+    WARNING: '#A67BB0', // Light purple
+    PENDING: '#666666', // Dark gray
+    RUNNING: '#925A9B' // Purple
   },
   
   // Background colors
@@ -56,27 +56,27 @@ export const colorScheme = {
   cardBackground: '#FFFFFF',
   sidebarBackground: '#F1F5F9',
   
-  // Text colors
-  textPrimary: '#0F172A', // Dark slate
-  textSecondary: '#64748B', // Slate gray
-  textMuted: '#94A3B8', // Light slate
+  // Text colors - darker shades
+  textPrimary: '#2b2b2b', // Custom black for main text
+  textSecondary: '#2D2D2D', // Dark gray for secondary text
+  textMuted: '#404040', // Medium dark gray for muted text
   
-  // Border colors
-  border: '#E2E8F0',
-  borderLight: '#F1F5F9',
+  // Border colors - darker shades
+  border: '#666666',
+  borderLight: '#999999',
   
-  // Status colors
-  success: '#059669', // Green
-  error: '#DC2626', // Red
-  warning: '#D97706', // Orange
-  info: '#1E40AF', // Blue
+  // Status colors - all using main purple
+  success: '#925A9B', // Purple
+  error: '#925A9B', // Purple
+  warning: '#925A9B', // Purple
+  info: '#925A9B', // Purple
   
-  // Anomaly detection specific colors
+  // Anomaly detection specific colors - using purple shades
   anomalyColors: {
-    normal: '#059669', // Green
-    suspicious: '#D97706', // Orange
-    fraudulent: '#DC2626', // Red
-    unknown: '#6B7280' // Gray
+    normal: '#925A9B', // Purple
+    suspicious: '#A67BB0', // Light purple
+    fraudulent: '#7A4A82', // Dark purple
+    unknown: '#666666' // Dark gray
   }
 };
 

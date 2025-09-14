@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Box, CssBaseline, CircularProgress, Alert, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import ModernToolbar from './components/ModernToolbar';
+import AppHeader from './components/common/AppHeader';
 import ExpenseAnalysisDashboard from './components/ExpenseAnalysisDashboard';
 import ListingDashboard from './components/ListingDashboard';
+import { dashboardColors } from './utils/dashboardColors';
 
 // Constants for data transformation
 const CHART_COLORS = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#FF6384', '#36A2EB'];
@@ -12,10 +13,18 @@ const MAX_CHART_ITEMS = 8;
 
 export default function ExpenseSheetDetails() {
   const { sheetId } = useParams();
+  const navigate = useNavigate();
   const [sheetData, setSheetData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [dashboardView, setDashboardView] = useState('analysis'); // 'analysis' or 'listing'
+
+  // Header event handlers
+  const handleMenuClick = () => console.log('Menu clicked');
+  const handleSearchChange = (value) => console.log('Search:', value);
+  const handleAddClick = () => navigate('/upload');
+  const handleCalendarClick = () => console.log('Calendar clicked');
+  const handleUserClick = () => console.log('User clicked');
 
   useEffect(() => {
     const fetchSheetData = async () => {
@@ -504,12 +513,22 @@ export default function ExpenseSheetDetails() {
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: dashboardColors.background }}>
       <CssBaseline />
-      <ModernToolbar />
+      <AppHeader
+        onMenuClick={handleMenuClick}
+        onSearchChange={handleSearchChange}
+        onAddClick={handleAddClick}
+        onCalendarClick={handleCalendarClick}
+        onUserClick={handleUserClick}
+        userName="Muhammad Yasir"
+        userRole="Software Engineer"
+        userInitials="MY"
+        searchPlaceholder="Search expense data..."
+      />
       
       <Box component="main" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-        <Box sx={{ flexGrow: 1, p: 3, backgroundColor: '#f5f5f5' }}>
+        <Box sx={{ flexGrow: 1, p: 3, backgroundColor: dashboardColors.background }}>
           {/* Dashboard View Toggle */}
           <Box sx={{ mb: 3, display: 'flex', justifyContent: 'center' }}>
             <ToggleButtonGroup
