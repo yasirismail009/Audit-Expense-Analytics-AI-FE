@@ -311,44 +311,17 @@ export default function BusinessRatingCard({
 
                         {/* Actions */}
                         <TableCell sx={{ py: 2, textAlign: 'center' }}>
-                          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-                            <Tooltip title="View Report" arrow>
-                              <Button
-                                variant="contained"
-                                size="small"
-                                startIcon={<Assessment />}
-                                onClick={(event) => handleViewReport(engagement, event)}
-                                sx={{
-                                  bgcolor: colors.text,
-                                  color: colors.surface,
-                                  fontSize: '0.65rem',
-                                  fontWeight: 600,
-                                  textTransform: 'none',
-                                  px: 1,
-                                  py: 0.5,
-                                  borderRadius: 1.5,
-                                  minWidth: 'auto',
-                                  '&:hover': {
-                                    bgcolor: colors.primaryDark,
-                                    transform: 'translateY(-1px)',
-                                    boxShadow: '0 2px 8px rgba(146, 90, 155, 0.3)'
-                                  },
-                                  transition: 'all 0.2s ease'
-                                }}
-                              >
-                                View
-                              </Button>
-                            </Tooltip>
-                            {onCompletenessReport && (
-                              <Tooltip title="Completeness Test" arrow>
+                          {progressPercentage === 100 ? (
+                            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                              <Tooltip title="View Report" arrow>
                                 <Button
-                                  variant="outlined"
+                                  variant="contained"
                                   size="small"
-                                  startIcon={<Security />}
-                                  onClick={(event) => handleCompletenessReport(engagement, event)}
+                                  startIcon={<Assessment />}
+                                  onClick={(event) => handleViewReport(engagement, event)}
                                   sx={{
-                                    borderColor: colors.orange,
-                                    color: colors.orange,
+                                    bgcolor: colors.text,
+                                    color: colors.surface,
                                     fontSize: '0.65rem',
                                     fontWeight: 600,
                                     textTransform: 'none',
@@ -357,19 +330,58 @@ export default function BusinessRatingCard({
                                     borderRadius: 1.5,
                                     minWidth: 'auto',
                                     '&:hover': {
-                                      bgcolor: `${colors.orange}10`,
-                                      borderColor: colors.orange,
+                                      bgcolor: colors.primaryDark,
                                       transform: 'translateY(-1px)',
-                                      boxShadow: '0 2px 8px rgba(146, 90, 155, 0.15)'
+                                      boxShadow: '0 2px 8px rgba(146, 90, 155, 0.3)'
                                     },
                                     transition: 'all 0.2s ease'
                                   }}
                                 >
-                                  Test
+                                  View
                                 </Button>
                               </Tooltip>
-                            )}
-                          </Box>
+                              {onCompletenessReport && (
+                                <Tooltip title="Completeness Test" arrow>
+                                  <Button
+                                    variant="outlined"
+                                    size="small"
+                                    startIcon={<Security />}
+                                    onClick={(event) => handleCompletenessReport(engagement, event)}
+                                    sx={{
+                                      borderColor: colors.orange,
+                                      color: colors.orange,
+                                      fontSize: '0.65rem',
+                                      fontWeight: 600,
+                                      textTransform: 'none',
+                                      px: 1,
+                                      py: 0.5,
+                                      borderRadius: 1.5,
+                                      minWidth: 'auto',
+                                      '&:hover': {
+                                        bgcolor: `${colors.orange}10`,
+                                        borderColor: colors.orange,
+                                        transform: 'translateY(-1px)',
+                                        boxShadow: '0 2px 8px rgba(146, 90, 155, 0.15)'
+                                      },
+                                      transition: 'all 0.2s ease'
+                                    }}
+                                  >
+                                    Test
+                                  </Button>
+                                </Tooltip>
+                              )}
+                            </Box>
+                          ) : (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                              <Typography variant="caption" sx={{ 
+                                color: colors.textSecondary,
+                                fontSize: '0.65rem',
+                                fontStyle: 'italic'
+                              }}>
+                                Processing...
+                              </Typography>
+                            </Box>
+                          )}
                         </TableCell>
                       </TableRow>
                     );

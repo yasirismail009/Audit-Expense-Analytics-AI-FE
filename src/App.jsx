@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, CssBaseline, CircularProgress, createTheme, ThemeProvider } from '@mui/material';
 import ModernToolbar from './components/ModernToolbar';
 import AppToolbar from './components/AppToolbar';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import ExpenseSheetDetails from './ExpenseSheetDetails';
 import FilesListingDashboard from './components/FilesListingDashboard';
 import UploadPage from './components/UploadPage';
@@ -11,6 +11,7 @@ import Login from './components/auth/Login';
 import Signup from './components/auth/Signup';
 import { useAuth } from './utils/authContext';
 import { dashboardColors as colors } from './utils/dashboardColors';
+import AppHeader from './components/common/AppHeader';
 
 
 // Create global theme with Inter font
@@ -95,6 +96,62 @@ const theme = createTheme({
   },
 });
 
+// Layout Component with AppHeader
+const Layout = ({ children }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Define header behavior based on current route
+  const getHeaderProps = () => {
+    const defaultProps = {
+      userName: "Muhammad Yasir",
+      userRole: "Software Engineer", 
+      userInitials: "MY",
+      onMenuClick: () => console.log('Menu clicked'),
+      onSearchChange: (value) => console.log('Search:', value),
+      onAddClick: () => navigate('/upload'),
+      onCalendarClick: () => console.log('Calendar clicked'),
+      onUserClick: () => console.log('User clicked'),
+    };
+
+    switch (location.pathname) {
+      case '/':
+        return {
+          ...defaultProps,
+          searchPlaceholder: "Search data files..."
+        };
+      case '/upload':
+        return {
+          ...defaultProps,
+          searchPlaceholder: "Search uploads..."
+        };
+      default:
+        if (location.pathname.includes('/expense-sheet-details')) {
+          return {
+            ...defaultProps,
+            searchPlaceholder: "Search expense data..."
+          };
+        }
+        if (location.pathname.includes('/completeness-test-report')) {
+          return {
+            ...defaultProps,
+            searchPlaceholder: "Search reports..."
+          };
+        }
+        return defaultProps;
+    }
+  };
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: colors.background }}>
+      <AppHeader {...getHeaderProps()} />
+      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+        {children}
+      </Box>
+    </Box>
+  );
+};
+
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -115,53 +172,23 @@ const ProtectedRoute = ({ children }) => {
   }
   
   console.log('ProtectedRoute - rendering children');
-  return children;
+  return <Layout>{children}</Layout>;
 };
 
 function TableListing() {
-  const navigate = useNavigate();
-  
-  return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh',  bgcolor: colors.background, }}>
-      <FilesListingDashboard />
-    </Box>
-  );
+  return <FilesListingDashboard />;
 }
 
 function ExpenseSheetDetailsWrapper() {
-  const navigate = useNavigate();
-  
-  return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh',  bgcolor: colors.background,  }}>
-      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-        <ExpenseSheetDetails />
-      </Box>
-    </Box>
-  );
+  return <ExpenseSheetDetails />;
 }
 
 function UploadPageWrapper() {
-  const navigate = useNavigate();
-  
-  return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh',  bgcolor: colors.background,  }}>
-      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-        <UploadPage />
-      </Box>
-    </Box>
-  );
+  return <UploadPage />;
 }
 
 function CompletenessTestReportWrapper() {
-  const navigate = useNavigate();
-  
-  return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh',  bgcolor: colors.background,  }}>
-      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-        <CompletenessTestReport />
-      </Box>
-    </Box>
-  );
+  return <CompletenessTestReport />;
 }
 
 function App() {

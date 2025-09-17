@@ -25,7 +25,6 @@ import { dashboardColors as colors } from '../utils/dashboardColors';
 import { dashboardColors } from "../utils/dashboardColors";
 import { useAuth } from "../utils/authContext";
 import axios from "axios";
-import AppHeader from "./common/AppHeader";
 import StepOneInputFields from "./upload/StepOneInputFields";
 import StepTwoGLAccountList from "./upload/StepTwoGLAccountList";
 import StepThreeFileUpload from "./upload/StepThreeFileUpload";
@@ -562,7 +561,7 @@ export default function UploadPage() {
     }
   };
 
-  return (
+	return (
 		<Box
 			sx={{
 				minHeight: "100vh",
@@ -570,18 +569,6 @@ export default function UploadPage() {
 				display: "flex",
 				flexDirection: "column",
     }}>
-      <AppHeader
-        onMenuClick={handleMenuClick}
-        onSearchChange={handleSearchChange}
-        onAddClick={handleAddClick}
-        onCalendarClick={handleCalendarClick}
-        onUserClick={handleUserClick}
-				userName='Muhammad Yasir'
-				userRole='Software Engineer'
-				userInitials='MY'
-				searchPlaceholder='Search uploads...'
-			/>
-
 			<Box
 				sx={{
 					width: "100%",

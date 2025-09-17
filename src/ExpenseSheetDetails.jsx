@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Box, CssBaseline, CircularProgress, Alert, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import AppHeader from './components/common/AppHeader';
 import ExpenseAnalysisDashboard from './components/ExpenseAnalysisDashboard';
 import ListingDashboard from './components/ListingDashboard';
 import { dashboardColors } from './utils/dashboardColors';
@@ -515,18 +514,6 @@ export default function ExpenseSheetDetails() {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: dashboardColors.background }}>
       <CssBaseline />
-      <AppHeader
-        onMenuClick={handleMenuClick}
-        onSearchChange={handleSearchChange}
-        onAddClick={handleAddClick}
-        onCalendarClick={handleCalendarClick}
-        onUserClick={handleUserClick}
-        userName="Muhammad Yasir"
-        userRole="Software Engineer"
-        userInitials="MY"
-        searchPlaceholder="Search expense data..."
-      />
-      
       <Box component="main" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <Box sx={{ flexGrow: 1, p: 3, backgroundColor: dashboardColors.background }}>
           {/* Dashboard View Toggle */}

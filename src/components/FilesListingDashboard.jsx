@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Grid, CircularProgress, Alert, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import AppHeader from './common/AppHeader';
 import WelcomeSection from './common/WelcomeSection';
 import DashboardCardGrid from './dashboard/DashboardCardGrid';
 import AnnualProfitsCard from './dashboard/AnnualProfitsCard';
@@ -163,33 +162,17 @@ export default function FilesListingDashboard() {
   if (loading) {
     return (
       <Box sx={{ 
-        bgcolor: colors.background, 
-        minHeight: '100vh'
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: 'calc(100vh - 100px)',
+        flexDirection: 'column',
+        gap: 2
       }}>
-        <AppHeader
-          onMenuClick={handleMenuClick}
-          onSearchChange={handleSearchChange}
-          onAddClick={handleAddClick}
-          onCalendarClick={handleCalendarClick}
-          onUserClick={handleUserClick}
-          userName="Muhammad Yasir"
-          userRole="Software Engineer"
-          userInitials="MY"
-          searchPlaceholder="Search data files..."
-        />
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          height: 'calc(100vh - 100px)',
-          flexDirection: 'column',
-          gap: 2
-        }}>
-          <CircularProgress size={40} sx={{ color: colors.accent }} />
-          <Typography variant="body1" sx={{ color: colors.textSecondary }}>
-            Loading data files...
-          </Typography>
-        </Box>
+        <CircularProgress size={40} sx={{ color: colors.accent }} />
+        <Typography variant="body1" sx={{ color: colors.textSecondary }}>
+          Loading data files...
+        </Typography>
       </Box>
     );
   }
@@ -197,39 +180,23 @@ export default function FilesListingDashboard() {
   // Show error state
   if (error) {
     return (
-      <Box sx={{ 
-        bgcolor: colors.background, 
-        minHeight: '100vh'
-      }}>
-        <AppHeader
-          onMenuClick={handleMenuClick}
-          onSearchChange={handleSearchChange}
-          onAddClick={handleAddClick}
-          onCalendarClick={handleCalendarClick}
-          onUserClick={handleUserClick}
-          userName="Muhammad Yasir"
-          userRole="Software Engineer"
-          userInitials="MY"
-          searchPlaceholder="Search data files..."
-        />
-        <Box sx={{ px: 3, pt: 3 }}>
-          <Alert 
-            severity="error" 
-            action={
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Typography 
-                  variant="body2" 
-                  sx={{ cursor: 'pointer', textDecoration: 'underline' }}
-                  onClick={handleRefreshFiles}
-                >
-                  Retry
-                </Typography>
-              </Box>
-            }
-          >
-            {error}
-          </Alert>
-        </Box>
+      <Box sx={{ px: 3, pt: 3 }}>
+        <Alert 
+          severity="error" 
+          action={
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Typography 
+                variant="body2" 
+                sx={{ cursor: 'pointer', textDecoration: 'underline' }}
+                onClick={handleRefreshFiles}
+              >
+                Retry
+              </Typography>
+            </Box>
+          }
+        >
+          {error}
+        </Alert>
       </Box>
     );
   }
@@ -239,19 +206,6 @@ export default function FilesListingDashboard() {
       bgcolor: colors.background, 
       minHeight: '100vh'
     }}>
-      {/* App Header */}
-      <AppHeader
-        onMenuClick={handleMenuClick}
-        onSearchChange={handleSearchChange}
-        onAddClick={handleAddClick}
-        onCalendarClick={handleCalendarClick}
-        onUserClick={handleUserClick}
-        userName="Muhammad Yasir"
-        userRole="Software Engineer"
-        userInitials="MY"
-        searchPlaceholder="Search data files..."
-      />
-
       {/* Main Content Container */}
       <Box sx={{ bgcolor: colors.background, px: 3, pt: 3, pb: 3 }}>
         {/* Welcome Section with Dynamic Data */}
