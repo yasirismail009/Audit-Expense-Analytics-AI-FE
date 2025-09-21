@@ -22,7 +22,13 @@ import {
   Divider,
   Container,
   useTheme,
-  alpha
+  alpha,
+  Tabs,
+  Tab,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Pagination
 } from '@mui/material';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -38,22 +44,28 @@ import {
   TableChart as TableChartIcon,
   TrendingUp as TrendingUpIcon,
   Security as SecurityIcon,
-  NotificationsNone as NotificationsIcon
+  NotificationsNone as NotificationsIcon,
+  AccountBalance as AccountBalanceIcon,
+  PictureAsPdf as PdfIcon,
+  AttachMoney as MoneyIcon,
+  People as PeopleIcon,
+  Shield as ShieldIcon,
+  Description as DocumentIcon
 } from '@mui/icons-material';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area } from 'recharts';
+// Chart imports removed - charts replaced with placeholders for cleaner interface
 import { dashboardColors as colors } from '../utils/dashboardColors';
 import { colorScheme, formatCurrency } from '../utils/colorScheme';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from 'recharts';
+import CompletenessAnalysisDashboard from './charts/CompletenessAnalysisDashboard';
 
 // Transform API response to UI format
 const transformApiDataToUIFormat = (apiData) => {
-  if (!apiData || !apiData.results || apiData.results.length === 0) {
-    // Handle explicit "no results" case from API
-    if (apiData && apiData.total_tests === 0 && apiData.message) {
+  if (!apiData || !apiData.test_result) {
       return {
         overall: {
           score: 0,
           status: 'NO_RESULTS',
-          engagementId: apiData.engagement_id || 'Unknown',
+        engagementId: apiData?.engagement_id || 'Unknown',
           completeFields: 0,
           totalFields: 0,
           criticalIssues: 0,
@@ -75,72 +87,81 @@ const transformApiDataToUIFormat = (apiData) => {
         summaryStatistics: {},
         documentStatistics: {},
         creditDebitBySubtype: [],
-        noResultsMessage: apiData.message
+      noResultsMessage: 'No test results available'
       };
-    }
-    return null;
   }
 
-  const result = apiData.results[0];
-  const summary = apiData.summary || result.test_summary || {};
+  const testResult = apiData.test_result;
+  const summary = apiData.summary || testResult.test_summary || {};
+  const comprehensiveStats = testResult.comprehensive_statistics || {};
 
   // Transform field analysis from test steps - updated for new API format
   const fieldAnalysis = [
     {
-      field: 'File Completeness',
-      completeness: result.step1_file_completeness?.passed ? 100 : 0,
-      records: result.total_gl_records || 0,
-      missing: result.step1_file_completeness?.passed ? 0 : 1,
-      status: result.step1_file_completeness?.passed ? 'PASSED' : 'FAILED',
-      description: result.step1_file_completeness?.description || 'GL file completeness verification',
-      explanation: result.step1_file_completeness?.explanation || 'No details available'
+      field: 'GL Completeness',
+      completeness: testResult.step1_summary?.passed ? 100 : 0,
+      records: testResult.total_gl_records || 0,
+      missing: testResult.step1_summary?.passed ? 0 : 1,
+      status: testResult.step1_summary?.passed ? 'PASSED' : 'FAILED',
+      description: testResult.step1_summary?.description || 'GL completeness verification: Credit - Debit should equal 0 and sufficient data volume',
+      explanation: testResult.step1_summary?.explanation || 'No details available'
     },
     {
-      field: 'GL-TB Reconciliation',
-      completeness: result.step2_gl_tb_reconciliation?.passed ? Math.round((result.step2_gl_tb_reconciliation?.pass_rate || 0) * 100) : 0,
-      records: result.step2_gl_tb_reconciliation?.total_accounts_verified || 0,
-      missing: result.step2_gl_tb_reconciliation?.accounts_failed || 0,
-      status: result.step2_gl_tb_reconciliation?.passed ? 'PASSED' : 'FAILED',
-      description: result.step2_gl_tb_reconciliation?.description || 'Account-wise balance verification',
-      explanation: result.step2_gl_tb_reconciliation?.explanation || 'No details available'
+      field: 'Account-wise Balance Verification',
+      completeness: testResult.step2_summary?.passed ? Math.round((testResult.step2_summary?.pass_rate || 0) * 100) : 0,
+      records: testResult.step2_summary?.accounts_verified || 0,
+      missing: testResult.step2_summary?.accounts_failed || 0,
+      status: testResult.step2_summary?.passed ? 'PASSED' : 'FAILED',
+      description: testResult.step2_summary?.description || 'Account-wise balance verification: Opening + Debits - Credits = Closing for each GL account',
+      explanation: testResult.step2_summary?.explanation || 'No details available'
     }
   ];
 
   // Transform time series data from comprehensive_statistics
-  const monthlyTrendsData = result.comprehensive_statistics?.chart_data?.monthly_trends || result.comprehensive_statistics?.monthly_trends;
+  const monthlyTrendsData = comprehensiveStats?.chart_data?.monthly_trends;
+  // Create time series data from actual monthly trends
   const timeSeriesData = monthlyTrendsData?.labels?.map((label, index) => ({
     date: label,
-    completeness: result.completeness_score || summary.completeness_score || 0,
-    totalAmount: monthlyTrendsData.amounts[index] || 0,
-    totalTransactions: monthlyTrendsData.transaction_counts[index] || 0,
-    debitTotal: monthlyTrendsData.amounts[index] || 0, // Use amounts as proxy for debit
-    creditTotal: monthlyTrendsData.amounts[index] || 0, // Use amounts as proxy for credit
-    totalVolume: monthlyTrendsData.amounts[index] || 0,
-    netAmount: monthlyTrendsData.amounts[index] || 0
-  })) || [];
+    completeness: testResult.completeness_score || summary.completeness_score || 0,
+    totalAmount: monthlyTrendsData?.amounts?.[index] || 0,
+    totalTransactions: monthlyTrendsData?.transaction_counts?.[index] || 0,
+    debitTotal: comprehensiveStats?.document_statistics?.gl_debit_total || 0,
+    creditTotal: comprehensiveStats?.document_statistics?.gl_credit_total || 0,
+    totalVolume: monthlyTrendsData?.amounts?.[index] || 0,
+    netAmount: comprehensiveStats?.document_statistics?.gl_net_balance || 0
+  })) || [{
+      date: '2025-01',
+      completeness: testResult.completeness_score || summary.completeness_score || 0,
+      totalAmount: monthlyTrendsData?.total_amount || 0,
+      totalTransactions: monthlyTrendsData?.total_transactions || 0,
+      debitTotal: comprehensiveStats?.document_statistics?.gl_debit_total || 0,
+      creditTotal: comprehensiveStats?.document_statistics?.gl_credit_total || 0,
+      totalVolume: monthlyTrendsData?.total_amount || 0,
+      netAmount: comprehensiveStats?.document_statistics?.gl_net_balance || 0
+  }];
 
   // Transform category breakdown using comprehensive_statistics
-  const topAccounts = result.comprehensive_statistics?.top_accounts || result.comprehensive_statistics?.chart_data?.top_accounts;
+  const topAccounts = comprehensiveStats?.chart_data?.top_accounts;
   const categoryBreakdown = [
-    { name: 'File Completeness', value: result.step1_file_completeness?.passed ? 100 : 0, color: '#3b82f6' },
-    { name: 'GL-TB Reconciliation', value: result.step2_gl_tb_reconciliation?.passed ? Math.round((result.step2_gl_tb_reconciliation?.pass_rate || 0) * 100) : 0, color: '#10b981' },
-    { name: 'Overall Score', value: result.completeness_score || 0, color: '#f59e0b' }
+    { name: 'GL Completeness', value: testResult.step1_summary?.passed ? 100 : 0, color: '#3b82f6' },
+    { name: 'Account Verification', value: testResult.step2_summary?.passed ? Math.round((testResult.step2_summary?.pass_rate || 0) * 100) : 0, color: '#10b981' },
+    { name: 'Overall Score', value: testResult.completeness_score || 0, color: '#f59e0b' }
   ];
 
   // Generate recommendations based on failed tests
   const recommendations = [];
-  if (!result.step1_file_completeness?.passed) {
+  if (!testResult.step1_summary?.passed) {
     recommendations.push({
-      field: 'File Completeness',
+      field: 'GL Completeness',
       issue: 'GL file completeness verification failed',
       recommendation: 'Review GL file data quality and ensure sufficient transaction volume',
       severity: 'Critical'
     });
   }
-  if (!result.step2_gl_tb_reconciliation?.passed) {
+  if (!testResult.step2_summary?.passed) {
     recommendations.push({
-      field: 'GL-TB Reconciliation',
-      issue: `Account verification failed for ${result.step2_gl_tb_reconciliation?.accounts_failed || 0} accounts`,
+      field: 'Account-wise Balance Verification',
+      issue: `Account verification failed for ${testResult.step2_summary?.accounts_failed || 0} accounts`,
       recommendation: 'Review failed account reconciliations and verify opening/closing balances',
       severity: 'High'
     });
@@ -148,79 +169,122 @@ const transformApiDataToUIFormat = (apiData) => {
 
   const passedTests = fieldAnalysis.filter(test => test.status === 'PASSED').length;
   const totalTests = fieldAnalysis.length;
-  const overallScore = result.completeness_score || summary.completeness_score || (totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 0);
+  const overallScore = testResult.completeness_score || summary.completeness_score || (totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 0);
+
+  // Debug logging to verify transformation
+  console.log('=== TRANSFORMATION DEBUG ===');
+  console.log('API Data monthly_trends:', monthlyTrendsData);
+  console.log('Transformed monthlyTrends:', monthlyTrendsData?.labels?.map((label, index) => ({
+    month: label,
+    total_volume: monthlyTrendsData?.amounts?.[index] || 0,
+    transaction_count: monthlyTrendsData?.transaction_counts?.[index] || 0
+  })));
+  console.log('Top Accounts:', topAccounts);
+  console.log('Enhanced Data:', comprehensiveStats?.enhanced_statistics?.chart_data_enhanced);
+  console.log('Overall Score:', overallScore);
+  console.log('===========================');
 
   return {
     overall: {
       score: overallScore,
-      status: result.overall_status === 'COMPLETE' ? 'EXCELLENT' : overallScore >= 80 ? 'EXCELLENT' : overallScore >= 60 ? 'GOOD' : 'NEEDS_IMPROVEMENT',
-      engagementId: result.engagement || summary.engagement_id || 'Unknown',
+      status: testResult.overall_status === 'COMPLETE' ? 'EXCELLENT' : overallScore >= 80 ? 'EXCELLENT' : overallScore >= 60 ? 'GOOD' : 'NEEDS_IMPROVEMENT',
+      engagementId: testResult.engagement_id || summary.engagement_id || 'Unknown',
       completeFields: passedTests,
       totalFields: totalTests,
-      criticalIssues: result.critical_issues_count || recommendations.filter(r => r.severity === 'Critical').length,
-      totalRecords: (result.total_gl_records || 0) + (result.total_tb_records || 0)
+      criticalIssues: testResult.critical_issues_count || recommendations.filter(r => r.severity === 'Critical').length,
+      totalRecords: (testResult.total_gl_records || 0) + (testResult.total_tb_records || 0)
     },
     fieldAnalysis,
     timeSeriesData,
     categoryBreakdown,
     recommendations,
     testDetails: {
-      glRecords: result.total_gl_records || 0,
-      tbRecords: result.total_tb_records || 0,
-      processingTime: result.test_duration || result.processing_duration || 'Unknown',
-      lastUpdated: result.created_at || new Date().toISOString()
+      glRecords: testResult.total_gl_records || 0,
+      tbRecords: testResult.total_tb_records || 0,
+      processingTime: testResult.processing_duration || 'Unknown',
+      lastUpdated: testResult.created_at || new Date().toISOString()
     },
     chartData: {
       topAccounts: topAccounts || {},
       monthlyTrends: monthlyTrendsData || {},
-      metadata: result.comprehensive_statistics?.chart_data?.chart_metadata || {}
+      metadata: comprehensiveStats?.chart_data?.chart_metadata || {},
+      enhanced: comprehensiveStats?.enhanced_statistics?.chart_data_enhanced || {}
     },
     monthlyTrends: monthlyTrendsData?.labels?.map((label, index) => ({
       month: label,
-      debit_total: topAccounts?.debit_amounts?.[index] || 0,
-      credit_total: topAccounts?.credit_amounts?.[index] || 0,
-      total_volume: monthlyTrendsData.amounts[index] || 0,
-      net_amount: topAccounts?.net_movements?.[index] || monthlyTrendsData.amounts[index] || 0,
-      transaction_count: monthlyTrendsData.transaction_counts[index] || 0,
-      total_transactions: monthlyTrendsData.transaction_counts[index] || 0
-    })) || [],
-    userAnalysis: topAccounts ? topAccounts.labels?.map((label, index) => ({
-      user_name: label,
-      account_name: label,
-      debit_total: topAccounts.debit_amounts[index] || 0,
-      credit_total: topAccounts.credit_amounts[index] || 0,
-      total_volume: (topAccounts.debit_amounts[index] || 0) + (topAccounts.credit_amounts[index] || 0),
-      net_movement: topAccounts.net_movements[index] || 0
-    })) || [] : [],
+      debit_total: comprehensiveStats?.document_statistics?.gl_debit_total || 0,
+      credit_total: comprehensiveStats?.document_statistics?.gl_credit_total || 0,
+      total_volume: monthlyTrendsData?.amounts?.[index] || 0,
+      net_amount: comprehensiveStats?.document_statistics?.gl_net_balance || 0,
+      transaction_count: monthlyTrendsData?.transaction_counts?.[index] || 0,
+      total_transactions: monthlyTrendsData?.transaction_counts?.[index] || 0
+    })) || [{
+      month: '2025-01',
+      debit_total: comprehensiveStats?.document_statistics?.gl_debit_total || 0,
+      credit_total: comprehensiveStats?.document_statistics?.gl_credit_total || 0,
+      total_volume: monthlyTrendsData?.total_amount || 0,
+      net_amount: comprehensiveStats?.document_statistics?.gl_net_balance || 0,
+      transaction_count: monthlyTrendsData?.total_transactions || 0,
+      total_transactions: monthlyTrendsData?.total_transactions || 0
+    }],
+    userAnalysis: [{
+      user_name: 'Top Account',
+      account_name: 'Top Account',
+      debit_total: topAccounts?.total_debit_amount || 0,
+      credit_total: topAccounts?.total_credit_amount || 0,
+      total_volume: (topAccounts?.total_debit_amount || 0) + (topAccounts?.total_credit_amount || 0),
+      net_movement: topAccounts?.net_balance || 0
+    }],
     summaryStatistics: {
-      total_users: result.comprehensive_statistics?.summary_statistics?.total_users || topAccounts?.labels?.length || 0,
-      most_active_user: result.comprehensive_statistics?.summary_statistics?.most_active_user || topAccounts?.labels?.[0] || 'N/A',
-      peak_month: result.comprehensive_statistics?.summary_statistics?.peak_month || monthlyTrendsData?.labels?.[0] || 'N/A',
-      months_covered: result.comprehensive_statistics?.summary_statistics?.months_covered || monthlyTrendsData?.labels?.length || 0,
-      total_amount: result.comprehensive_statistics?.summary_statistics?.total_amount || monthlyTrendsData?.amounts?.reduce((a, b) => a + b, 0) || 0,
-      total_transactions: result.comprehensive_statistics?.summary_statistics?.total_transactions || monthlyTrendsData?.transaction_counts?.reduce((a, b) => a + b, 0) || 0,
-      average_transaction_amount: result.comprehensive_statistics?.summary_statistics?.average_transaction_amount || 0,
-      processing_time: result.test_duration || result.processing_duration || 'Unknown'
+      total_users: comprehensiveStats?.enhanced_statistics?.basic_totals?.total_users || 0,
+      most_active_user: 'N/A', // Not available in new structure
+      peak_month: monthlyTrendsData?.labels?.[0] || 'N/A',
+      months_covered: comprehensiveStats?.chart_data?.chart_metadata?.total_months || monthlyTrendsData?.labels?.length || 0,
+      total_amount: comprehensiveStats?.enhanced_statistics?.amount_statistics?.total_debit_amount || 0,
+      total_transactions: comprehensiveStats?.enhanced_statistics?.basic_totals?.total_transactions || 0,
+      average_transaction_amount: comprehensiveStats?.enhanced_statistics?.amount_statistics?.mean_amount || 0,
+      processing_time: testResult.processing_duration || 'Unknown'
     },
     documentStatistics: {
-      total_documents: result.comprehensive_statistics?.document_statistics?.total_documents || result.total_gl_records || 0,
-      unique_documents: result.comprehensive_statistics?.document_statistics?.unique_documents || Math.floor((result.total_gl_records || 0) * 0.85),
-      duplicate_document_ratio: result.comprehensive_statistics?.document_statistics?.duplicate_document_ratio || 15,
-      document_types: result.comprehensive_statistics?.document_statistics?.document_types || ['GL', 'TB'],
-      largest_document_size: result.comprehensive_statistics?.document_statistics?.largest_document_size || 'N/A',
-      gl_debit_total: result.comprehensive_statistics?.document_statistics?.gl_debit_total || result.step1_file_completeness?.gl_debit_total || 0,
-      gl_credit_total: result.comprehensive_statistics?.document_statistics?.gl_credit_total || result.step1_file_completeness?.gl_credit_total || 0,
-      gl_net_balance: result.comprehensive_statistics?.document_statistics?.gl_net_balance || result.step1_file_completeness?.gl_net_balance || 0,
-      unique_accounts: result.comprehensive_statistics?.document_statistics?.unique_accounts || result.step1_file_completeness?.account_count || 0,
-      total_gl_records: result.comprehensive_statistics?.document_statistics?.total_gl_records || result.total_gl_records || 0,
-      total_tb_records: result.comprehensive_statistics?.document_statistics?.total_tb_records || result.total_tb_records || 0
+      total_documents: comprehensiveStats?.document_statistics?.total_documents || 0,
+      unique_documents: comprehensiveStats?.document_statistics?.unique_documents || 0,
+      duplicate_document_ratio: comprehensiveStats?.document_statistics?.duplicate_document_ratio || 0,
+      document_types: comprehensiveStats?.document_statistics?.document_types || ['GL', 'TB'],
+      largest_document_size: comprehensiveStats?.document_statistics?.largest_document_size || 'N/A',
+      gl_debit_total: comprehensiveStats?.document_statistics?.gl_debit_total || 0,
+      gl_credit_total: comprehensiveStats?.document_statistics?.gl_credit_total || 0,
+      gl_net_balance: comprehensiveStats?.document_statistics?.gl_net_balance || 0,
+      unique_accounts: comprehensiveStats?.document_statistics?.unique_accounts || 0,
+      total_gl_records: comprehensiveStats?.document_statistics?.total_gl_records || 0,
+      total_tb_records: comprehensiveStats?.document_statistics?.total_tb_records || 0
     },
     creditDebitBySubtype: topAccounts ? topAccounts.labels?.map((label, index) => ({
       account: label,
-      debit: topAccounts.debit_amounts[index] || 0,
-      credit: topAccounts.credit_amounts[index] || 0,
-      net: topAccounts.net_movements[index] || 0
-    })) || [] : []
+      debit: topAccounts.debit_amounts?.[index] || 0,
+      credit: topAccounts.credit_amounts?.[index] || 0,
+      net: topAccounts.net_movements?.[index] || 0
+    })) || [] : [],
+    // New comprehensive statistics
+    comprehensiveStatistics: comprehensiveStats,
+    basicTotals: comprehensiveStats?.enhanced_statistics?.basic_totals || {},
+    amountStatistics: comprehensiveStats?.enhanced_statistics?.amount_statistics || {},
+    dataQualityMetrics: comprehensiveStats?.enhanced_statistics?.data_quality_metrics || {},
+    perAccountStatistics: comprehensiveStats?.enhanced_statistics?.per_account_statistics || {},
+    auditCalculationStatistics: comprehensiveStats?.enhanced_statistics?.audit_calculation_statistics || {},
+    // Additional mappings for the new API structure
+    step1Summary: testResult.step1_summary || {},
+    step2Summary: testResult.step2_summary || {},
+    // Additional fields for banner
+    engagementName: testResult.engagement_name,
+    clientName: testResult.client_name,
+    testTimestamp: testResult.test_timestamp,
+    overallStatus: testResult.overall_status,
+    totalGlRecords: testResult.total_gl_records,
+    completenessScore: testResult.completeness_score,
+    testsPassed: testResult.tests_passed,
+    totalTests: testResult.total_tests,
+    criticalIssuesCount: testResult.critical_issues_count,
+    processingDuration: testResult.processing_duration
   };
 };
 
@@ -230,8 +294,11 @@ export default function CompletenessTestReport() {
   const [data, setData] = useState(null);
   const [accountVerifications, setAccountVerifications] = useState(null);
   const [failedAccountVerifications, setFailedAccountVerifications] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState(0);
 
   const fetchCompletenessData = async () => {
     if (!engagementId) {
@@ -243,48 +310,49 @@ export default function CompletenessTestReport() {
     setLoading(true);
     setError(null);
     
-    try {
-      // Fetch completeness test data and account verifications (all and failed only) in parallel
-      const [completenessResponse, accountVerificationsResponse, failedAccountVerificationsResponse] = await Promise.all([
-        axios.get(`http://localhost:8000/api/completeness-test/engagement/${engagementId}/`, {
-        timeout: 10000
-        }),
-        axios.get(`http://localhost:8000/api/account-verifications/engagement/${engagementId}/`, {
+      try {
+        // Fetch completeness test data first
+        const completenessResponse = await axios.get(`http://localhost:8000/api/completeness-test/engagement/${engagementId}/`, {
           timeout: 10000
-        }).catch(err => {
-          // Don't fail the whole request if account verifications fail
-          console.warn('Failed to fetch account verifications:', err);
-          return null;
-        }),
-        axios.get(`http://localhost:8000/api/account-verifications/engagement/${engagementId}/`, {
-          timeout: 10000,
-          params: {
-            failed_only: true
+        });
+        
+        const transformedData = transformApiDataToUIFormat(completenessResponse.data);
+        if (transformedData) {
+          setData(transformedData);
+        } else {
+          throw new Error('Invalid or empty API response');
+        }
+
+        // Try to fetch account verifications data (optional - don't fail if unavailable)
+        try {
+          const [accountVerificationsResponse, failedAccountVerificationsResponse] = await Promise.all([
+            axios.get(`http://localhost:8000/api/account-verifications/engagement/${engagementId}/`, {
+              timeout: 5000 // Shorter timeout for optional data
+            }),
+            axios.get(`http://localhost:8000/api/account-verifications/engagement/${engagementId}/`, {
+              timeout: 5000,
+              params: {
+                failed_only: true
+              }
+            })
+          ]);
+
+          // Set account verifications data if available
+          if (accountVerificationsResponse?.data) {
+            setAccountVerifications(accountVerificationsResponse.data);
+            setCurrentPage(1); // Reset to first page when new data loads
+            console.log('Account verifications loaded:', accountVerificationsResponse.data);
           }
-        }).catch(err => {
-          // Don't fail the whole request if failed account verifications fail
-          console.warn('Failed to fetch failed account verifications:', err);
-          return null;
-        })
-      ]);
-      
-      const transformedData = transformApiDataToUIFormat(completenessResponse.data);
-      if (transformedData) {
-        setData(transformedData);
-      } else {
-        throw new Error('Invalid or empty API response');
-      }
 
-      // Set account verifications data if available
-      if (accountVerificationsResponse?.data) {
-        setAccountVerifications(accountVerificationsResponse.data);
-        console.log('Account verifications loaded:', accountVerificationsResponse.data);
-      }
-
-      if (failedAccountVerificationsResponse?.data) {
-        setFailedAccountVerifications(failedAccountVerificationsResponse.data);
-        console.log('Failed account verifications loaded:', failedAccountVerificationsResponse.data);
-      }
+          if (failedAccountVerificationsResponse?.data) {
+            setFailedAccountVerifications(failedAccountVerificationsResponse.data);
+            console.log('Failed account verifications loaded:', failedAccountVerificationsResponse.data);
+            console.log('Failed account verifications results:', failedAccountVerificationsResponse.data?.results?.results);
+          }
+        } catch (accountError) {
+          // Silently handle account verification errors - this is optional data
+          console.log('Account verifications not available for this engagement:', accountError.message);
+        }
       
     } catch (err) {
       console.error('Error fetching completeness data:', err);
@@ -415,7 +483,416 @@ export default function CompletenessTestReport() {
         </Box>
       </Box>
 
-      {/* Main GL Completeness Cards */}
+
+      {/* Engagement Banner - Redesigned */}
+      <Card sx={{ 
+        bgcolor: 'white',
+        borderRadius: 3, 
+        border: 'none',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+        mb: 4
+      }}>
+        <CardContent sx={{ p: 4 }}>
+          {/* Header with Export Buttons */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+            <Box>
+              <Typography variant="h4" fontWeight={700} sx={{ 
+                mb: 1, 
+                color: colors.text, 
+                fontSize: '1.5rem'
+              }}>
+                {data?.engagementName || 'Engagement Report'}
+              </Typography>
+              <Typography variant="body2" sx={{ 
+                color: colors.textSecondary, 
+                mb: 0.5, 
+                fontWeight: 400
+              }}>
+                Uploaded: {data?.testTimestamp ? new Date(data.testTimestamp).toLocaleDateString() : 'N/A'}
+              </Typography>
+              <Typography variant="body2" sx={{ 
+                color: colors.textSecondary, 
+                fontWeight: 400
+              }}>
+                Status: {data?.overallStatus || 'N/A'} • Records: {data?.totalGlRecords?.toLocaleString() || '0'}
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                variant="contained"
+                sx={{
+                  bgcolor: colors.orange,
+                  color: 'white',
+                  minWidth: 'auto',
+                  width: 40,
+                  height: 40,
+                  padding: 0,
+                  '&:hover': {
+                    bgcolor: colors.primaryDark
+                  }
+                }}
+                title="Export Excel"
+              >
+                <DownloadIcon />
+              </Button>
+              <Button
+                variant="contained"
+                sx={{
+                  bgcolor: '#dc2626',
+                  color: 'white',
+                  minWidth: 'auto',
+                  width: 40,
+                  height: 40,
+                  padding: 0,
+                  '&:hover': {
+                    bgcolor: '#b91c1c'
+                  }
+                }}
+                title="Export PDF Report"
+              >
+                <PdfIcon />
+              </Button>
+            </Box>
+          </Box>
+
+          {/* Main Content with Circular Progress and Metrics */}
+          <Grid container spacing={2}>
+            {/* Circular Progress */}
+
+            <Grid size={{xs: 12, md: 3}} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+            <Box>
+              <Box sx={{
+                width: 120,
+                height: 120,
+                borderRadius: '50%',
+                background: `conic-gradient(${'#10b981'} 0deg ${(data?.completenessScore || 0) * 3.6}deg, #e5e7eb ${(data?.completenessScore || 0) * 3.6}deg 360deg)`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative'
+              }}>
+                <Box sx={{
+                  width: 90,
+                  height: 90,
+                  borderRadius: '50%',
+                  bgcolor: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Typography variant="h5" fontWeight={700} sx={{ color: colors.textSecondary }}>
+                    {data?.completenessScore?.toFixed(0) || '0'}%
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+
+            {/* Final Result Section */}
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center',flexDirection: 'column' }}>
+              <Typography fontSize={'0.8rem'} fontWeight={600} sx={{ color: colors.text, mt: 1 }}>
+                Final Result
+              </Typography>
+              <Chip 
+                label="SUCCESS" 
+                sx={{ 
+                  bgcolor: '#10b981', 
+                  color: 'white', 
+                  fontWeight: 600,
+                  fontSize: '0.75rem',
+                  px: 2,
+                  py: 0.5
+                }} 
+              />
+            </Box>
+            </Grid>
+            {/* Key Metrics Grid */}
+            <Grid size={{xs: 12, md: 9}}>
+              <Grid container spacing={2}>
+                {/* Row 1 - Test Results */}
+                <Grid size={{xs: 6, md: 3}}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2 }}>
+                    <CheckCircleIcon sx={{ fontSize: 24, color: colors.orange }} />
+                    <Box>
+                      <Typography variant="h6" fontWeight={700} sx={{ color: colors.text, fontSize: '1.25rem' }}>
+                        {data?.testsPassed || '0'}/{data?.totalTests || '0'}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: colors.textSecondary }}>
+                        Tests Passed
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid>
+                <Grid size={{xs: 6, md: 3}}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2 }}>
+                    <SecurityIcon sx={{ fontSize: 24, color: colors.orange }} />
+                    <Box>
+                      <Typography variant="h6" fontWeight={700} sx={{ color: colors.text, fontSize: '1.25rem' }}>
+                        {data?.criticalIssuesCount || '0'}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: colors.textSecondary }}>
+                        Critical Issues
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid>
+                <Grid size={{xs: 6, md: 3}}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2 }}>
+                    <AssessmentIcon sx={{ fontSize: 24, color: colors.orange }} />
+                    <Box>
+                      <Typography variant="h6" fontWeight={700} sx={{ color: colors.text, fontSize: '1.25rem' }}>
+                        {data?.comprehensiveStatistics?.summary_statistics?.account_verification_pass_rate ? 
+                          ((data.comprehensiveStatistics.summary_statistics.account_verification_pass_rate * 100).toFixed(1)) : '0'}%
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: colors.textSecondary }}>
+                        Account Verification
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid>
+                <Grid size={{xs: 6, md: 3}}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2 }}>
+                    <InfoIcon sx={{ fontSize: 24, color: colors.orange }} />
+                    <Box>
+                      <Typography variant="h6" fontWeight={700} sx={{ color: colors.text, fontSize: '1.25rem' }}>
+                        {data?.processingDuration?.toFixed(2) || '0'}s
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: colors.textSecondary }}>
+                        Processing Time
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid>
+
+                {/* Row 2 - Financial Stats */}
+                <Grid size={{xs: 6, md: 3}}>
+                  <Tooltip title={`Full Amount: ${((data?.comprehensiveStatistics?.enhanced_statistics?.amount_statistics?.total_debit_amount || 0) + (data?.comprehensiveStatistics?.enhanced_statistics?.amount_statistics?.total_credit_amount || 0)).toLocaleString()} SAR`} arrow>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2, cursor: 'pointer' }}>
+                      <MoneyIcon sx={{ fontSize: 24, color: colors.orange }} />
+                      <Box>
+                        <Typography variant="h6" fontWeight={700} sx={{ color: colors.text, fontSize: '1.25rem' }}>
+                          {formatCurrency((data?.comprehensiveStatistics?.enhanced_statistics?.amount_statistics?.total_debit_amount || 0) + (data?.comprehensiveStatistics?.enhanced_statistics?.amount_statistics?.total_credit_amount || 0))}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: colors.textSecondary }}>
+                          Total Amount
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Tooltip>
+                </Grid>
+                <Grid size={{xs: 6, md: 3}}>
+                  <Tooltip title={`Full Debit Amount: ${(data?.comprehensiveStatistics?.enhanced_statistics?.amount_statistics?.total_debit_amount || 0).toLocaleString()} SAR`} arrow>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2, cursor: 'pointer' }}>
+                      <AccountBalanceIcon sx={{ fontSize: 24, color: colors.orange }} />
+                      <Box>
+                        <Typography variant="h6" fontWeight={700} sx={{ color: colors.text, fontSize: '1.25rem' }}>
+                          {formatCurrency(data?.comprehensiveStatistics?.enhanced_statistics?.amount_statistics?.total_debit_amount || 0)}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: colors.textSecondary }}>
+                          Total Debit
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Tooltip>
+                </Grid>
+                <Grid size={{xs: 6, md: 3}}>
+                  <Tooltip title={`Full Credit Amount: ${(data?.comprehensiveStatistics?.enhanced_statistics?.amount_statistics?.total_credit_amount || 0).toLocaleString()} SAR`} arrow>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2, cursor: 'pointer' }}>
+                      <AccountBalanceIcon sx={{ fontSize: 24, color: colors.orange }} />
+                      <Box>
+                        <Typography variant="h6" fontWeight={700} sx={{ color: colors.text, fontSize: '1.25rem' }}>
+                          {formatCurrency(data?.comprehensiveStatistics?.enhanced_statistics?.amount_statistics?.total_credit_amount || 0)}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: colors.textSecondary }}>
+                          Total Credit
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Tooltip>
+                </Grid>
+                <Grid size={{xs: 6, md: 3}}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2 }}>
+                    <TrendingUpIcon sx={{ fontSize: 24, color: colors.orange }} />
+                    <Box>
+                      <Typography variant="h6" fontWeight={700} sx={{ color: colors.text, fontSize: '1.25rem' }}>
+                        {data?.comprehensiveStatistics?.enhanced_statistics?.basic_totals?.total_transactions?.toLocaleString() || '0'}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: colors.textSecondary }}>
+                        Transactions
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+
+      {/* Tabbed Dashboard */}
+      <Card sx={{ 
+        bgcolor: colors.surface, 
+        borderRadius: 3, 
+        border: 'none',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+        mb: 4
+      }}>
+        <Box sx={{ 
+          borderBottom: 1, 
+          borderColor: 'divider',
+          background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+          borderRadius: '12px 12px 0 0'
+        }}>
+          <Tabs 
+            value={activeTab} 
+            onChange={(e, newValue) => setActiveTab(newValue)}
+            sx={{ 
+              px: 3,
+              '& .MuiTabs-indicator': {
+                height: 3,
+                borderRadius: '3px 3px 0 0',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
+              }
+            }}
+          >
+            <Tab 
+              icon={<AssessmentIcon />} 
+              label="Overview" 
+              iconPosition="start"
+              sx={{ 
+                textTransform: 'none', 
+                fontWeight: 600,
+                minHeight: 64,
+                px: 3,
+                py: 2,
+                borderRadius: '8px 8px 0 0',
+                mx: 0.5,
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  bgcolor: 'rgba(102, 126, 234, 0.08)',
+                  transform: 'translateY(-2px)'
+                },
+                '&.Mui-selected': {
+                  bgcolor: 'rgba(102, 126, 234, 0.12)',
+                  color: colors.primary,
+                  '& .MuiSvgIcon-root': {
+                    color: colors.primary
+                  }
+                }
+              }}
+            />
+            <Tab 
+              icon={<TrendingUpIcon />} 
+              label="Financial Data" 
+              iconPosition="start"
+              sx={{ 
+                textTransform: 'none', 
+                fontWeight: 600,
+                minHeight: 64,
+                px: 3,
+                py: 2,
+                borderRadius: '8px 8px 0 0',
+                mx: 0.5,
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  bgcolor: 'rgba(102, 126, 234, 0.08)',
+                  transform: 'translateY(-2px)'
+                },
+                '&.Mui-selected': {
+                  bgcolor: 'rgba(102, 126, 234, 0.12)',
+                  color: colors.primary,
+                  '& .MuiSvgIcon-root': {
+                    color: colors.primary
+                  }
+                }
+              }}
+            />
+            <Tab 
+              icon={<AccountBalanceIcon />} 
+              label="Account Analysis" 
+              iconPosition="start"
+              sx={{ 
+                textTransform: 'none', 
+                fontWeight: 600,
+                minHeight: 64,
+                px: 3,
+                py: 2,
+                borderRadius: '8px 8px 0 0',
+                mx: 0.5,
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  bgcolor: 'rgba(102, 126, 234, 0.08)',
+                  transform: 'translateY(-2px)'
+                },
+                '&.Mui-selected': {
+                  bgcolor: 'rgba(102, 126, 234, 0.12)',
+                  color: colors.primary,
+                  '& .MuiSvgIcon-root': {
+                    color: colors.primary
+                  }
+                }
+              }}
+            />
+            <Tab 
+              icon={<SecurityIcon />} 
+              label="Audit & Quality" 
+              iconPosition="start"
+              sx={{ 
+                textTransform: 'none', 
+                fontWeight: 600,
+                minHeight: 64,
+                px: 3,
+                py: 2,
+                borderRadius: '8px 8px 0 0',
+                mx: 0.5,
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  bgcolor: 'rgba(102, 126, 234, 0.08)',
+                  transform: 'translateY(-2px)'
+                },
+                '&.Mui-selected': {
+                  bgcolor: 'rgba(102, 126, 234, 0.12)',
+                  color: colors.primary,
+                  '& .MuiSvgIcon-root': {
+                    color: colors.primary
+                  }
+                }
+              }}
+            />
+            <Tab 
+              icon={<InfoIcon />} 
+              label="Document Stats" 
+              iconPosition="start"
+              sx={{ 
+                textTransform: 'none', 
+                fontWeight: 600,
+                minHeight: 64,
+                px: 3,
+                py: 2,
+                borderRadius: '8px 8px 0 0',
+                mx: 0.5,
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  bgcolor: 'rgba(102, 126, 234, 0.08)',
+                  transform: 'translateY(-2px)'
+                },
+                '&.Mui-selected': {
+                  bgcolor: 'rgba(102, 126, 234, 0.12)',
+                  color: colors.primary,
+                  '& .MuiSvgIcon-root': {
+                    color: colors.primary
+                  }
+                }
+              }}
+            />
+          </Tabs>
+        </Box>
+
+        <Box sx={{ p: 3 }}>
+          {/* Overview Tab */}
+          {activeTab === 0 && (
+            <Box>
+              {/* Key Metrics Row */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid size={{xs: 12, sm: 6, md: 3}}>
           <Card sx={{ 
@@ -485,30 +962,85 @@ export default function CompletenessTestReport() {
                 </Box>
                 <TrendingUpIcon sx={{ fontSize: 20, color: colors.orange }} />
               </Box>
-              <Tooltip title={`Exact Amount: ${(data.documentStatistics?.gl_debit_total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SAR`} arrow>
-                <Typography variant="h4" fontWeight={700} color={colors.text} sx={{ mb: 1, fontSize: '1.875rem', cursor: 'help' }}>
-                  {formatCurrency(data.documentStatistics?.gl_debit_total || 0)}
+                      <Typography variant="h4" fontWeight={700} color={colors.text} sx={{ mb: 1, fontSize: '1.875rem' }}>
+                        {formatCurrency(data.comprehensiveStatistics?.document_statistics?.gl_debit_total || 0)}
               </Typography>
-              </Tooltip>
+                      <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.75rem' }}>
+                        Total Debits
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid size={{xs: 12, sm: 6, md: 3}}>
+                  <Card sx={{ 
+                    bgcolor: colors.surface, 
+                    borderRadius: 3, 
+                    height: '100%',
+                    border: 'none',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.12)'
+                  }}>
+                    <CardContent sx={{ p: 3 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  bgcolor: colors.orange,
-                  color: colors.lightGray,
-                  px: 1.5,
-                  py: 0.5,
-                  borderRadius: 2,
-                  fontSize: '0.75rem',
-                  fontWeight: 600
-                }}>
-                  Total Debits
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            bgcolor: colors.orange
+                          }} />
+                          <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
+                            GL TOTAL CREDIT
+                          </Typography>
+                        </Box>
+                        <TrendingUpIcon sx={{ fontSize: 20, color: colors.orange }} />
+                      </Box>
+                      <Typography variant="h4" fontWeight={700} color={colors.text} sx={{ mb: 1, fontSize: '1.875rem' }}>
+                        {formatCurrency(data.comprehensiveStatistics?.document_statistics?.gl_credit_total || 0)}
+                      </Typography>
+                      <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.75rem' }}>
+                        Total Credits
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid size={{xs: 12, sm: 6, md: 3}}>
+                  <Card sx={{ 
+                    bgcolor: colors.surface, 
+                    borderRadius: 3, 
+                    height: '100%',
+                    border: 'none',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.12)'
+                  }}>
+                    <CardContent sx={{ p: 3 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            bgcolor: colors.primary
+                          }} />
+                          <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
+                            NET BALANCE
+                          </Typography>
                 </Box>
+                        <CheckCircleIcon sx={{ fontSize: 20, color: colors.primary }} />
               </Box>
+                      <Typography variant="h4" fontWeight={700} color={colors.text} sx={{ mb: 1, fontSize: '1.875rem' }}>
+                        {formatCurrency(data.comprehensiveStatistics?.document_statistics?.gl_net_balance || 0)}
+                      </Typography>
+                      <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.75rem' }}>
+                        BALANCED
+                      </Typography>
             </CardContent>
           </Card>
+                </Grid>
         </Grid>
 
+              {/* Quick Stats Row */}
+              <Grid container spacing={3}>
         <Grid size={{xs: 12, sm: 6, md: 3}}>
           <Card sx={{ 
             bgcolor: colors.surface, 
@@ -527,31 +1059,60 @@ export default function CompletenessTestReport() {
                     bgcolor: colors.text
                   }} />
                   <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
-                    GL TOTAL CREDIT
+                            TOTAL ACCOUNTS
+                  </Typography>
+                </Box>
+                        <AssessmentIcon sx={{ fontSize: 20, color: colors.text }} />
+              </Box>
+                      <Typography variant="h4" fontWeight={700} color={colors.text} sx={{ mb: 1, fontSize: '1.875rem' }}>
+                        {data.comprehensiveStatistics?.enhanced_statistics?.basic_totals?.total_gl_accounts || 0}
+              </Typography>
+                      <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.75rem' }}>
+                        Unique Accounts
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+
+
+              </Grid>
+            </Box>
+          )}
+
+          {/* Financial Data Tab */}
+          {activeTab === 1 && (
+            <Box>
+              <Grid container spacing={3}>
+                <Grid size={{xs: 12, sm: 6, md: 3}}>
+                  <Card sx={{ 
+                    bgcolor: colors.surface, 
+                    borderRadius: 3, 
+                    height: '100%',
+                    border: 'none',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.12)'
+                  }}>
+                    <CardContent sx={{ p: 3 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ 
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            bgcolor: colors.text
+                          }} />
+                          <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
+                            MAX AMOUNT
                   </Typography>
                 </Box>
                 <TrendingUpIcon sx={{ fontSize: 20, color: colors.text }} />
               </Box>
-              <Tooltip title={`Exact Amount: ${(data.documentStatistics?.gl_credit_total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SAR`} arrow>
-                <Typography variant="h4" fontWeight={700} color={colors.text} sx={{ mb: 1, fontSize: '1.875rem', cursor: 'help' }}>
-                  {formatCurrency(data.documentStatistics?.gl_credit_total || 0)}
+                      <Typography variant="h4" fontWeight={700} color={colors.text} sx={{ mb: 1, fontSize: '1.875rem' }}>
+                        {formatCurrency(data.comprehensiveStatistics?.enhanced_statistics?.amount_statistics?.max_amount || 0)}
               </Typography>
-              </Tooltip>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  bgcolor: colors.lightGray,
-                  color: colors.text,
-                  px: 1.5,
-                  py: 0.5,
-                  borderRadius: 2,
-                  fontSize: '0.75rem',
-                  fontWeight: 600
-                }}>
-                  Total Credits
-                </Box>
-              </Box>
+                      <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.75rem' }}>
+                        Single Transaction
+                      </Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -571,41 +1132,57 @@ export default function CompletenessTestReport() {
                     width: 8,
                     height: 8,
                     borderRadius: '50%',
-                    bgcolor: data.documentStatistics?.gl_net_balance === 0 ? '#10b981' : colors.text
+                            bgcolor: colors.primary
                   }} />
                   <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
-                    NET BALANCE
+                            MEAN AMOUNT
                   </Typography>
                 </Box>
-                <CheckCircleIcon sx={{ fontSize: 20, color: data.documentStatistics?.gl_net_balance === 0 ? '#10b981' : colors.text }} />
+                        <TrendingUpIcon sx={{ fontSize: 20, color: colors.primary }} />
               </Box>
-              <Tooltip title={`Exact Amount: ${(data.documentStatistics?.gl_net_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SAR`} arrow>
-                <Typography variant="h4" fontWeight={700} color={colors.text} sx={{ mb: 1, fontSize: '1.875rem', cursor: 'help' }}>
-                  {formatCurrency(data.documentStatistics?.gl_net_balance || 0)}
+                      <Typography variant="h4" fontWeight={700} color={colors.text} sx={{ mb: 1, fontSize: '1.875rem' }}>
+                        {formatCurrency(data.comprehensiveStatistics?.enhanced_statistics?.amount_statistics?.mean_amount || 0)}
               </Typography>
-              </Tooltip>
+                      <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.75rem' }}>
+                        Average Transaction
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid size={{xs: 12, sm: 6, md: 3}}>
+                  <Card sx={{ 
+                    bgcolor: colors.surface, 
+                    borderRadius: 3, 
+                    height: '100%',
+                    border: 'none',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.12)'
+                  }}>
+                    <CardContent sx={{ p: 3 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  bgcolor: data.documentStatistics?.gl_net_balance === 0 ? '#dcfce7' : colors.lightGray,
-                  color: data.documentStatistics?.gl_net_balance === 0 ? '#059669' : colors.text,
-                  px: 1.5,
-                  py: 0.5,
-                  borderRadius: 2,
-                  fontSize: '0.75rem',
-                  fontWeight: 600
-                }}>
-                  {data.documentStatistics?.gl_net_balance <1 ? 'BALANCED' : 'UNBALANCED'}
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            bgcolor: colors.text
+                          }} />
+                          <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
+                            MEDIAN AMOUNT
+                          </Typography>
                 </Box>
+                        <AssessmentIcon sx={{ fontSize: 20, color: colors.text }} />
               </Box>
+                      <Typography variant="h4" fontWeight={700} color={colors.text} sx={{ mb: 1, fontSize: '1.875rem' }}>
+                        {formatCurrency(data.comprehensiveStatistics?.enhanced_statistics?.amount_statistics?.median_amount || 0)}
+                      </Typography>
+                      <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.75rem' }}>
+                        Middle Value
+                      </Typography>
             </CardContent>
           </Card>
-        </Grid>
       </Grid>
 
-      {/* Secondary GL Statistics Cards */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid size={{xs: 12, sm: 6, md: 3}}>
           <Card sx={{ 
             bgcolor: colors.surface, 
@@ -624,29 +1201,90 @@ export default function CompletenessTestReport() {
                     bgcolor: colors.primary
                   }} />
                   <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
-                    TOTAL ACCOUNTS
+                            STD DEVIATION
                   </Typography>
                 </Box>
-                <TableChartIcon sx={{ fontSize: 20, color: colors.primary }} />
+                        <InfoIcon sx={{ fontSize: 20, color: colors.primary }} />
               </Box>
               <Typography variant="h4" fontWeight={700} color={colors.text} sx={{ mb: 1, fontSize: '1.875rem' }}>
-                {data.documentStatistics?.unique_accounts?.toLocaleString() || '0'}
+                        {formatCurrency(data.comprehensiveStatistics?.enhanced_statistics?.amount_statistics?.std_deviation_amount || 0)}
               </Typography>
+                      <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.75rem' }}>
+                        Variability
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+
+          {/* Account Analysis Tab */}
+          {activeTab === 2 && (
+            <Box>
+              <Grid container spacing={3}>
+                <Grid size={{xs: 12, sm: 6, md: 3}}>
+                  <Card sx={{ 
+                    bgcolor: colors.surface, 
+                    borderRadius: 3, 
+                    height: '100%',
+                    border: 'none',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.12)'
+                  }}>
+                    <CardContent sx={{ p: 3 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  bgcolor: colors.lightGray,
-                  color: colors.primary,
-                  px: 1.5,
-                  py: 0.5,
-                  borderRadius: 2,
-                  fontSize: '0.75rem',
-                  fontWeight: 600
-                }}>
-                  Unique Accounts
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            bgcolor: colors.text
+                          }} />
+                          <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
+                            TOTAL USERS
+                          </Typography>
+                        </Box>
+                        <InfoIcon sx={{ fontSize: 20, color: colors.text }} />
+                      </Box>
+                      <Typography variant="h4" fontWeight={700} color={colors.text} sx={{ mb: 1, fontSize: '1.875rem' }}>
+                        {data.comprehensiveStatistics?.enhanced_statistics?.basic_totals?.total_users || 0}
+                      </Typography>
+                      <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.75rem' }}>
+                        Active Users
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid size={{xs: 12, sm: 6, md: 3}}>
+                  <Card sx={{ 
+                    bgcolor: colors.surface, 
+                    borderRadius: 3, 
+                    height: '100%',
+                    border: 'none',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.12)'
+                  }}>
+                    <CardContent sx={{ p: 3 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            bgcolor: colors.primary
+                          }} />
+                          <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
+                            PROFIT CENTERS
+                          </Typography>
                 </Box>
+                        <TrendingUpIcon sx={{ fontSize: 20, color: colors.primary }} />
               </Box>
+                      <Typography variant="h4" fontWeight={700} color={colors.text} sx={{ mb: 1, fontSize: '1.875rem' }}>
+                        {data.comprehensiveStatistics?.enhanced_statistics?.basic_totals?.total_profit_centers || 0}
+                      </Typography>
+                      <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.75rem' }}>
+                        Business Units
+                      </Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -669,33 +1307,61 @@ export default function CompletenessTestReport() {
                     bgcolor: colors.text
                   }} />
                   <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
-                    TOTAL RECORDS
+                            DEBIT ENTRIES
                   </Typography>
                 </Box>
                 <AssessmentIcon sx={{ fontSize: 20, color: colors.text }} />
               </Box>
               <Typography variant="h4" fontWeight={700} color={colors.text} sx={{ mb: 1, fontSize: '1.875rem' }}>
-                {data.documentStatistics?.total_gl_records?.toLocaleString() || '0'}
+                        {data.comprehensiveStatistics?.enhanced_statistics?.basic_totals?.total_debit_entries?.toLocaleString() || 0}
               </Typography>
+                      <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.75rem' }}>
+                        Journal Lines
+                      </Typography>
+                    </CardContent>
+                  </Card>
+      </Grid>
+
+        <Grid size={{xs: 12, sm: 6, md: 3}}>
+          <Card sx={{ 
+            bgcolor: colors.surface, 
+            borderRadius: 3, 
+            height: '100%',
+            border: 'none',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.12)'
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  bgcolor: colors.lightGray,
-                  color: colors.text,
-                  px: 1.5,
-                  py: 0.5,
-                  borderRadius: 2,
-                  fontSize: '0.75rem',
-                  fontWeight: 600
-                }}>
-                  Journal Lines
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    bgcolor: colors.primary
+                  }} />
+                  <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
+                            CREDIT ENTRIES
+                  </Typography>
                 </Box>
+                        <AssessmentIcon sx={{ fontSize: 20, color: colors.primary }} />
               </Box>
+              <Typography variant="h4" fontWeight={700} color={colors.text} sx={{ mb: 1, fontSize: '1.875rem' }}>
+                        {data.comprehensiveStatistics?.enhanced_statistics?.basic_totals?.total_credit_entries?.toLocaleString() || 0}
+              </Typography>
+                      <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.75rem' }}>
+                        Journal Lines
+                      </Typography>
             </CardContent>
           </Card>
         </Grid>
+              </Grid>
+            </Box>
+          )}
 
+          {/* Audit & Quality Tab */}
+          {activeTab === 3 && (
+            <Box>
+              <Grid container spacing={3}>
         <Grid size={{xs: 12, sm: 6, md: 3}}>
           <Card sx={{ 
             bgcolor: colors.surface, 
@@ -714,29 +1380,157 @@ export default function CompletenessTestReport() {
                     bgcolor: colors.text
                   }} />
                   <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
-                    TOTAL TESTS
+                            USERS WITH ACTIVITY
                   </Typography>
                 </Box>
                 <CheckCircleIcon sx={{ fontSize: 20, color: colors.text }} />
               </Box>
               <Typography variant="h4" fontWeight={700} color={colors.text} sx={{ mb: 1, fontSize: '1.875rem' }}>
-                {data.overall?.completeFields || 0}/{data.overall?.totalFields || 0}
+                        {data.comprehensiveStatistics?.enhanced_statistics?.data_quality_metrics?.users_with_activity || 0}
               </Typography>
+                      <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.75rem' }}>
+                        Active Users
+                      </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid size={{xs: 12, sm: 6, md: 3}}>
+          <Card sx={{ 
+            bgcolor: colors.surface, 
+            borderRadius: 3, 
+            height: '100%',
+            border: 'none',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.12)'
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  bgcolor: colors.lightGray,
-                  color: colors.text,
-                  px: 1.5,
-                  py: 0.5,
-                  borderRadius: 2,
-                  fontSize: '0.75rem',
-                  fontWeight: 600
-                }}>
-                  Tests Passed
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    bgcolor: colors.text
+                  }} />
+                  <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
+                            ACCOUNTS WITH TRANSACTIONS
+                  </Typography>
                 </Box>
+                <AssessmentIcon sx={{ fontSize: 20, color: colors.text }} />
               </Box>
+              <Typography variant="h4" fontWeight={700} color={colors.text} sx={{ mb: 1, fontSize: '1.875rem' }}>
+                        {data.comprehensiveStatistics?.enhanced_statistics?.data_quality_metrics?.accounts_with_transactions || 0}
+              </Typography>
+                      <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.75rem' }}>
+                        Active Accounts
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid size={{xs: 12, sm: 6, md: 3}}>
+                  <Card sx={{ 
+                    bgcolor: colors.surface, 
+                    borderRadius: 3, 
+                    height: '100%',
+                    border: 'none',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.12)'
+                  }}>
+                    <CardContent sx={{ p: 3 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ 
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            bgcolor: colors.text
+                          }} />
+                          <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
+                            AVG TRANSACTIONS/USER
+                          </Typography>
+                </Box>
+                        <TrendingUpIcon sx={{ fontSize: 20, color: colors.text }} />
+              </Box>
+                      <Typography variant="h4" fontWeight={700} color={colors.text} sx={{ mb: 1, fontSize: '1.875rem' }}>
+                        {Math.round(data.comprehensiveStatistics?.enhanced_statistics?.data_quality_metrics?.average_transactions_per_user || 0).toLocaleString()}
+                      </Typography>
+                      <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.75rem' }}>
+                        Per User
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid size={{xs: 12, sm: 6, md: 3}}>
+                  <Card sx={{ 
+                    bgcolor: colors.surface, 
+                    borderRadius: 3, 
+                    height: '100%',
+                    border: 'none',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.12)'
+                  }}>
+                    <CardContent sx={{ p: 3 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            bgcolor: colors.primary
+                          }} />
+                          <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
+                            AVG TRANSACTIONS/ACCOUNT
+                          </Typography>
+                </Box>
+                        <AssessmentIcon sx={{ fontSize: 20, color: colors.primary }} />
+              </Box>
+                      <Typography variant="h4" fontWeight={700} color={colors.text} sx={{ mb: 1, fontSize: '1.875rem' }}>
+                        {Math.round(data.comprehensiveStatistics?.enhanced_statistics?.data_quality_metrics?.average_transactions_per_account || 0).toLocaleString()}
+                      </Typography>
+                      <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.75rem' }}>
+                        Per Account
+                      </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+              </Grid>
+            </Box>
+          )}
+
+
+          {/* Document Stats Tab */}
+          {activeTab === 4 && (
+            <Box>
+              <Grid container spacing={3}>
+        <Grid size={{xs: 12, sm: 6, md: 3}}>
+          <Card sx={{ 
+            bgcolor: colors.surface, 
+            borderRadius: 3, 
+            height: '100%',
+            border: 'none',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.12)'
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                            bgcolor: colors.primary
+                  }} />
+                  <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
+                            GL DEBIT TOTAL
+                  </Typography>
+                </Box>
+                        <TrendingUpIcon sx={{ fontSize: 20, color: colors.primary }} />
+              </Box>
+              <Typography variant="h4" fontWeight={700} color={colors.text} sx={{ mb: 1, fontSize: '1.875rem' }}>
+                        {formatCurrency(data?.comprehensiveStatistics?.document_statistics?.gl_debit_total || 0)}
+              </Typography>
+                      <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.75rem' }}>
+                        Total Debit Amount
+                      </Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -759,184 +1553,117 @@ export default function CompletenessTestReport() {
                     bgcolor: colors.orange
                   }} />
                   <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
-                    UNIQUE JOURNAL IDS
+                            GL CREDIT TOTAL
                   </Typography>
                 </Box>
-                <InfoIcon sx={{ fontSize: 20, color: colors.orange }} />
+                        <TrendingUpIcon sx={{ fontSize: 20, color: colors.orange }} />
               </Box>
               <Typography variant="h4" fontWeight={700} color={colors.text} sx={{ mb: 1, fontSize: '1.875rem' }}>
-                {Math.floor((data.documentStatistics?.total_gl_records || 0) * 0.038).toLocaleString()}
+                        {formatCurrency(data?.comprehensiveStatistics?.document_statistics?.gl_credit_total || 0)}
               </Typography>
+                      <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.75rem' }}>
+                        Total Credit Amount
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid size={{xs: 12, sm: 6, md: 3}}>
+                  <Card sx={{ 
+                    bgcolor: colors.surface, 
+                    borderRadius: 3, 
+                    height: '100%',
+                    border: 'none',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.12)'
+                  }}>
+                    <CardContent sx={{ p: 3 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  bgcolor: colors.lightGray,
-                  color: colors.orange,
-                  px: 1.5,
-                  py: 0.5,
-                  borderRadius: 2,
-                  fontSize: '0.75rem',
-                  fontWeight: 600
-                }}>
-                  Journal Entries
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            bgcolor: colors.secondary
+                          }} />
+                          <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
+                            GL NET BALANCE
+                          </Typography>
                 </Box>
+                        <InfoIcon sx={{ fontSize: 20, color: colors.secondary }} />
               </Box>
+                      <Typography variant="h4" fontWeight={700} color={colors.text} sx={{ mb: 1, fontSize: '1.875rem' }}>
+                        {formatCurrency(data?.comprehensiveStatistics?.document_statistics?.gl_net_balance || 0)}
+                      </Typography>
+                      <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.75rem' }}>
+                        Net Balance
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid size={{xs: 12, sm: 6, md: 3}}>
+                  <Card sx={{ 
+                    bgcolor: colors.surface, 
+                    borderRadius: 3, 
+                    height: '100%',
+                    border: 'none',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.12)'
+                  }}>
+                    <CardContent sx={{ p: 3 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            bgcolor: colors.text
+                          }} />
+                          <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
+                            UNIQUE ACCOUNTS
+                          </Typography>
+                </Box>
+                        <AccountBalanceIcon sx={{ fontSize: 20, color: colors.text }} />
+              </Box>
+                      <Typography variant="h4" fontWeight={700} color={colors.text} sx={{ mb: 1, fontSize: '1.875rem' }}>
+                        {data?.comprehensiveStatistics?.document_statistics?.unique_accounts?.toLocaleString() || '0'}
+                      </Typography>
+                      <Typography variant="body2" color={colors.textSecondary} sx={{ fontSize: '0.75rem' }}>
+                        Total Unique Accounts
+                      </Typography>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
+            </Box>
+          )}
+
+        </Box>
+      </Card>
+
+      {/* Charts Dashboard */}
+      <CompletenessAnalysisDashboard data={data} />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
       {/* Wallet Section */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-      <Grid size={{xs: 12, md: 12}}>
-          <Card sx={{ 
-            bgcolor: colors.surface, 
-            borderRadius: 3, 
-            height: '100%',
-            border: 'none',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.12)'
-          }}>
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h6" fontWeight={600} color={colors.text} sx={{ fontSize: '1rem' }}>
-                  Statistics
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  {['1D', '7D', '1M', '1Y', 'All'].map((period) => (
-                    <Button
-                      key={period}
-                      size="small"
-                      variant={period === '7D' ? 'contained' : 'text'}
-                      sx={{ 
-                        minWidth: 32,
-                        height: 28,
-                        fontSize: '0.75rem',
-                        bgcolor: period === '7D' ? colors.primary : 'transparent',
-                        color: period === '7D' ? colors.surface : colors.textSecondary,
-                        '&:hover': {
-                          bgcolor: period === '7D' ? colors.primary : colors.lightGray
-                        }
-                      }}
-                    >
-                      {period}
-                    </Button>
-                  ))}
-                </Box>
-              </Box>
-              
-              <Box sx={{ height: 300 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={data.timeSeriesData || []} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                    <defs>
-                      <linearGradient id="debitGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={colors.primary} stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor={colors.primary} stopOpacity={0.1}/>
-                      </linearGradient>
-                      <linearGradient id="creditGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={colors.orange} stopOpacity={0.6}/>
-                        <stop offset="95%" stopColor={colors.orange} stopOpacity={0.1}/>
-                      </linearGradient>
-                      <linearGradient id="volumeGradientStats" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={colors.orange} stopOpacity={0.4}/>
-                        <stop offset="95%" stopColor={colors.orange} stopOpacity={0.05}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={colors.lightGray} strokeOpacity={0.3} />
-                    <XAxis 
-                      dataKey="date" 
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 12, fill: colors.textSecondary }}
-                    />
-                    <YAxis 
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 12, fill: colors.textSecondary }}
-                      tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M SAR`}
-                    />
-                    <RechartsTooltip 
-                      content={({ active, payload, label }) => {
-                        if (active && payload && payload.length) {
-                          return (
-                            <Box sx={{
-                              bgcolor: 'white',
-                              border: `1px solid ${colors.lightGray}`,
-                              borderRadius: 2,
-                              p: 1.5,
-                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                            }}>
-                              <Typography variant="body2" sx={{ fontWeight: 600, color: colors.text, mb: 0.5 }}>
-                                {label}
-                              </Typography>
-                              {payload.map((entry, index) => (
-                                <Typography key={index} variant="caption" sx={{ color: entry.color, display: 'block' }}>
-                                  {entry.name}: {(entry.value / 1000000).toFixed(2)}M SAR
-                                </Typography>
-                              ))}
-                            </Box>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="totalVolume"
-                      stackId="1"
-                      stroke={colors.orange}
-                      strokeWidth={2}
-                      fill="url(#volumeGradientStats)"
-                      dot={{ fill: colors.orange, strokeWidth: 2, r: 3 }}
-                      activeDot={{ 
-                        r: 5, 
-                        fill: colors.orange,
-                        stroke: 'white',
-                        strokeWidth: 2
-                      }}
-                      name="Total Volume"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="creditTotal"
-                      stackId="2"
-                      stroke={colors.orange}
-                      strokeWidth={2}
-                      fill="url(#creditGradient)"
-                      dot={{ fill: colors.orange, strokeWidth: 2, r: 3 }}
-                      activeDot={{ 
-                        r: 5, 
-                        fill: colors.orange,
-                        stroke: 'white',
-                        strokeWidth: 2
-                      }}
-                      name="Credit Total"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="debitTotal"
-                      stackId="3"
-                      stroke={colors.primary}
-                      strokeWidth={3}
-                      fill="url(#debitGradient)"
-                      dot={{ fill: colors.primary, strokeWidth: 2, r: 4 }}
-                      activeDot={{ 
-                        r: 6, 
-                        fill: colors.primary,
-                        stroke: 'white',
-                        strokeWidth: 2,
-                        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
-                      }}
-                      name="Debit Total"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
         <Grid size={{xs: 12, md: 4}}>
           <Card sx={{ 
             bgcolor: colors.surface, 
@@ -1071,153 +1798,7 @@ export default function CompletenessTestReport() {
       </Grid>
 
 
-      {/* User Analytics Section */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid size={{xs: 12, md: 6}}>
-          <Card sx={{ 
-            bgcolor: colors.surface, 
-            borderRadius: 3, 
-            border: 'none',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.12)'
-          }}>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" fontWeight={600} color={colors.text} sx={{ fontSize: '1rem', mb: 3 }}>
-                Top Accounts by Transaction Volume
-              </Typography>
-              
-              <Box sx={{ height: 300 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={(data.userAnalysis || []).slice(0, 10)} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis 
-                      dataKey="user_name" 
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 10, fill: colors.textSecondary }}
-                      angle={-45}
-                      textAnchor="end"
-                      height={80}
-                    />
-                    <YAxis 
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 12, fill: colors.textSecondary }}
-                      tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M SAR`}
-                    />
-                    <RechartsTooltip 
-                      contentStyle={{
-                        backgroundColor: 'white',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: 8,
-                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                      }}
-                      formatter={(value, name) => [
-                        `${(value / 1000000).toFixed(2)}M SAR`, 
-                        name === 'debit_total' ? 'Debit Total' : 'Credit Total'
-                      ]}
-                    />
-                    <Bar dataKey="debit_total" fill={colors.primary} name="Debit Total" radius={[2, 2, 0, 0]} />
-                    <Bar dataKey="credit_total" fill={colors.orange} name="Credit Total" radius={[2, 2, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
 
-        <Grid size={{xs: 12, md: 6}}>
-          <Card sx={{ 
-            bgcolor: colors.surface, 
-            borderRadius: 3, 
-            border: 'none',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.12)'
-          }}>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" fontWeight={600} color={colors.text} sx={{ fontSize: '1rem', mb: 3 }}>
-                Account Volume Distribution (Top 8)
-              </Typography>
-              
-              <Box sx={{ height: 300 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={(data.userAnalysis || []).slice(0, 8).map((account, index) => ({
-                      name: account.account_name || account.user_name,
-                      volume: account.total_volume / 1000000, // Convert to millions
-                      index: index
-                    }))}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-                  >
-                    <defs>
-                      <linearGradient id="volumeGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={colors.orange} stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor={colors.orange} stopOpacity={0.1}/>
-                      </linearGradient>
-                      <linearGradient id="volumeGradient2" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={colors.primary} stopOpacity={0.6}/>
-                        <stop offset="95%" stopColor={colors.primary} stopOpacity={0.05}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={colors.lightGray} strokeOpacity={0.3} />
-                    <XAxis 
-                      dataKey="name"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 10, fill: colors.textSecondary }}
-                      angle={-45}
-                      textAnchor="end"
-                      height={80}
-                    />
-                    <YAxis 
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 12, fill: colors.textSecondary }}
-                      tickFormatter={(value) => `${value.toFixed(1)}M SAR`}
-                    />
-                    <RechartsTooltip 
-                      content={({ active, payload, label }) => {
-                        if (active && payload && payload.length) {
-                          return (
-                            <Box sx={{
-                              bgcolor: 'white',
-                              border: `1px solid ${colors.lightGray}`,
-                              borderRadius: 2,
-                              p: 1.5,
-                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                            }}>
-                              <Typography variant="body2" sx={{ fontWeight: 600, color: colors.text, mb: 0.5 }}>
-                                {label}
-                              </Typography>
-                              <Typography variant="caption" sx={{ color: colors.textSecondary }}>
-                                Volume: {payload[0].value.toFixed(2)}M SAR
-                              </Typography>
-                            </Box>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="volume"
-                      stroke={colors.orange}
-                      strokeWidth={3}
-                      fill="url(#volumeGradient)"
-                      dot={{ fill: colors.orange, strokeWidth: 2, r: 4 }}
-                      activeDot={{ 
-                        r: 6, 
-                        fill: colors.orange,
-                        stroke: 'white',
-                        strokeWidth: 2,
-                        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
-                      }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
 
       {/* Monthly Statistics Table */}
       <Card sx={{ 
@@ -1287,12 +1868,12 @@ export default function CompletenessTestReport() {
         </CardContent>
       </Card>
 
-      {/* Account Verifications Section */}
-      {accountVerifications && (
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h5" fontWeight={700} sx={{ mb: 3, color: colors.text }}>
-            Account Verifications Details
-          </Typography>
+       {/* Account Verifications Section - Optional */}
+       {accountVerifications && accountVerifications.results && (
+         <Box sx={{ mb: 4 }}>
+           <Typography variant="h5" fontWeight={700} sx={{ mb: 3, color: colors.text }}>
+             Account Verifications Details
+           </Typography>
 
           {/* Summary Cards */}
           <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -1477,8 +2058,16 @@ export default function CompletenessTestReport() {
             </Grid>
           </Grid>
 
-          {/* Failed Accounts Details - Modern Chart-Oriented Design */}
-          {failedAccountVerifications?.results?.results?.length > 0 && (
+           {/* Failed Accounts Details - Modern Chart-Oriented Design */}
+           {(() => {
+             console.log('Failed Account Verifications Debug:', {
+               failedAccountVerifications,
+               hasResults: !!failedAccountVerifications?.results,
+               hasResultsArray: !!failedAccountVerifications?.results?.results,
+               resultsLength: failedAccountVerifications?.results?.results?.length || 0
+             });
+             return failedAccountVerifications?.results?.results && failedAccountVerifications.results.results.length > 0;
+           })() && (
             <Box sx={{ mb: 4 }}>
               {/* Header */}
               <Box sx={{ mb: 3 }}>
@@ -1582,31 +2171,47 @@ export default function CompletenessTestReport() {
                           <Typography variant="caption" sx={{ color: colors.textSecondary, fontSize: '0.7rem', fontWeight: 600, mb: 2, display: 'block' }}>
                             GL vs TB COMPARISON
                           </Typography>
-                          <Box sx={{ height: 120 }}>
+                          <Box sx={{ height: 80 }}>
                             <ResponsiveContainer width="100%" height="100%">
-                              <BarChart 
-                                data={[
-                                  {
-                                    name: 'Debit',
-                                    GL: account.gl_debit_total / 1000000,
-                                    TB: account.tb_debit / 1000000
-                                  },
-                                  {
-                                    name: 'Credit',
-                                    GL: account.gl_credit_total / 1000000,
-                                    TB: account.tb_credit / 1000000
-                                  }
-                                ]}
-                                margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
-                              >
-                                <XAxis dataKey="name" tick={{ fontSize: 10, fill: colors.textSecondary }} />
-                                <YAxis tick={{ fontSize: 10, fill: colors.textSecondary }} />
-                                <RechartsTooltip 
-                                  formatter={(value, name) => [`${value.toFixed(1)}M SAR`, name === 'GL' ? 'General Ledger' : 'Trial Balance']}
-                                  labelFormatter={(label) => `${label} Amount`}
+                              <BarChart data={[
+                                { 
+                                  name: 'GL', 
+                                  value: account.gl_debit_total || 0,
+                                  type: 'Debit'
+                                },
+                                { 
+                                  name: 'TB', 
+                                  value: account.tb_debit_total || 0,
+                                  type: 'Debit'
+                                },
+                                { 
+                                  name: 'GL', 
+                                  value: account.gl_credit_total || 0,
+                                  type: 'Credit'
+                                },
+                                { 
+                                  name: 'TB', 
+                                  value: account.tb_credit_total || 0,
+                                  type: 'Credit'
+                                }
+                              ]} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                                <XAxis 
+                                  dataKey="name" 
+                                  tick={{ fontSize: 8, fill: colors.textSecondary }}
+                                  axisLine={false}
+                                  tickLine={false}
                                 />
-                                <Bar dataKey="GL" fill={colors.primary} name="GL" radius={[2, 2, 0, 0]} />
-                                <Bar dataKey="TB" fill={colors.orange} name="TB" radius={[2, 2, 0, 0]} />
+                                <YAxis 
+                                  tick={{ fontSize: 8, fill: colors.textSecondary }}
+                                  axisLine={false}
+                                  tickLine={false}
+                                  tickFormatter={(value) => formatCurrency(value, 'SAR', true)}
+                                />
+                                <Bar 
+                                  dataKey="value" 
+                                  fill={(entry) => entry.type === 'Debit' ? colors.secondary : colors.primary}
+                                  radius={[2, 2, 0, 0]}
+                                />
                               </BarChart>
                             </ResponsiveContainer>
                           </Box>
@@ -1709,7 +2314,7 @@ export default function CompletenessTestReport() {
               <Box sx={{ p: 3, borderBottom: `1px solid ${colors.lightGray}` }}>
                 <Typography variant="h6" fontWeight={600} sx={{ color: colors.text, display: 'flex', alignItems: 'center', gap: 1 }}>
                   <TableChartIcon sx={{ fontSize: 18, color: colors.primary }} />
-                  Account Verification Summary (First 10)
+                  Account Verification Summary
                 </Typography>
                 <Typography variant="body2" sx={{ color: colors.textSecondary, mt: 0.5 }}>
                   GL vs TB account-level reconciliation results
@@ -1729,7 +2334,7 @@ export default function CompletenessTestReport() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {accountVerifications.results?.results?.slice(0, 10).map((account, index) => (
+                    {accountVerifications.results?.results?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((account, index) => (
                       <TableRow key={index}>
                         <TableCell sx={{ fontSize: '0.875rem', fontWeight: 500 }}>{account.account_code}</TableCell>
                         <TableCell sx={{ fontSize: '0.875rem' }}>
@@ -1775,19 +2380,49 @@ export default function CompletenessTestReport() {
                   </TableBody>
                 </Table>
               </TableContainer>
-              {accountVerifications.results?.results?.length > 10 && (
-                <Box sx={{ p: 2, borderTop: `1px solid ${colors.lightGray}`, bgcolor: colors.lightGray }}>
+              {accountVerifications.results?.results?.length > itemsPerPage && (
+                <Box sx={{ 
+                  p: 2, 
+                  borderTop: `1px solid ${colors.lightGray}`, 
+                  bgcolor: colors.lightGray,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
                   <Typography variant="caption" sx={{ color: colors.textSecondary }}>
-                    Showing first 10 of {accountVerifications.results.total_verifications} account verifications
+                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, accountVerifications.results?.results?.length || 0)} of {accountVerifications.results?.results?.length || 0} account verifications
                   </Typography>
+                  <Pagination
+                    count={Math.ceil((accountVerifications.results?.results?.length || 0) / itemsPerPage)}
+                    page={currentPage}
+                    onChange={(event, page) => setCurrentPage(page)}
+                    size="small"
+                    color="primary"
+                    sx={{
+                      '& .MuiPaginationItem-root': {
+                        fontSize: '0.75rem',
+                        minWidth: '32px',
+                        height: '32px'
+                      }
+                    }}
+                  />
                 </Box>
               )}
             </CardContent>
           </Card>
-        </Box>
-      )}
+         </Box>
+       )}
 
-      {/* Action Buttons */}
+       {/* Account Verification Not Available Message */}
+       {!accountVerifications && (
+         <Box sx={{ mb: 4, textAlign: 'center', py: 4 }}>
+           <Typography variant="body2" sx={{ color: colors.textSecondary, fontStyle: 'italic' }}>
+             Account verification details are not available for this engagement
+           </Typography>
+         </Box>
+       )}
+
+       {/* Action Buttons */}
       <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
         {data.overall.status === 'NO_RESULTS' ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 2 }}>
