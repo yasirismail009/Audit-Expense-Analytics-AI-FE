@@ -1,0 +1,1 @@
+export { DocumentVerificationsSection } from './DocumentVerificationsSection';

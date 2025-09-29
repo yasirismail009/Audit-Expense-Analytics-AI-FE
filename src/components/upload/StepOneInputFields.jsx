@@ -71,6 +71,13 @@ export default function StepOneInputFields({ formData, updateFormData, onNext })
 
   const handleNext = () => {
     if (validateForm()) {
+      // Ensure version and version_notes have default values if not provided
+      const updatedFormData = {
+        ...formData,
+        version: formData.version || '1.0',
+        version_notes: formData.version_notes || 'Initial upload'
+      };
+      updateFormData(updatedFormData);
       onNext();
     }
   };
@@ -368,6 +375,92 @@ export default function StepOneInputFields({ formData, updateFormData, onNext })
               InputLabelProps={{ shrink: true }}
               error={!!errors.audit_end_date}
               helperText={errors.audit_end_date || "Select the end date for your audit period"}
+              size="small"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  bgcolor: '#F8F9FA',
+                  borderRadius: 2,
+                  fontSize: '0.8rem',
+                  '& fieldset': { 
+                    border: 'none'
+                  },
+                  '&:hover fieldset': { 
+                    border: 'none'
+                  },
+                  '&.Mui-focused fieldset': { 
+                    border: 'none'
+                  },
+                  '& input': {
+                    fontSize: '0.8rem',
+                    fontFamily: '"Inter", sans-serif',
+                    padding: '8px 12px'
+                  }
+                }
+              }}
+            />
+          </Box>
+        </Grid>
+
+        {/* Version Fields */}
+        <Grid item size={{xs: 12, md: 6}}>
+          <Box>
+            <Typography variant="body2" sx={{
+              fontFamily: '"Inter", sans-serif',
+              fontWeight: 600,
+              color: "#333",
+              fontSize: '0.8rem',
+              letterSpacing: '-0.01em',
+              mb: 1
+            }}>
+              Version (Optional)
+            </Typography>
+            <TextField
+              fullWidth
+              placeholder="1.0"
+              value={formData.version || '1.0'}
+              onChange={(e) => handleInputChange('version', e.target.value)}
+              size="small"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  bgcolor: '#F8F9FA',
+                  borderRadius: 2,
+                  fontSize: '0.8rem',
+                  '& fieldset': { 
+                    border: 'none'
+                  },
+                  '&:hover fieldset': { 
+                    border: 'none'
+                  },
+                  '&.Mui-focused fieldset': { 
+                    border: 'none'
+                  },
+                  '& input': {
+                    fontSize: '0.8rem',
+                    fontFamily: '"Inter", sans-serif',
+                    padding: '8px 12px'
+                  }
+                }
+              }}
+            />
+          </Box>
+        </Grid>
+        <Grid item size={{xs: 12, md: 6}}>
+          <Box>
+            <Typography variant="body2" sx={{
+              fontFamily: '"Inter", sans-serif',
+              fontWeight: 600,
+              color: "#333",
+              fontSize: '0.8rem',
+              letterSpacing: '-0.01em',
+              mb: 1
+            }}>
+              Version Notes (Optional)
+            </Typography>
+            <TextField
+              fullWidth
+              placeholder="Initial upload"
+              value={formData.version_notes || 'Initial upload'}
+              onChange={(e) => handleInputChange('version_notes', e.target.value)}
               size="small"
               sx={{
                 '& .MuiOutlinedInput-root': {

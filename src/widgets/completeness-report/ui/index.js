@@ -1,0 +1,1 @@
+export { CompletenessReportWidget } from './CompletenessReportWidget';
